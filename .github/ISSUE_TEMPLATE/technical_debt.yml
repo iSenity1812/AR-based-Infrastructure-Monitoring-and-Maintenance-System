@@ -1,0 +1,195 @@
+name: "Incident"
+description: "Report a production incident, outage, degradation, or operational issue."
+title: "Incident: [Short Description]"
+labels:
+  - incident
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <!-- TEMPLATE:incident -->
+
+        ## Production Incident Report
+
+        Please provide detailed operational and technical context.
+
+  # =========================================================
+  # INCIDENT SUMMARY
+  # =========================================================
+
+  - type: textarea
+    id: incident_summary
+    attributes:
+      label: Incident Summary
+      description: Briefly describe the incident.
+      placeholder: |
+        Example:
+        Users cannot access the login service in production.
+    validations:
+      required: true
+
+  # =========================================================
+  # BUSINESS IMPACT
+  # =========================================================
+
+  - type: textarea
+    id: business_impact
+    attributes:
+      label: Business Impact
+      description: Describe the impact on users or business operations.
+      placeholder: |
+        Example:
+        - Users unable to login
+        - Revenue loss
+        - Checkout flow unavailable
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Incident Severity
+      options:
+        - sev4-low
+        - sev3-medium
+        - sev2-high
+        - sev1-critical
+    validations:
+      required: true
+
+  # =========================================================
+  # INCIDENT STATUS
+  # =========================================================
+
+  - type: dropdown
+    id: incident_status
+    attributes:
+      label: Incident Status
+      options:
+        - investigating
+        - identified
+        - monitoring
+        - resolved
+    validations:
+      required: true
+
+  # =========================================================
+  # SYSTEMS AFFECTED
+  # =========================================================
+
+  - type: input
+    id: affected_services
+    attributes:
+      label: Affected Services / Systems
+      description: Which systems or services are impacted?
+      placeholder: |
+        Example:
+        Authentication Service, API Gateway, Database Cluster
+    validations:
+      required: true
+
+  - type: input
+    id: affected_environment
+    attributes:
+      label: Environment
+      description: Which environment is affected?
+      placeholder: |
+        Example:
+        Production, Staging, EU Region
+
+  # =========================================================
+  # DETECTION
+  # =========================================================
+
+  - type: textarea
+    id: detection_method
+    attributes:
+      label: Detection Method
+      description: How was the incident detected?
+      placeholder: |
+        Example:
+        - Monitoring alert
+        - Customer support report
+        - Internal QA
+    validations:
+      required: true
+
+  # =========================================================
+  # TIMELINE
+  # =========================================================
+
+  - type: textarea
+    id: incident_timeline
+    attributes:
+      label: Incident Timeline
+      description: Key timeline of events.
+      placeholder: |
+        Example:
+        10:02 UTC - Alert triggered
+        10:05 UTC - Engineering investigation started
+        10:20 UTC - Root cause identified
+        10:45 UTC - Fix deployed
+    validations:
+      required: true
+
+  # =========================================================
+  # ROOT CAUSE
+  # =========================================================
+
+  - type: textarea
+    id: root_cause
+    attributes:
+      label: Root Cause
+      description: Describe the technical root cause if known.
+      placeholder: |
+        Example:
+        Database connection pool exhaustion caused authentication failures.
+
+  # =========================================================
+  # MITIGATION
+  # =========================================================
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Mitigation / Recovery Actions
+      description: What actions were taken to mitigate or resolve the incident?
+      placeholder: |
+        Example:
+        - Restarted auth service
+        - Increased DB connection pool
+        - Rolled back deployment
+    validations:
+      required: true
+
+  # =========================================================
+  # PREVENTION
+  # =========================================================
+
+  - type: textarea
+    id: prevention_actions
+    attributes:
+      label: Prevention Actions
+      description: What should be done to prevent recurrence?
+      placeholder: |
+        Example:
+        - Add DB connection monitoring
+        - Improve autoscaling
+        - Add load testing
+    validations:
+      required: true
+
+  # =========================================================
+  # ADDITIONAL CONTEXT
+  # =========================================================
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Logs, dashboards, screenshots, references, or additional notes.
+      placeholder: |
+        Example:
+        Grafana dashboard links, logs, screenshots, related incidents.

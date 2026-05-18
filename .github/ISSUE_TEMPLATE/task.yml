@@ -1,0 +1,175 @@
+name: "Task"
+description: "Create an operational, maintenance, or engineering task."
+title: "Task: [Short Description]"
+labels:
+  - task
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <!-- TEMPLATE:task -->
+
+        ## Engineering Task
+
+        Please provide detailed context for the task.
+
+  # =========================================================
+  # TASK CATEGORY
+  # =========================================================
+  - type: dropdown
+    id: task_type
+    attributes:
+      label: Task Type
+      options:
+        - development
+        - infrastructure
+        - devops
+        - maintenance
+        - migration
+        - automation
+        - testing
+        - documentation
+        - support
+        - operations
+    validations:
+      required: true
+
+  # =========================================================
+  # TASK SUMMARY
+  # =========================================================
+
+  - type: textarea
+    id: task_summary
+    attributes:
+      label: Task Summary
+      description: Briefly describe the task.
+      placeholder: |
+        Example:
+        Setup staging deployment pipeline for the application.
+    validations:
+      required: true
+
+  # =========================================================
+  # PURPOSE
+  # =========================================================
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What is the goal of this task?
+      placeholder: |
+        Example:
+        Improve deployment reliability and testing workflow.
+    validations:
+      required: true
+
+  # =========================================================
+  # TASK DETAILS
+  # =========================================================
+
+  - type: textarea
+    id: implementation_details
+    attributes:
+      label: Implementation Details
+      description: Describe the required work or steps.
+      placeholder: |
+        Example:
+        - Configure GitHub Actions
+        - Setup Docker build pipeline
+        - Configure staging environment variables
+    validations:
+      required: true
+
+  # =========================================================
+  # CATEGORY
+  # =========================================================
+
+  - type: dropdown
+    id: task_category
+    attributes:
+      label: Task Category
+      options:
+        - development
+        - infrastructure
+        - devops
+        - maintenance
+        - migration
+        - automation
+        - testing
+        - documentation
+        - support
+        - operations
+    validations:
+      required: true
+
+  # =========================================================
+  # PRIORITY
+  # =========================================================
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  # =========================================================
+  # OWNERSHIP / IMPACT
+  # =========================================================
+
+  - type: input
+    id: affected_systems
+    attributes:
+      label: Affected Systems / Services
+      description: Which systems or modules are affected?
+      placeholder: |
+        Example:
+        CI/CD Pipeline, Staging Environment
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Related tasks, systems, or blockers.
+      placeholder: |
+        Example:
+        Requires AWS IAM access.
+        Depends on staging server setup.
+
+  # =========================================================
+  # SUCCESS CRITERIA
+  # =========================================================
+
+  - type: textarea
+    id: success_criteria
+    attributes:
+      label: Success Criteria
+      description: How do we know this task is completed successfully?
+      placeholder: |
+        Example:
+        - Deployment succeeds automatically
+        - CI pipeline passes
+        - Staging environment is accessible
+    validations:
+      required: true
+
+  # =========================================================
+  # ADDITIONAL CONTEXT
+  # =========================================================
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Additional notes, references, screenshots, or links.
+      placeholder: |
+        Example:
+        Links to infrastructure docs or related tickets.

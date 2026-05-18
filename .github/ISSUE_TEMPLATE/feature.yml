@@ -1,0 +1,151 @@
+name: "Feature Request"
+description: "Suggest a new feature or improvement for the project."
+title: "Feature Request"
+labels:
+  - feature
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <!-- TEMPLATE:feature -->
+
+        ## Feature Request
+        Please provide detailed business and technical context.
+
+  # =========================================================
+  # BUSINESS CONTEXT
+  # =========================================================
+
+  - type: textarea
+    id: business_goal
+    attributes:
+      label: Business Goal
+      description: "What is the business goal or problem that this feature aims to address?"
+      placeholder: |
+        Example:
+        Users cannot register quickly using social login.
+        We want to reduce onboarding friction.
+    validations:
+      required: true
+  
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      description: Describe the user need.
+      placeholder: |
+        Example:
+        As a user,
+        I want to login with Google,
+        So that I can register faster.
+    validations:
+      required: true
+
+  # =========================================================
+  # FEATURE DETAILS
+  # =========================================================
+
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Feature Description
+      description: Describe the feature in detail.
+      placeholder: |
+        Add Google OAuth2 login integration for registration and authentication.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Define clear success conditions.
+      placeholder: |
+        - User can login with Google
+        - New account is automatically created
+        - Existing account is linked
+        - Error handling works correctly
+    validations:
+      required: true
+
+  # =========================================================
+  # UI / UX
+  # =========================================================
+
+  - type: input
+    id: affected_screens
+    attributes:
+      label: Affected Screens / Modules
+      description: Which screens/modules are affected?
+      placeholder: |
+        Example: Login Page, Register Page, Authentication Service
+
+  # =========================================================
+  # PRIORITY / IMPACT
+  # =========================================================
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  - type: dropdown
+    id: business_impact
+    attributes:
+      label: Business Impact
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  # =========================================================
+  # TECHNICAL CONTEXT
+  # =========================================================
+
+  - type: textarea
+    id: technical_notes
+    attributes:
+      label: Technical Notes
+      description: Optional technical implementation details.
+      placeholder: |
+        Example:
+        Use OAuth2 authorization code flow.
+        Backend: Node.js
+        Frontend: React
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Related systems, APIs, or tasks.
+      placeholder: |
+        Example:
+        Requires Google OAuth credentials.
+        Depends on auth-service update.
+
+  # =========================================================
+  # ADDITIONAL CONTEXT
+  # =========================================================
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Screenshots, references, links, or extra details.
+      placeholder: |
+        Example:
+        Screenshot of the desired UI.
+        Link to related documentation.
+        Additional notes or considerations.

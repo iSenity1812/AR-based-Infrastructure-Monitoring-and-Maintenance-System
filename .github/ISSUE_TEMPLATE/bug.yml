@@ -1,0 +1,175 @@
+name: "Bug Report"
+description: "Report a defect, unexpected behavior, or system issue."
+title: "Bug: [Short Description]"
+labels:
+  - bug
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <!-- TEMPLATE:bug -->
+
+        ## Bug Report
+
+        Please provide as much detail as possible to help investigation and resolution.
+
+  # =========================================================
+  # BUG SUMMARY
+  # =========================================================
+
+  - type: textarea
+    id: bug_summary
+    attributes:
+      label: Bug Summary
+      description: Briefly describe the issue.
+      placeholder: |
+        Example:
+        Users cannot login using Google OAuth.
+    validations:
+      required: true
+
+  # =========================================================
+  # EXPECTED / ACTUAL
+  # =========================================================
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: |
+        Example:
+        User should be redirected to dashboard after successful Google login.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: |
+        Example:
+        User receives a 500 Internal Server Error after authentication.
+    validations:
+      required: true
+
+  # =========================================================
+  # REPRODUCTION
+  # =========================================================
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide clear reproduction steps.
+      placeholder: |
+        1. Go to Login Page
+        2. Click "Login with Google"
+        3. Complete Google authentication
+        4. Observe error
+    validations:
+      required: true
+
+  # =========================================================
+  # IMPACT
+  # =========================================================
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is the issue?
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Frequency
+      description: How often does this issue occur?
+      options:
+        - always
+        - often
+        - sometimes
+        - rarely
+    validations:
+      required: true
+
+  - type: dropdown
+    id: user_impact
+    attributes:
+      label: User Impact
+      description: Impact on users/business.
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  # =========================================================
+  # ENVIRONMENT
+  # =========================================================
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, device, environment, etc.
+      placeholder: |
+        Example:
+        Chrome 136 / macOS / Production
+
+  - type: input
+    id: affected_module
+    attributes:
+      label: Affected Module / Screen
+      description: Which system/module is affected?
+      placeholder: |
+        Example:
+        Authentication Service, Login Page
+
+  # =========================================================
+  # TECHNICAL DETAILS
+  # =========================================================
+
+  - type: textarea
+    id: logs_errors
+    attributes:
+      label: Logs / Errors
+      description: Paste logs, stack traces, or error messages.
+      placeholder: |
+        Example:
+        Error: OAuth token validation failed
+
+  - type: textarea
+    id: possible_root_cause
+    attributes:
+      label: Possible Root Cause
+      description: Optional engineering hypothesis.
+      placeholder: |
+        Example:
+        OAuth callback URL mismatch.
+
+  # =========================================================
+  # ADDITIONAL CONTEXT
+  # =========================================================
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Screenshots, recordings, links, or additional notes.
+      placeholder: |
+        Example:
+        Screenshot of the error page.
+        Related issue links.

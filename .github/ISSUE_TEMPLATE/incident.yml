@@ -1,0 +1,189 @@
+name: "Technical Debt"
+description: "Track architectural, maintenance, scalability, or code quality debt."
+title: "Technical Debt: [Short Description]"
+labels:
+  - technical-debt
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <!-- TEMPLATE:technical_debt -->
+
+        ## Technical Debt
+
+        Please describe the technical debt and its engineering impact.
+
+  # =========================================================
+  # DEBT SUMMARY
+  # =========================================================
+
+  - type: textarea
+    id: debt_summary
+    attributes:
+      label: Technical Debt Summary
+      description: Briefly describe the technical debt.
+      placeholder: |
+        Example:
+        Legacy authentication module is tightly coupled and difficult to maintain.
+    validations:
+      required: true
+
+  # =========================================================
+  # CURRENT PROBLEM
+  # =========================================================
+
+  - type: textarea
+    id: current_problem
+    attributes:
+      label: Current Problem
+      description: What engineering problems does this debt create?
+      placeholder: |
+        Example:
+        - Difficult to add new authentication providers
+        - High regression risk
+        - Poor testability
+        - Frequent production issues
+    validations:
+      required: true
+
+  # =========================================================
+  # ROOT CAUSE
+  # =========================================================
+
+  - type: textarea
+    id: root_cause
+    attributes:
+      label: Root Cause
+      description: What caused this technical debt?
+      placeholder: |
+        Example:
+        Authentication logic evolved without proper abstraction.
+        Legacy implementation remained after rapid feature delivery.
+    validations:
+      required: true
+
+  # =========================================================
+  # IMPACT
+  # =========================================================
+
+  - type: dropdown
+    id: impact_level
+    attributes:
+      label: Impact Level
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk_level
+    attributes:
+      label: Risk Level
+      description: Risk if not addressed.
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
+
+  - type: dropdown
+    id: debt_category
+    attributes:
+      label: Debt Category
+      options:
+        - architecture
+        - code_quality
+        - performance
+        - scalability
+        - security
+        - infrastructure
+        - testing
+        - dependency
+        - maintainability
+    validations:
+      required: true
+
+  # =========================================================
+  # AFFECTED SYSTEMS
+  # =========================================================
+
+  - type: input
+    id: affected_modules
+    attributes:
+      label: Affected Modules / Services
+      description: Which systems are affected?
+      placeholder: |
+        Example:
+        Authentication Service, API Gateway
+
+  # =========================================================
+  # PROPOSED SOLUTION
+  # =========================================================
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: Suggested remediation or improvement plan.
+      placeholder: |
+        Example:
+        - Extract auth provider abstraction
+        - Introduce OAuth strategy pattern
+        - Improve unit test coverage
+    validations:
+      required: true
+
+  # =========================================================
+  # CONSEQUENCES
+  # =========================================================
+
+  - type: textarea
+    id: consequences_if_ignored
+    attributes:
+      label: Consequences if Ignored
+      description: What could happen if this debt remains unresolved?
+      placeholder: |
+        Example:
+        - Slower feature development
+        - Increased outage risk
+        - Higher maintenance cost
+        - Security vulnerabilities
+    validations:
+      required: true
+
+  # =========================================================
+  # SUCCESS CRITERIA
+  # =========================================================
+
+  - type: textarea
+    id: success_criteria
+    attributes:
+      label: Success Criteria
+      description: How do we know this debt is resolved?
+      placeholder: |
+        Example:
+        - Auth providers are modularized
+        - Test coverage increased above 80%
+        - Reduced deployment regressions
+    validations:
+      required: true
+
+  # =========================================================
+  # ADDITIONAL CONTEXT
+  # =========================================================
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Architecture diagrams, references, links, or notes.
+      placeholder: |
+        Example:
+        Related incidents, architecture docs, or technical references.

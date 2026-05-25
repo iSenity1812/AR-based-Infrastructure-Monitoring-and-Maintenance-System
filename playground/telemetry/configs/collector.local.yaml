@@ -1,0 +1,13 @@
+collector:
+  enabled_modules:
+    - host
+    - network
+    - service
+    - docker
+    - heartbeat
+  interval_seconds: 15
+
+topology:
+  rack_id: rack-a1
+  node_id: node-host-01
+  primary_uplink: Ethernet

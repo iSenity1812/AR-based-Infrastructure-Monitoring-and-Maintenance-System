@@ -1,0 +1,5 @@
+assets:
+  rack_id: rack-a1
+  switch_id: sw-a1
+  node_id: node-host-01
+  primary_uplink: Ethernet

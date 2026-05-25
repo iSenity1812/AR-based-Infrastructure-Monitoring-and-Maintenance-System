@@ -1,0 +1,8 @@
+metrics:
+  - node.cpu_usage_pct
+  - node.memory_used_pct
+  - node.disk_used_pct
+  - node.uptime_seconds
+  - interface.status
+  - interface.rx_bytes_sec
+  - interface.tx_bytes_sec

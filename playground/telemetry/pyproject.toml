@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "telemetry-collector"
+version = "0.1.0"
+description = "Python-first telemetry collector playground for the AR-based infrastructure monitoring PoC"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+telemetry-collector = "telemetry_collector.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/telemetry_collector"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+

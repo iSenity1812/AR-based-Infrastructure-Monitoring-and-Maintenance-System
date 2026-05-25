@@ -1,0 +1,373 @@
+erDiagram
+    USERS {
+        ObjectId _id PK
+        int schemaVersion
+        string fullName
+        string email UK
+        string passwordHash
+        string_array roles
+        string status
+        date lastLoginAt
+        date createdAt
+        date updatedAt
+    }
+
+    RACKS {
+        ObjectId _id PK
+        int schemaVersion
+        string rackCode UK
+        string name
+        string locationLabel
+        string description
+        string status
+        object layout
+        date createdAt
+        date updatedAt
+    }
+
+    NODES {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId rackId FK
+        string nodeCode UK
+        string hostname
+        string ipAddress
+        string nodeType
+        string status
+        object capacity
+        date lastSeenAt
+        date createdAt
+        date updatedAt
+    }
+
+    CONTAINERS {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId nodeId FK
+        string containerRuntimeId UK
+        string name
+        string image
+        string serviceName
+        object_array ports
+        string status
+        string healthStatus
+        number restartCount
+        date lastStateChangeAt
+        date createdAt
+        date updatedAt
+    }
+
+    MARKERS {
+        ObjectId _id PK
+        int schemaVersion
+        string markerCode UK
+        string markerType
+        string targetType
+        ObjectId targetId FK
+        string label
+        object relativeOffset
+        boolean isActive
+        date createdAt
+        date updatedAt
+    }
+
+    TELEMETRY_SAMPLES {
+        ObjectId _id PK
+        int schemaVersion
+        date timestamp
+        ObjectId nodeId FK
+        ObjectId containerId FK
+        string source
+        object meta
+        object metrics
+        object statusSnapshot
+        ObjectId simulationRunId FK
+    }
+
+    SERVICE_LOGS {
+        ObjectId _id PK
+        int schemaVersion
+        date timestamp
+        ObjectId nodeId FK
+        ObjectId containerId FK
+        string level
+        string message
+        string source
+        string traceId
+        object metadata
+    }
+
+    ALERT_RULES {
+        ObjectId _id PK
+        int schemaVersion
+        string name
+        string targetScope
+        string metricPath
+        string operator
+        number threshold
+        number durationSeconds
+        string severity
+        boolean isEnabled
+        ObjectId createdByUserId FK
+        date createdAt
+        date updatedAt
+    }
+
+    ALERTS {
+        ObjectId _id PK
+        int schemaVersion
+        string alertCode UK
+        ObjectId ruleId FK
+        ObjectId nodeId FK
+        ObjectId containerId FK
+        string severity
+        string status
+        string title
+        string description
+        string metricPath
+        number observedValue
+        number threshold
+        ObjectId_array aiInferenceIds FK
+        ObjectId sourceEventId FK
+        ObjectId incidentId FK
+        ObjectId acknowledgedByUserId FK
+        date acknowledgedAt
+        string classification
+        date createdAt
+        date resolvedAt
+    }
+
+    AI_MODELS {
+        ObjectId _id PK
+        int schemaVersion
+        string name
+        string modelType
+        string version
+        string status
+        object parameters
+        date trainedAt
+        date createdAt
+        date updatedAt
+    }
+
+    AI_INFERENCES {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId modelId FK
+        date timestamp
+        ObjectId nodeId FK
+        ObjectId containerId FK
+        ObjectId_array telemetrySampleIds FK
+        date windowStart
+        date windowEnd
+        number anomalyScore
+        string riskLevel
+        object forecast
+        string explanation
+        string recommendation
+        ObjectId alertId FK
+    }
+
+    INCIDENTS {
+        ObjectId _id PK
+        int schemaVersion
+        string incidentCode UK
+        string title
+        string description
+        string status
+        string priority
+        string severity
+        ObjectId_array nodeIds FK
+        ObjectId_array containerIds FK
+        ObjectId_array alertIds FK
+        ObjectId createdByUserId FK
+        ObjectId assignedToUserId FK
+        object_array statusHistory
+        date createdAt
+        date resolvedAt
+        date closedAt
+    }
+
+    MAINTENANCE_TICKETS {
+        ObjectId _id PK
+        int schemaVersion
+        string ticketCode UK
+        ObjectId incidentId FK
+        ObjectId guideId FK
+        string title
+        string status
+        string priority
+        ObjectId assignedToUserId FK
+        ObjectId createdByUserId FK
+        object target
+        object_array checklist
+        string resolutionSummary
+        date createdAt
+        date updatedAt
+        date resolvedAt
+    }
+
+    TICKET_COMMENTS {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId ticketId FK
+        ObjectId authorUserId FK
+        string body
+        object_array attachments
+        string visibility
+        date createdAt
+    }
+
+    MAINTENANCE_GUIDES {
+        ObjectId _id PK
+        int schemaVersion
+        string guideCode UK
+        string title
+        object appliesTo
+        object_array steps
+        string riskNotes
+        boolean isActive
+        date createdAt
+        date updatedAt
+    }
+
+    AR_SESSIONS {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId userId FK
+        object deviceInfo
+        date startedAt
+        date endedAt
+        object_array scannedMarkers
+        string status
+    }
+
+    AR_INSPECTIONS {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId arSessionId FK
+        ObjectId ticketId FK
+        ObjectId markerId FK
+        ObjectId nodeId FK
+        ObjectId containerId FK
+        string inspectionStatus
+        string notes
+        object_array evidence
+        object systemSnapshot
+        date createdAt
+    }
+
+    SIMULATION_SCENARIOS {
+        ObjectId _id PK
+        int schemaVersion
+        string name
+        string description
+        object topologyTemplate
+        object_array eventTemplates
+        ObjectId createdByUserId FK
+        date createdAt
+        date updatedAt
+    }
+
+    SIMULATION_RUNS {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId scenarioId FK
+        string status
+        ObjectId startedByUserId FK
+        date startedAt
+        date endedAt
+        object baselineSnapshot
+    }
+
+    SIMULATION_EVENTS {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId runId FK
+        string eventType
+        ObjectId nodeId FK
+        ObjectId containerId FK
+        string severity
+        object payload
+        date startedAt
+        date endedAt
+        ObjectId_array createdAlertIds FK
+    }
+
+    NOTIFICATION_EVENTS {
+        ObjectId _id PK
+        int schemaVersion
+        string eventType
+        ObjectId targetUserId FK
+        string channel
+        object payload
+        string status
+        date createdAt
+        date sentAt
+    }
+
+    AUDIT_LOGS {
+        ObjectId _id PK
+        int schemaVersion
+        ObjectId actorUserId FK
+        string action
+        string entityType
+        ObjectId entityId
+        object before
+        object after
+        object metadata
+        date createdAt
+    }
+
+    USERS ||--o{ AUDIT_LOGS : "performs"
+    USERS ||--o{ ALERT_RULES : "creates"
+    USERS ||--o{ ALERTS : "acknowledges"
+    USERS ||--o{ INCIDENTS : "creates"
+    USERS ||--o{ INCIDENTS : "is_assigned"
+    USERS ||--o{ MAINTENANCE_TICKETS : "creates"
+    USERS ||--o{ MAINTENANCE_TICKETS : "is_assigned"
+    USERS ||--o{ TICKET_COMMENTS : "writes"
+    USERS ||--o{ AR_SESSIONS : "starts"
+    USERS ||--o{ SIMULATION_SCENARIOS : "creates"
+    USERS ||--o{ SIMULATION_RUNS : "starts"
+    USERS ||--o{ NOTIFICATION_EVENTS : "receives"
+
+    RACKS ||--o{ NODES : "contains"
+    NODES ||--o{ CONTAINERS : "hosts"
+
+    RACKS ||--o{ MARKERS : "is_identified_by_when_targetType_RACK"
+    NODES ||--o{ MARKERS : "is_identified_by_when_targetType_NODE"
+
+    NODES ||--o{ TELEMETRY_SAMPLES : "produces"
+    CONTAINERS ||--o{ TELEMETRY_SAMPLES : "produces"
+    SIMULATION_RUNS ||--o{ TELEMETRY_SAMPLES : "generates_context_for"
+
+    NODES ||--o{ SERVICE_LOGS : "emits"
+    CONTAINERS ||--o{ SERVICE_LOGS : "emits"
+
+    ALERT_RULES ||--o{ ALERTS : "generates"
+    NODES ||--o{ ALERTS : "raises"
+    CONTAINERS ||--o{ ALERTS : "raises"
+    SIMULATION_EVENTS ||--o{ ALERTS : "causes"
+
+    AI_MODELS ||--o{ AI_INFERENCES : "generates"
+    NODES ||--o{ AI_INFERENCES : "is_analyzed_by"
+    CONTAINERS ||--o{ AI_INFERENCES : "is_analyzed_by"
+    TELEMETRY_SAMPLES }o--o{ AI_INFERENCES : "is_evidence_for"
+    AI_INFERENCES }o--o{ ALERTS : "enriches_or_generates"
+
+    INCIDENTS ||--|{ ALERTS : "aggregates"
+    INCIDENTS ||--o{ MAINTENANCE_TICKETS : "results_in"
+    MAINTENANCE_GUIDES ||--o{ MAINTENANCE_TICKETS : "guides"
+    MAINTENANCE_TICKETS ||--o{ TICKET_COMMENTS : "has"
+    MAINTENANCE_TICKETS ||--o{ AR_INSPECTIONS : "is_verified_by"
+
+    AR_SESSIONS ||--o{ AR_INSPECTIONS : "records"
+    MARKERS ||--o{ AR_INSPECTIONS : "is_scanned_in"
+    NODES ||--o{ AR_INSPECTIONS : "is_inspected_in"
+    CONTAINERS ||--o{ AR_INSPECTIONS : "is_inspected_in"
+
+    SIMULATION_SCENARIOS ||--o{ SIMULATION_RUNS : "has"
+    SIMULATION_RUNS ||--o{ SIMULATION_EVENTS : "produces"
+    NODES ||--o{ SIMULATION_EVENTS : "is_affected_by"
+    CONTAINERS ||--o{ SIMULATION_EVENTS : "is_affected_by"

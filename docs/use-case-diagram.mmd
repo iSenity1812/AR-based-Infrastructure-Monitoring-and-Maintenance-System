@@ -1,0 +1,169 @@
+flowchart LR
+  %% Actors
+  SU[System User]
+  ITA[IT Administrator]
+  NOC[System Monitoring Operator]
+  MT[Maintenance Technician]
+  SO[Simulation Operator]
+  TC[Telemetry Collector]
+  AI[AI Analytics Service]
+  NS[Notification System]
+
+  %% Actor generalization
+  ITA -->|generalize| SU
+  NOC -->|generalize| SU
+  MT -->|generalize| SU
+  SO -->|generalize| SU
+
+  %% Access control
+  subgraph ACCESS[Access Control]
+    UC01((UC-01 Authenticate User))
+    UC02((UC-02 End User Session))
+    UC03((UC-03 Govern User Access))
+    UC04((UC-04 Create User Account))
+    UC05((UC-05 Update User Status))
+    UC06((UC-06 Assign User Role))
+    UC07((UC-07 Review Audit Trail))
+  end
+
+  UC04 -->|generalize| UC03
+  UC05 -->|generalize| UC03
+  UC06 -->|generalize| UC03
+
+  %% Topology and simulation
+  subgraph TOPO_SIM[Topology and Simulation]
+    UC08((UC-08 Curate Infrastructure Topology))
+    UC09((UC-09 Record Rack Profile))
+    UC10((UC-10 Register Simulation Node))
+    UC11((UC-11 Place Node in Rack))
+    UC12((UC-12 Sync Container Inventory))
+    UC13((UC-13 Map Marker to Asset))
+    UC14((UC-14 Browse Topology Map))
+    UC15((UC-15 Define Simulation Scenario))
+    UC16((UC-16 Launch Simulation Run))
+    UC17((UC-17 Pause or Stop Simulation Run))
+    UC18((UC-18 Reset Simulation Environment))
+    UC19((UC-19 Inject Resource Stress Event))
+    UC20((UC-20 Inject Service Failure Event))
+  end
+
+  UC09 -->|generalize| UC08
+  UC10 -->|generalize| UC08
+  UC11 -->|generalize| UC08
+  UC12 -->|generalize| UC08
+  UC19 -.->|extend| UC16
+  UC20 -.->|extend| UC16
+
+  %% Monitoring and AI
+  subgraph MON_AI[Monitoring, Alerting and AI]
+    UC23((UC-23 Monitor Infrastructure Health))
+    UC21((UC-21 Stream Node Telemetry))
+    UC22((UC-22 Stream Container Metadata))
+    UC24((UC-24 Observe Realtime Dashboard))
+    UC25((UC-25 Filter Monitoring View))
+    UC26((UC-26 Inspect Asset Health Details))
+    UC27((UC-27 Review Historical Telemetry))
+    UC28((UC-28 Configure Alert Rule))
+    UC29((UC-29 Detect Threshold Breach))
+    UC30((UC-30 Detect AI Anomaly))
+    UC31((UC-31 Score Asset Health Risk))
+    UC47((UC-47 Review Predictive Insight))
+  end
+
+  UC24 -->|generalize| UC23
+  UC25 -->|generalize| UC23
+  UC26 -->|generalize| UC23
+  UC27 -->|generalize| UC23
+  UC24 -->|include| UC21
+  UC24 -->|include| UC22
+  UC24 -->|include| UC31
+  UC29 -.->|extend| UC24
+  UC30 -.->|extend| UC24
+  UC31 -.->|extend| UC26
+  UC47 -->|include| UC27
+  UC47 -.->|extend| UC26
+
+  %% Incident and notification
+  subgraph INCIDENT[Incident and Ticket Workflow]
+    UC32((UC-32 Coordinate Alert Response))
+    UC33((UC-33 Review Alert Queue))
+    UC34((UC-34 Acknowledge Alert))
+    UC35((UC-35 Open Incident Record))
+    UC36((UC-36 Dispatch Maintenance Ticket))
+    UC37((UC-37 Update Ticket Progress))
+    UC38((UC-38 Send Operational Notification))
+    UC46((UC-46 Generate Operations Report))
+  end
+
+  UC33 -->|generalize| UC32
+  UC34 -->|generalize| UC32
+  UC35 -->|generalize| UC32
+  UC36 -->|generalize| UC32
+  UC33 -->|include| UC26
+  UC34 -.->|extend| UC33
+  UC35 -.->|extend| UC33
+  UC36 -.->|extend| UC35
+  UC37 -.->|extend| UC36
+  UC36 -->|include| UC38
+  UC46 -->|include| UC27
+
+  %% AR workflow
+  subgraph AR[AR Inspection Workflow]
+    UC39((UC-39 Conduct AR Inspection))
+    UC40((UC-40 Start AR Inspection Session))
+    UC41((UC-41 Identify Asset from Marker))
+    UC42((UC-42 Display AR Asset Overlay))
+    UC43((UC-43 Review AR Diagnostics))
+    UC44((UC-44 Follow AR Remediation Guide))
+    UC45((UC-45 Submit AR Inspection Result))
+  end
+
+  UC40 -->|generalize| UC39
+  UC41 -->|generalize| UC39
+  UC42 -->|generalize| UC39
+  UC43 -->|generalize| UC39
+  UC44 -->|generalize| UC39
+  UC45 -->|generalize| UC39
+  UC41 -->|include| UC13
+  UC41 -.->|extend| UC40
+  UC42 -.->|extend| UC41
+  UC42 -->|include| UC21
+  UC42 -->|include| UC22
+  UC42 -->|include| UC31
+  UC43 -.->|extend| UC42
+  UC43 -->|include| UC26
+  UC44 -.->|extend| UC43
+  UC45 -.->|extend| UC43
+  UC45 -->|include| UC37
+  UC47 -.->|extend| UC44
+
+  %% Actor associations
+  SU --- UC01
+  SU --- UC02
+  ITA --- UC03
+  ITA --- UC07
+  ITA --- UC08
+  ITA --- UC14
+  ITA --- UC24
+  ITA --- UC28
+  ITA --- UC46
+
+  SO --- UC15
+  SO --- UC16
+  SO --- UC17
+  SO --- UC18
+  SO --- UC19
+  SO --- UC20
+
+  TC --- UC12
+  TC --- UC21
+  TC --- UC22
+  AI --- UC30
+  AI --- UC31
+  NOC --- UC23
+  NOC --- UC32
+  NOC --- UC46
+  NOC --- UC47
+  MT --- UC39
+  MT --- UC37
+  NS --- UC38

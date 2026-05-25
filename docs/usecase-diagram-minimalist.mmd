@@ -1,0 +1,126 @@
+flowchart LR
+  %% Actors
+  SU[System User]
+  ITA[IT Administrator]
+  SMO[System Monitoring Operator]
+  MT[Maintenance Technician]
+  TC[Telemetry Collector]
+  AI[AI Analytics Service]
+  NS[Notification System]
+
+  %% Actor generalization
+  ITA -->|generalize| SU
+  SMO -->|generalize| SU
+  MT -->|generalize| SU
+
+  %% System boundary
+  subgraph SYS[AR-Based Infrastructure Monitoring and Maintenance System]
+    %% Access and governance
+    U01((Authenticate User))
+    U02((End User Session))
+    U03((Govern User Access))
+    U04((Review Audit Trail))
+
+    %% Platform setup
+    U05((Register Simulation Node))
+    U06((Map Marker to Asset))
+    U07((Configure Alert Rule))
+
+    %% Monitoring and analytics
+    U08((Monitor Infrastructure Health))
+    U09((Observe Realtime Dashboard))
+    U10((Inspect Asset Health Details))
+    U11((Review Historical Telemetry))
+    U12((Detect AI Anomaly))
+    U13((Score Asset Health Risk))
+
+    %% Incident and ticket workflow
+    U14((Coordinate Alert Response))
+    U15((Review Alert Queue))
+    U16((Open Incident Record))
+    U17((Dispatch Maintenance Ticket))
+    U18((Send Operational Notification))
+
+    %% AR field workflow
+    U19((Conduct AR Inspection))
+    U20((Identify Asset from Marker))
+    U21((Review AR Diagnostics))
+    U22((Submit AR Inspection Result))
+
+    %% Simulation
+    U23((Run Simulation Scenario))
+    U24((Inject Simulation Fault))
+
+    %% System-side data flows
+    U25((Stream Node Telemetry))
+    U26((Stream Container Metadata))
+  end
+
+  %% Actor associations
+  SU --- U01
+  SU --- U02
+
+  ITA --- U03
+  ITA --- U04
+  ITA --- U05
+  ITA --- U06
+  ITA --- U07
+  ITA --- U09
+  ITA --- U10
+  ITA --- U11
+
+  SMO --- U09
+  SMO --- U10
+  SMO --- U11
+  SMO --- U14
+  SMO --- U15
+  SMO --- U16
+  SMO --- U17
+  SMO --- U23
+  SMO --- U24
+
+  MT --- U19
+  MT --- U20
+  MT --- U21
+  MT --- U22
+
+  TC --- U25
+  TC --- U26
+  AI --- U12
+  AI --- U13
+  NS --- U18
+
+  %% Use case generalization
+  U09 -->|generalize| U08
+  U10 -->|generalize| U08
+  U11 -->|generalize| U08
+
+  U15 -->|generalize| U14
+  U16 -->|generalize| U14
+  U17 -->|generalize| U14
+
+  U20 -->|generalize| U19
+  U21 -->|generalize| U19
+  U22 -->|generalize| U19
+
+  %% Include relationships
+  U09 -->|include| U25
+  U09 -->|include| U26
+  U09 -->|include| U13
+  U15 -->|include| U10
+  U17 -->|include| U18
+  U20 -->|include| U06
+  U21 -->|include| U10
+  U22 -->|include| U18
+  U23 -->|include| U25
+  U23 -->|include| U26
+
+  %% Extend relationships
+  U12 -.->|extend| U09
+  U13 -.->|extend| U10
+  U16 -.->|extend| U15
+  U17 -.->|extend| U16
+  U20 -.->|extend| U19
+  U21 -.->|extend| U20
+  U22 -.->|extend| U21
+  U24 -.->|extend| U23

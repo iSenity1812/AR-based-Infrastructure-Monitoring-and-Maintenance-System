@@ -1,0 +1,128 @@
+@startuml
+left to right direction
+title Go Agent Collector Architecture
+
+actor "Operator / Admin" as Client
+
+package "Windows Host" as WindowsHost {
+  database "windows_exporter\nPrometheus endpoint" as WindowsExporter
+
+  package "go-agent-collector" as GoAgent {
+    package "Config Layer" as ConfigLayer {
+      artifact "agent.yaml" as AgentConfig
+      artifact "assets.yaml" as AssetConfig
+      artifact "metrics.windows.yaml" as MetricsConfig
+    }
+
+    package "Runtime Layer" as RuntimeLayer {
+      component "Bootstrap" as Bootstrap
+      component "Scrape Loop" as ScrapeLoop
+      component "Send Loop" as SendLoop
+      component "Graceful Shutdown" as Shutdown
+    }
+
+    package "Processing Layer" as ProcessingLayer {
+      component "Windows Source Adapter" as SourceAdapter
+      component "Prometheus Parser" as Parser
+      component "Allowlist Filter" as Filter
+      component "Metric Mapping Engine" as Mapper
+      component "Aggregation Engine" as Aggregator
+      component "Metadata Enricher" as Enricher
+    }
+
+    package "State and Resilience" as StateLayer {
+      queue "In-memory Queue" as MemoryQueue
+      database "Counter / Boot State" as CounterState
+      component "Retry / Backoff" as RetryPolicy
+      database "Local Buffer Store" as BufferStore
+    }
+
+    package "Transport" as TransportLayer {
+      component "Payload Builder" as PayloadBuilder
+      component "HTTP Sender" as HTTPSender
+    }
+
+    package "Internal Observability" as InternalOps {
+      component "Agent Internal Metrics" as InternalMetrics
+      component "Structured Logs" as Logs
+    }
+  }
+}
+
+package "Main Backend" as Backend {
+  hexagon "Telemetry Ingest API" as IngestAPI
+  database "Metadata / Asset Store" as MetadataStore
+  database "Telemetry Store" as TelemetryStore
+
+  package "Analytics Layer" as Analytics {
+    component "Health Score" as HealthScore
+    component "Risk Score" as RiskScore
+    component "Anomaly Detection" as Anomaly
+    component "Predict Incident" as IncidentPredict
+  }
+
+  package "Consumer Layer" as Presentation {
+    component "Web Dashboard" as Dashboard
+    component "AR Overlay" as AROverlay
+    component "Alert / Incident Workflow" as Alerts
+  }
+}
+
+package "Future Linux Host" as FutureLinux {
+  database "node_exporter\nPrometheus endpoint" as NodeExporter
+  artifact "metrics.linux.yaml" as LinuxConfig
+}
+
+Client --> Dashboard : view
+Client --> AROverlay : inspect
+
+WindowsExporter --> SourceAdapter : scrape raw metrics
+AgentConfig --> Bootstrap : runtime settings
+AssetConfig --> Enricher : node metadata
+MetricsConfig --> Mapper : mapping rules
+
+Bootstrap --> ScrapeLoop
+Bootstrap --> SendLoop
+Bootstrap --> Shutdown
+
+ScrapeLoop --> SourceAdapter
+SourceAdapter --> Parser
+Parser --> Filter
+Filter --> Mapper
+Mapper --> Aggregator
+Aggregator --> Enricher
+Enricher --> MemoryQueue
+
+CounterState --> Mapper : delta/rate context
+CounterState --> Aggregator : boot/NIC context
+
+SendLoop --> MemoryQueue
+MemoryQueue --> PayloadBuilder
+PayloadBuilder --> HTTPSender
+HTTPSender --> IngestAPI : batched telemetry payload
+
+IngestAPI --> MetadataStore
+IngestAPI --> TelemetryStore
+TelemetryStore --> HealthScore
+TelemetryStore --> RiskScore
+TelemetryStore --> Anomaly
+TelemetryStore --> IncidentPredict
+
+HealthScore --> Dashboard
+RiskScore --> Dashboard
+Anomaly --> Alerts
+IncidentPredict --> AROverlay
+
+HTTPSender --> RetryPolicy : send failed
+RetryPolicy --> BufferStore : persist batch
+BufferStore --> HTTPSender : replay buffered batch
+
+ScrapeLoop --> InternalMetrics
+SendLoop --> InternalMetrics
+HTTPSender --> Logs
+Mapper --> Logs
+
+NodeExporter --> SourceAdapter : same flow via Linux adapter
+LinuxConfig --> Mapper : linux mapping rules
+
+@enduml

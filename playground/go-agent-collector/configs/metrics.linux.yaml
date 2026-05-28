@@ -1,0 +1,126 @@
+metrics:
+  - category: identity_and_inventory
+    key: node.hostname
+    status: planned
+    enabled: true
+    sourceMetric: node_uname_info
+    scopeType: node
+    unit: text
+    valueType: gauge
+    aggregation: label_value:nodename
+    notes: Linux hostname source to the same domain metric key.
+
+  - category: compute
+    key: node.cpu_usage_pct
+    status: planned
+    enabled: true
+    sourceMetric: node_cpu_seconds_total
+    scopeType: node
+    unit: "%"
+    valueType: counter
+    aggregation: cpu_usage_from_idle
+    keepLabels:
+      - cpu
+      - mode
+    notes: Linux node_exporter equivalent of Windows CPU utilization.
+
+  - category: memory
+    key: node.memory_available_mb
+    status: planned
+    enabled: true
+    sourceMetric: node_memory_MemAvailable_bytes
+    scopeType: node
+    unit: MB
+    valueType: gauge
+    aggregation: bytes_to_mb
+    notes: Linux available memory.
+
+  - category: memory
+    key: node.memory_used_pct
+    status: planned
+    enabled: true
+    sourceMetric:
+      - node_memory_MemAvailable_bytes
+      - node_memory_MemTotal_bytes
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: derive_used_pct
+    notes: Linux total minus available over total memory.
+
+  - category: storage
+    key: node.disk_used_pct
+    status: planned
+    enabled: true
+    sourceMetric:
+      - node_filesystem_avail_bytes
+      - node_filesystem_size_bytes
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: system_mount_used_pct
+    keepLabels:
+      - mountpoint
+      - fstype
+    notes: Linux filesystem utilization for the selected system mount.
+
+  - category: network
+    key: node.network_rx_bytes_sec
+    status: planned
+    enabled: true
+    sourceMetric: node_network_receive_bytes_total
+    scopeType: node
+    unit: bytes/sec
+    valueType: counter
+    aggregation: select_primary_nic_rate
+    keepLabels:
+      - device
+    notes: Linux receive throughput on the selected interface.
+
+  - category: network
+    key: node.network_tx_bytes_sec
+    status: planned
+    enabled: true
+    sourceMetric: node_network_transmit_bytes_total
+    scopeType: node
+    unit: bytes/sec
+    valueType: counter
+    aggregation: select_primary_nic_rate
+    keepLabels:
+      - device
+    notes: Linux transmit throughput on the selected interface.
+
+  - category: tcp_connection_health
+    key: node.tcp_retransmit_pct
+    status: planned
+    enabled: true
+    sourceMetric:
+      - node_netstat_Tcp_RetransSegs
+      - node_netstat_Tcp_OutSegs
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: derive_ratio_pct
+    notes: Linux TCP retransmit ratio.
+
+  - category: runtime_and_os
+    key: node.uptime_seconds
+    status: planned
+    enabled: true
+    sourceMetric: node_boot_time_seconds
+    scopeType: node
+    unit: seconds
+    valueType: gauge
+    aggregation: derive_uptime
+    notes: Linux boot time to uptime mapping.
+
+  - category: runtime_and_os
+    key: node.process_count
+    status: planned
+    enabled: true
+    sourceMetric: node_procs_running
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Linux process/runnable process context for the node.

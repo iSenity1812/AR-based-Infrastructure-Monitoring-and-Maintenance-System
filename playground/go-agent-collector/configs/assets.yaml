@@ -1,0 +1,36 @@
+node:
+  # Resolution order:
+  # 1. env override
+  # 2. explicit config value
+  # 3. derive from hostname
+  nodeId: ""
+  nodeName: ""
+  hostname: ""
+  nodeIdEnv: GO_NODE_ID
+  nodeNameEnv: GO_NODE_NAME
+  hostnameEnv: COMPUTERNAME
+  nodeIdStrategy: hostname_slug
+  nodeNameStrategy: hostname
+  nodeIdPrefix: node
+  deviceType: laptop
+
+topology:
+  rackId: rack-a1
+  switchId: sw-a1
+  site: lab-local
+  environment: poc
+
+network:
+  primaryUplink: wifi
+  primaryNicHint: ""
+  primaryNicEnv: GO_PRIMARY_NIC
+  excludeNicPatterns:
+    - "Loopback"
+    - "Virtual"
+    - "Wi-Fi Direct"
+    - "Bluetooth"
+    - "Teredo"
+
+tags:
+  ownerTeam: telemetry
+  deployment: local-lab

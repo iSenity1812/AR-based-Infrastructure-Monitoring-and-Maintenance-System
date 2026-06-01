@@ -25,7 +25,7 @@ He thong la proof-of-concept cho moi truong trung tam du lieu mo phong. Trong ph
 | Trong pham vi | Ngoai pham vi |
 | --- | --- |
 | Dashboard web cho quan tri vien va NOC | Tich hop truc tiep voi trung tam du lieu that |
-| Ung dung AR/WebAR dua tren QR/ArUco marker | Nhan dang vat the phuc tap bang computer vision nang cao |
+| WebAR client dua tren QR marker | Nhan dang vat the phuc tap bang computer vision nang cao |
 | Docker-based simulator tao rack, node, container va event | Quan ly tai san phan cung doanh nghiep day du |
 | Telemetry CPU, memory, network, storage, service/container status | Giam sat day du tat ca tin hieu enterprise observability |
 | Alert, incident, maintenance ticket o muc PoC | ITSM day du nhu ServiceNow/Jira Service Management |
@@ -68,7 +68,7 @@ Tong so use case: 37.
 | UC04 | Quan ly rack mo phong | Tao/cap nhat rack, vi tri, mo ta va trang thai hien thi | `racks`, `audit_logs` |
 | UC05 | Quan ly node mo phong | Gan node vao rack, cap nhat metadata va trang thai van hanh | `nodes`, `racks`, `audit_logs` |
 | UC06 | Quan ly container/service tren node | Theo doi container, service, image, port va health status | `containers`, `nodes` |
-| UC07 | Cau hinh marker AR | Gan QR/ArUco marker voi rack hoac node de AR truy xuat dung ngu canh | `markers`, `racks`, `nodes`, `audit_logs` |
+| UC07 | Cau hinh marker AR | Gan QR marker cho rack hoac node de WebAR truy xuat dung ngu canh | `markers`, `racks`, `nodes`, `audit_logs` |
 | UC08 | Cau hinh nguong canh bao | Dat nguong CPU, memory, network, storage hoac service state | `alert_rules`, `audit_logs` |
 | UC09 | Xem bao cao lich su van hanh | Tong hop telemetry, alert, incident va ticket theo khoang thoi gian | `telemetry_samples`, `alerts`, `incidents`, `maintenance_tickets` |
 | UC10 | Quan ly phien ban model AI | Theo doi model nao dang duoc dung va cau hinh sensitivity | `ai_models`, `audit_logs` |
@@ -134,7 +134,7 @@ Tong so use case: 37.
 | Topology | `racks` | Bieu dien rack mo phong va neo vao AR marker. |
 | Topology | `nodes` | Thanh phan ha tang chinh duoc giam sat, canh bao va bao tri. |
 | Topology | `containers` | Workload/service chay tren node, co telemetry/log/trang thai rieng. |
-| AR mapping | `markers` | Lien ket QR/ArUco marker voi rack hoac node. |
+| AR mapping | `markers` | Lien ket QR marker voi rack hoac node. |
 | AR workflow | `ar_sessions` | Luu phien AR, thiet bi, marker scan va nguoi dung. |
 | AR workflow | `ar_inspections` | Luu ket qua kiem tra tai cho/AR, bang chung va ticket lien quan. |
 | Monitoring | `telemetry_samples` | Time-series metric cho node/container. |
@@ -261,8 +261,8 @@ Tong so use case: 37.
 | Field | Type | Bat buoc | Ghi chu/use case |
 | --- | --- | --- | --- |
 | `_id` | ObjectId | Yes | Primary id. |
-| `markerCode` | string | Yes | QR/ArUco id unique. |
-| `markerType` | string | Yes | `QR`, `ARUCO`. |
+| `markerCode` | string | Yes | QR marker id unique trong v1 WebAR flow. |
+| `markerType` | string | Yes | `QR`, `ARUCO`; v1 chon `QR` la marker type chinh, `ARUCO` giu lai cho compatibility/mo rong. |
 | `targetType` | string | Yes | `RACK` hoac `NODE`. |
 | `targetId` | ObjectId | Yes | Id cua rack hoac node. |
 | `label` | string | No | Ten hien thi trong AR. |

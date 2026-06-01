@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "skills": {
+    "backend": {
+      "source": "redis/RedisInsight",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/backend/SKILL.md",
+      "computedHash": "338ba9b630d43bdbb90ef9ddd6e288241f9e44fa0999675c241348e272dbbfd6"
+    },
+    "branches": {
+      "source": "redis/RedisInsight",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/branches/SKILL.md",
+      "computedHash": "92c74884b2fed66ad75f0d5bf4ea91efbbcf590d4a46c72add12f11dfcbacce8"
+    },
+    "code-quality": {
+      "source": "redis/RedisInsight",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/code-quality/SKILL.md",
+      "computedHash": "5343f36ed1e8556eb097b7c33ce64cd81b5305115868e99399a2516d99be057f"
+    },
+    "commits": {
+      "source": "redis/RedisInsight",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/commits/SKILL.md",
+      "computedHash": "a34896bbe48f36e8300ce05690047d2c947b440644fa4e349897af8916010283"
+    },
+    "e2e-testing": {
+      "source": "redis/RedisInsight",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/e2e-testing/SKILL.md",
+      "computedHash": "c4dd6cc7a86567f582a2aef500ccd4f694682efd27c7c14db42e15e544aee7d1"
+    },
+    "tsconfigs": {
+      "source": "redis/RedisInsight",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/tsconfigs/SKILL.md",
+      "computedHash": "8ba2babf6f38e5b08414bf7a2000c8d27b79788c69940b7a708f07fbccf57ad0"
+    }
+  }
+}

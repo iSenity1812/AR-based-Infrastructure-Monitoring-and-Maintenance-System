@@ -90,7 +90,7 @@ In addition to anomaly detection, selected AI models may be used to estimate ris
 
 ##### 6.3 Augmented Reality & Spatial Computing
 
-- ID-Based Spatial Anchoring (WebAR + ArUco/QR Markers): The AR subsystem uses lightweight marker-based spatial anchoring to associate simulated racks, nodes, or server representations with their corresponding telemetry data. This approach is intentionally chosen over computationally expensive object recognition in order to keep the proof-of-concept technically feasible and academically well-scoped.
+- ID-Based Spatial Anchoring (WebAR + QR Markers): The AR subsystem uses lightweight QR marker-based spatial anchoring to associate simulated racks, nodes, or server representations with their corresponding telemetry data. This approach is intentionally chosen over computationally expensive object recognition in order to keep the proof-of-concept technically feasible and academically well-scoped.
 
 - Matrix Transformation (Relative Offset): Spatial transformation is used to calculate the relative position and orientation between the camera and each marker so that 2D information overlays can be rendered stably on top of the corresponding infrastructure element.
 
@@ -104,11 +104,11 @@ In addition to anomaly detection, selected AI models may be used to estimate ris
 
 - Cluster or Rack Mapping View: A visual mapping module represents the relationship between simulated racks, nodes, containers, and their marker identifiers so that the AR interface can retrieve the correct contextual data.
 
-- Incident and Maintenance Coordination: The dashboard provides a simple incident workflow for tracking abnormal nodes, assigning inspection status, and synchronizing maintenance-related information with the AR frontend.
+- Incident and Maintenance Coordination: The dashboard provides a simple incident workflow for tracking abnormal nodes, assigning inspection status, and synchronizing maintenance-related information with the WebAR frontend.
 
 ##### 7.2 AR scope:
 
-- Device Recognition & Registration via Spatial Anchors
+- Device Recognition & Registration via QR marker-based spatial anchoring in WebAR
 
 - Virtual-Physical Mapping: Marker-based AR overlays display node identity, service status, active workloads, and health summaries directly on simulated racks or server representations.
 
@@ -116,9 +116,9 @@ In addition to anomaly detection, selected AI models may be used to estimate ris
 
 - In-situ Log and Status Inspection: Users can trigger lightweight actions such as viewing recent logs, checking service health, or reading maintenance notes directly from the AR scene.
 
-- Guided Maintenance Support: The AR application provides simple contextual instructions for inspection or remediation, such as checking overheating simulation, restarting a failed service, or verifying container deployment status.
+- Guided Maintenance Support: The WebAR client provides simple contextual instructions for inspection or remediation, such as checking overheating simulation, restarting a failed service, or verifying container deployment status.
 
-- Ticket system integrateion: The AR frontend can interact with limited maintenance workflow actions such as acknowledge, in progress, escalated, and resolved.
+- Ticket system integration: The WebAR frontend can interact with limited maintenance workflow actions such as acknowledge, in progress, escalated, and resolved.
 
 ##### 7.3 AI & Backend Scope:
 

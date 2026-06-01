@@ -35,7 +35,7 @@ Muc tieu cua tai lieu:
 | FR-06            | Infrastructure Topology | Rack Management         | Manage Simulated Racks                  | IT Administrator co the tao, cap nhat va quan ly thong tin rack trong moi truong mo phong.                         | Tao lop cau truc vat ly co y nghia cho dashboard va AR mapping.                   |
 | FR-07            | Infrastructure Topology | Node Management         | Manage Simulated Nodes                  | IT Administrator co the dang ky, cap nhat va gan node vao rack tuong ung.                                          | Quan ly don vi ha tang cot loi de giam sat va bao tri.                            |
 | FR-08            | Infrastructure Topology | Container Inventory     | Synchronize Container/Service Inventory | He thong dong bo va hien thi danh sach container/service dang chay tren tung node.                                 | Duy tri tam nhin day du giua ha tang vat ly mo phong va workload van hanh.        |
-| FR-09            | AR Mapping              | Marker Management       | Register and Map AR Markers             | IT Administrator co the tao marker va anh xa marker voi rack hoac node cu the.                                     | Cho phep AR frontend truy xuat dung tai san khi nguoi dung quet marker.           |
+| FR-09            | AR Mapping              | Marker Management       | Register and Map AR Markers             | IT Administrator co the tao marker va anh xa marker voi rack hoac node cu the.                                     | Cho phep WebAR frontend truy xuat dung tai san khi nguoi dung quet QR marker.     |
 | FR-10            | Infrastructure Topology | Topology Visualization  | View Rack-Node-Container Topology       | He thong hien thi so do quan he giua rack, node, container va marker tren dashboard.                               | Giup nguoi van hanh hieu nhanh cau truc he thong va boi canh canh bao.            |
 | FR-11            | Simulation              | Scenario Definition     | Create Simulation Scenarios             | Simulation Operator co the tao kich ban mo phong gom topology logic, workload va hanh vi su kien.                  | Ho tro demo, nghien cuu va thu nghiem cac tinh huong van hanh lap lai duoc.       |
 | FR-12            | Simulation              | Run Control             | Start, Stop and Reset Simulation Runs   | Simulation Operator co the khoi dong, tam dung, dung va reset mot lan chay mo phong.                               | Cho phep dieu khien moi truong mo phong de tao ngu canh giam sat/bao tri.         |
@@ -379,7 +379,7 @@ Muc tieu cua tai lieu:
 - Spec code: FS-29
 - Requirement code: FR-29
 - Actor: Maintenance Technician
-- Trigger: Technician mo AR frontend de bat dau kiem tra.
+- Trigger: Technician mo WebAR frontend de bat dau kiem tra.
 - Preconditions: Technician da dang nhap va thiet bi AR/browser ho tro session.
 - Main flow: He thong khoi tao AR session; tai cau hinh marker va ngu canh can thiet; san sang cho thao tac quet.
 - Alternative flow: Neu thiet bi khong ho tro AR hoac khong cap quyen camera, he thong thong bao khong the bat dau session.
@@ -434,7 +434,7 @@ Muc tieu cua tai lieu:
 - Spec code: FS-34
 - Requirement code: FR-34
 - Actor: Maintenance Technician
-- Trigger: Technician gui ket qua inspection tu AR frontend.
+- Trigger: Technician gui ket qua inspection tu WebAR frontend.
 - Preconditions: Dang co ticket hoac phien inspection hop le.
 - Main flow: Technician nhap ghi chu, bang chung, ket qua xu ly; he thong luu inspection result va dong bo ve ticket/incident lien quan.
 - Alternative flow: Neu du lieu gui len thieu thong tin bat buoc, he thong tu choi luu va yeu cau bo sung.

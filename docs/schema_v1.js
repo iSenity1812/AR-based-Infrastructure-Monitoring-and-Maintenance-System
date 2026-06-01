@@ -23,6 +23,7 @@ const enums = {
   nodeTypes: ["COMPUTE", "STORAGE", "NETWORK", "MOCK_SERVICE_HOST"],
   containerStatus: ["RUNNING", "RESTARTING", "STOPPED", "FAILED", "UNKNOWN"],
   containerHealthStatus: ["HEALTHY", "UNHEALTHY", "STARTING", "NONE"],
+  // `ARUCO` is kept as a compatibility/extension option, but v1 documentation standardizes on `QR` for WebAR.
   markerTypes: ["QR", "ARUCO"],
   markerTargetTypes: ["RACK", "NODE"],
   telemetrySources: ["COLLECTOR", "SIMULATOR", "AI_GENERATED"],

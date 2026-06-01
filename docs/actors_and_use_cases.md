@@ -18,10 +18,10 @@
 | **System Admin** | Human Actor | Quản lý toàn bộ nền tảng, tài khoản người dùng, phân quyền, cấu hình hệ thống và audit log. |
 | **Data Center Administrator** | Human Actor | Quản lý cụm Micro Data Center, node, container, marker, cảnh báo, incident và ticket. |
 | **Operation Manager** | Human Actor | Theo dõi tổng quan hệ thống, xem dashboard, dữ liệu lịch sử và báo cáo vận hành. |
-| **Maintenance Technician** | Human Actor | Sử dụng AR app để quét marker, kiểm tra node vật lý, xem cảnh báo, xem log và xử lý ticket bảo trì. |
+| **Maintenance Technician** | Human Actor | Sử dụng WebAR client để quét QR marker, kiểm tra node vật lý, xem cảnh báo, xem log và xử lý ticket bảo trì. |
 | **Telemetry Agent** | System Actor | Agent cài trên PC/Laptop mô phỏng server node, thu thập telemetry và container metadata rồi gửi về backend. |
 | **AI Analysis Engine** | System Actor | Phân tích dữ liệu telemetry, phát hiện bất thường, tính health/risk score và tạo cảnh báo. |
-| **Notification System** | System Actor | Gửi thông báo/cảnh báo đến người dùng thông qua dashboard hoặc mobile app. |
+| **Notification System** | System Actor | Gửi thông báo/cảnh báo đến người dùng thông qua dashboard hoặc các kênh thông báo được cấu hình. |
 
 ---
 
@@ -72,7 +72,7 @@ Notification System
 | **UC02** | User & Role Management | System Admin | Quản lý tài khoản người dùng, vai trò, quyền truy cập và trạng thái tài khoản. |
 | **UC03** | Cluster Management | Data Center Administrator | Quản lý thông tin cụm Micro Data Center, trạng thái cụm và cấu hình tổng quan. |
 | **UC04** | Node Management | Data Center Administrator | Quản lý các node/server trong cụm, bao gồm đăng ký, cập nhật, vô hiệu hóa hoặc xóa node. |
-| **UC05** | Marker Management | Data Center Administrator, Maintenance Technician | Quản lý QR/ArUco Marker và ánh xạ marker với node vật lý tương ứng. |
+| **UC05** | Marker Management | Data Center Administrator, Maintenance Technician | Quản lý QR Marker và ánh xạ marker với node vật lý tương ứng cho WebAR flow. |
 | **UC06** | Container Management | Data Center Administrator | Xem và quản lý thông tin container/workload đang chạy trên từng node. |
 | **UC07** | Collect Telemetry Data | Telemetry Agent | Thu thập dữ liệu CPU, RAM, disk, network và các chỉ số hệ thống từ node. |
 | **UC08** | Collect Container Metadata | Telemetry Agent | Thu thập metadata của container như container ID, image, service name, status và restart count. |
@@ -84,14 +84,14 @@ Notification System
 | **UC14** | Calculate Health/Risk Score | AI Analysis Engine | Tính điểm sức khỏe hoặc mức độ rủi ro của node/container dựa trên nhiều chỉ số. |
 | **UC15** | Generate Alert | AI Analysis Engine | Tạo cảnh báo khi phát hiện bất thường hoặc khi metric vượt ngưỡng nguy hiểm. |
 | **UC16** | Alert Rule Management | Data Center Administrator | Cấu hình và quản lý các rule cảnh báo như CPU, RAM, disk, network hoặc container status. |
-| **UC17** | Send Notification | Notification System | Gửi thông báo cảnh báo đến dashboard hoặc mobile app cho người dùng liên quan. |
+| **UC17** | Send Notification | Notification System | Gửi thông báo cảnh báo đến dashboard hoặc kênh thông báo phù hợp cho người dùng liên quan. |
 | **UC18** | Receive Alert Notification | System User | Người dùng nhận cảnh báo theo vai trò và quyền được phân công trong hệ thống. |
 | **UC19** | Incident Management | Data Center Administrator | Quản lý incident được tạo từ các cảnh báo, bao gồm xem, cập nhật trạng thái và đóng incident. |
 | **UC20** | Ticket Management | Data Center Administrator, Maintenance Technician | Quản lý ticket bảo trì, bao gồm tạo, xem, cập nhật và theo dõi tiến độ xử lý. |
 | **UC21** | Assign Ticket | Data Center Administrator | Gán ticket cho kỹ thuật viên phù hợp để xử lý sự cố tại node vật lý. |
 | **UC22** | Update Ticket Status | Maintenance Technician | Cập nhật trạng thái ticket như acknowledged, in progress, resolved hoặc escalated. |
-| **UC23** | Start AR Session | Maintenance Technician | Bắt đầu phiên làm việc AR trên mobile app để hỗ trợ kiểm tra và bảo trì node. |
-| **UC24** | Scan Marker | Maintenance Technician | Quét QR/ArUco Marker để nhận diện node vật lý và truy xuất thông tin tương ứng. |
+| **UC23** | Start AR Session | Maintenance Technician | Bắt đầu phiên làm việc WebAR trên trình duyệt để hỗ trợ kiểm tra và bảo trì node. |
+| **UC24** | Scan Marker | Maintenance Technician | Quét QR Marker để nhận diện node vật lý và truy xuất thông tin tương ứng. |
 | **UC25** | View AR Node Overlay | Maintenance Technician | Hiển thị overlay AR gồm Node IP, trạng thái node, container đang chạy và health/risk score. |
 | **UC26** | View AR Alert Overlay | Maintenance Technician | Hiển thị cảnh báo trực quan trên AR khi node hoặc container có sự cố. |
 | **UC27** | View Logs in AR | Maintenance Technician | Xem crash log hoặc service log liên quan trực tiếp trên giao diện AR. |

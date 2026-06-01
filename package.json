@@ -1,6 +1,12 @@
 {
+  "name": "ar-infra-monitoring-platform",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "lint": "pnpm -r --filter \"./apps/**\" --filter \"./packages/**\" lint",
+    "test": "pnpm -r --filter \"./apps/**\" --filter \"./packages/**\" test",
+    "build": "pnpm -r --filter \"./apps/**\" --filter \"./packages/**\" build"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",

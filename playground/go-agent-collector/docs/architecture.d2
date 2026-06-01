@@ -1,0 +1,163 @@
+direction: right
+
+title: "Go Agent Collector Architecture"
+
+Client: {
+  shape: person
+  label: "Operator / Admin"
+}
+
+WindowsHost: {
+  label: "Windows Host"
+
+  WindowsExporter: {
+    shape: cylinder
+    label: "windows_exporter\nPrometheus endpoint"
+  }
+
+  GoAgent: {
+    label: "go-agent-collector"
+
+    ConfigLayer: {
+      label: "Config Layer"
+      AgentConfig: "agent.yaml"
+      AssetConfig: "assets.yaml"
+      MetricsConfig: "metrics.windows.yaml"
+    }
+
+    RuntimeLayer: {
+      label: "Runtime Layer"
+      Bootstrap: "Bootstrap"
+      ScrapeLoop: "Scrape Loop"
+      SendLoop: "Send Loop"
+      Shutdown: "Graceful Shutdown"
+    }
+
+    ProcessingLayer: {
+      label: "Processing Layer"
+      SourceAdapter: "Windows Source Adapter"
+      Parser: "Prometheus Parser"
+      Filter: "Allowlist Filter"
+      Mapper: "Metric Mapping Engine"
+      Aggregator: "Aggregation Engine"
+      Enricher: "Metadata Enricher"
+    }
+
+    StateLayer: {
+      label: "State and Resilience"
+      MemoryQueue: "In-memory Queue"
+      CounterState: "Counter / Boot State"
+      RetryPolicy: "Retry / Backoff"
+      BufferStore: "Local Buffer Store"
+    }
+
+    TransportLayer: {
+      label: "Transport"
+      PayloadBuilder: "Payload Builder"
+      HTTPSender: "HTTP Sender"
+    }
+
+    InternalOps: {
+      label: "Internal Observability"
+      InternalMetrics: "Agent Internal Metrics"
+      Logs: "Structured Logs"
+    }
+  }
+}
+
+Backend: {
+  label: "Main Backend"
+
+  IngestAPI: {
+    shape: hexagon
+    label: "Telemetry Ingest API"
+  }
+
+  MetadataStore: {
+    shape: cylinder
+    label: "Metadata / Asset Store"
+  }
+
+  TelemetryStore: {
+    shape: cylinder
+    label: "Telemetry Store"
+  }
+
+  Analytics: {
+    label: "Analytics Layer"
+    HealthScore: "Health Score"
+    RiskScore: "Risk Score"
+    Anomaly: "Anomaly Detection"
+    IncidentPredict: "Predict Incident"
+  }
+
+  Presentation: {
+    label: "Consumer Layer"
+    Dashboard: "Web Dashboard"
+    AROverlay: "AR Overlay"
+    Alerts: "Alert / Incident Workflow"
+  }
+}
+
+FutureLinux: {
+  label: "Future Linux Host"
+
+  NodeExporter: {
+    shape: cylinder
+    label: "node_exporter\nPrometheus endpoint"
+  }
+
+  LinuxConfig: "metrics.linux.yaml"
+}
+
+Client -> Backend.Presentation.Dashboard: "view"
+Client -> Backend.Presentation.AROverlay: "inspect"
+
+WindowsHost.WindowsExporter -> WindowsHost.GoAgent.ProcessingLayer.SourceAdapter: "scrape raw metrics"
+WindowsHost.GoAgent.ConfigLayer.AgentConfig -> WindowsHost.GoAgent.RuntimeLayer.Bootstrap: "runtime settings"
+WindowsHost.GoAgent.ConfigLayer.AssetConfig -> WindowsHost.GoAgent.ProcessingLayer.Enricher: "node metadata"
+WindowsHost.GoAgent.ConfigLayer.MetricsConfig -> WindowsHost.GoAgent.ProcessingLayer.Mapper: "mapping rules"
+
+WindowsHost.GoAgent.RuntimeLayer.Bootstrap -> WindowsHost.GoAgent.RuntimeLayer.ScrapeLoop
+WindowsHost.GoAgent.RuntimeLayer.Bootstrap -> WindowsHost.GoAgent.RuntimeLayer.SendLoop
+WindowsHost.GoAgent.RuntimeLayer.Bootstrap -> WindowsHost.GoAgent.RuntimeLayer.Shutdown
+
+WindowsHost.GoAgent.RuntimeLayer.ScrapeLoop -> WindowsHost.GoAgent.ProcessingLayer.SourceAdapter
+WindowsHost.GoAgent.ProcessingLayer.SourceAdapter -> WindowsHost.GoAgent.ProcessingLayer.Parser
+WindowsHost.GoAgent.ProcessingLayer.Parser -> WindowsHost.GoAgent.ProcessingLayer.Filter
+WindowsHost.GoAgent.ProcessingLayer.Filter -> WindowsHost.GoAgent.ProcessingLayer.Mapper
+WindowsHost.GoAgent.ProcessingLayer.Mapper -> WindowsHost.GoAgent.ProcessingLayer.Aggregator
+WindowsHost.GoAgent.ProcessingLayer.Aggregator -> WindowsHost.GoAgent.ProcessingLayer.Enricher
+WindowsHost.GoAgent.ProcessingLayer.Enricher -> WindowsHost.GoAgent.StateLayer.MemoryQueue
+
+WindowsHost.GoAgent.StateLayer.CounterState -> WindowsHost.GoAgent.ProcessingLayer.Mapper: "delta/rate context"
+WindowsHost.GoAgent.StateLayer.CounterState -> WindowsHost.GoAgent.ProcessingLayer.Aggregator: "boot/NIC context"
+
+WindowsHost.GoAgent.RuntimeLayer.SendLoop -> WindowsHost.GoAgent.StateLayer.MemoryQueue
+WindowsHost.GoAgent.StateLayer.MemoryQueue -> WindowsHost.GoAgent.TransportLayer.PayloadBuilder
+WindowsHost.GoAgent.TransportLayer.PayloadBuilder -> WindowsHost.GoAgent.TransportLayer.HTTPSender
+WindowsHost.GoAgent.TransportLayer.HTTPSender -> Backend.IngestAPI: "batched telemetry payload"
+
+Backend.IngestAPI -> Backend.MetadataStore
+Backend.IngestAPI -> Backend.TelemetryStore
+Backend.TelemetryStore -> Backend.Analytics.HealthScore
+Backend.TelemetryStore -> Backend.Analytics.RiskScore
+Backend.TelemetryStore -> Backend.Analytics.Anomaly
+Backend.TelemetryStore -> Backend.Analytics.IncidentPredict
+
+Backend.Analytics.HealthScore -> Backend.Presentation.Dashboard
+Backend.Analytics.RiskScore -> Backend.Presentation.Dashboard
+Backend.Analytics.Anomaly -> Backend.Presentation.Alerts
+Backend.Analytics.IncidentPredict -> Backend.Presentation.AROverlay
+
+WindowsHost.GoAgent.TransportLayer.HTTPSender -> WindowsHost.GoAgent.StateLayer.RetryPolicy: "send failed"
+WindowsHost.GoAgent.StateLayer.RetryPolicy -> WindowsHost.GoAgent.StateLayer.BufferStore: "persist batch"
+WindowsHost.GoAgent.StateLayer.BufferStore -> WindowsHost.GoAgent.TransportLayer.HTTPSender: "replay buffered batch"
+
+WindowsHost.GoAgent.RuntimeLayer.ScrapeLoop -> WindowsHost.GoAgent.InternalOps.InternalMetrics
+WindowsHost.GoAgent.RuntimeLayer.SendLoop -> WindowsHost.GoAgent.InternalOps.InternalMetrics
+WindowsHost.GoAgent.TransportLayer.HTTPSender -> WindowsHost.GoAgent.InternalOps.Logs
+WindowsHost.GoAgent.ProcessingLayer.Mapper -> WindowsHost.GoAgent.InternalOps.Logs
+
+FutureLinux.NodeExporter -> WindowsHost.GoAgent.ProcessingLayer.SourceAdapter: "same flow via Linux adapter"
+FutureLinux.LinuxConfig -> WindowsHost.GoAgent.ProcessingLayer.Mapper: "linux mapping rules"

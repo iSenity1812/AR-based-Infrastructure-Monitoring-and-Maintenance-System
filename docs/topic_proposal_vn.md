@@ -90,7 +90,7 @@ Ngoài phát hiện bất thường, một số mô hình AI được chọn có
 
 ##### 6.3 Thực tế tăng cường và điện toán không gian
 
-- Neo không gian dựa trên ID (WebAR + ArUco/QR Markers): Phân hệ AR sử dụng cơ chế neo không gian nhẹ dựa trên marker để liên kết các rack mô phỏng, node hoặc biểu diễn máy chủ với dữ liệu telemetry tương ứng. Cách tiếp cận này được lựa chọn có chủ đích thay vì dùng nhận dạng đối tượng tốn tài nguyên nhằm giữ cho proof-of-concept vừa khả thi về kỹ thuật vừa phù hợp về phạm vi học thuật.
+- Neo không gian dựa trên ID (WebAR + QR markers): Phân hệ AR sử dụng cơ chế neo không gian nhẹ dựa trên QR marker để liên kết các rack mô phỏng, node hoặc biểu diễn máy chủ với dữ liệu telemetry tương ứng. Cách tiếp cận này được lựa chọn có chủ đích thay vì dùng nhận dạng đối tượng tốn tài nguyên nhằm giữ cho proof-of-concept vừa khả thi về kỹ thuật vừa phù hợp về phạm vi học thuật.
 
 - Biến đổi ma trận (Relative Offset): Phép biến đổi không gian được sử dụng để tính toán vị trí và hướng tương đối giữa camera và từng marker, từ đó các lớp phủ thông tin 2D có thể được hiển thị ổn định trên đúng thành phần hạ tầng tương ứng.
 
@@ -108,7 +108,7 @@ Ngoài phát hiện bất thường, một số mô hình AI được chọn có
 
 ##### 7.2 Phạm vi AR:
 
-- Nhận diện và đăng ký thiết bị thông qua spatial anchors
+- Nhận diện và đăng ký thiết bị thông qua QR marker-based spatial anchoring trong WebAR
 
 - Ánh xạ ảo - vật lý: Các lớp phủ AR dựa trên marker hiển thị định danh node, trạng thái dịch vụ, workload đang hoạt động và tóm tắt sức khỏe trực tiếp trên các rack mô phỏng hoặc biểu diễn máy chủ.
 
@@ -116,9 +116,9 @@ Ngoài phát hiện bất thường, một số mô hình AI được chọn có
 
 - Kiểm tra log và trạng thái tại chỗ: Người dùng có thể kích hoạt các thao tác nhẹ như xem log gần đây, kiểm tra sức khỏe dịch vụ hoặc đọc ghi chú bảo trì trực tiếp từ cảnh AR.
 
-- Hỗ trợ bảo trì có hướng dẫn: Ứng dụng AR cung cấp các chỉ dẫn theo ngữ cảnh cho việc kiểm tra hoặc xử lý, chẳng hạn như kiểm tra tình huống quá nhiệt mô phỏng, khởi động lại dịch vụ lỗi hoặc xác minh trạng thái triển khai container.
+- Hỗ trợ bảo trì có hướng dẫn: WebAR client cung cấp các chỉ dẫn theo ngữ cảnh cho việc kiểm tra hoặc xử lý, chẳng hạn như kiểm tra tình huống quá nhiệt mô phỏng, khởi động lại dịch vụ lỗi hoặc xác minh trạng thái triển khai container.
 
-- Tích hợp hệ thống ticket: Frontend AR có thể tương tác với các hành động quy trình bảo trì giới hạn như acknowledge, in progress, escalated và resolved.
+- Tích hợp hệ thống ticket: Frontend WebAR có thể tương tác với các hành động quy trình bảo trì giới hạn như acknowledge, in progress, escalated và resolved.
 
 ##### 7.3 Phạm vi AI và backend:
 

@@ -63,7 +63,7 @@ Ngoai pham vi da xac nhan:
 
 He thong van hanh tren moi truong trung tam du lieu mo phong. Trong quy uoc PoC, `rack` duoc giu nhu mot lop topology ao, `switch` duoc giu nhu mot network asset mo phong/co mot phan behavior, con `node` la server thuc te hoac logical host nhu laptop, VM hoac may khac trong lab. Telemetry Collector thu thap metric va metadata tu node, service/container va network context de day ve backend. Dashboard web cho phep IT Administrator va System Monitoring Operator theo doi suc khoe he thong, chi tiet tai san, alert va lich su telemetry.
 
-Khi canh bao xay ra, System Monitoring Operator xem alert queue, mo incident neu can va giao maintenance ticket cho Maintenance Technician. Technician su dung AR frontend de quet marker, nhan dien tai san, xem overlay chuan doan, log, alert va huong dan bao tri, sau do nop ket qua inspection vao he thong.
+Khi canh bao xay ra, System Monitoring Operator xem alert queue, mo incident neu can va giao maintenance ticket cho Maintenance Technician. Technician su dung WebAR frontend de quet QR marker, nhan dien tai san, xem overlay chuan doan, log, alert va huong dan bao tri, sau do nop ket qua inspection vao he thong.
 
 Song song, AI Analytics Service phan tich telemetry de phat hien anomaly, cham diem rui ro va lam giau ngu canh xu ly su co. Simulation workflow cung cap du lieu va tinh huong loi de phuc vu demo, kiem thu va nghien cuu.
 

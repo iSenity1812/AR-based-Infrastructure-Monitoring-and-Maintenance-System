@@ -130,16 +130,16 @@ flowchart LR
 
 ## 5. Responsibilities by Boundary
 
-| Boundary | Primary responsibilities | Primary tech stack | Primary data owned or consumed |
-| --- | --- | --- | --- |
-| `Producers` | Sinh telemetry, metadata, simulation events, user commands | Go/Python collectors, simulation runtime, web/admin clients | Raw metrics, container metadata, simulation events, commands |
-| `Ingestion Boundary` | Nhan batch payload, auth, schema validation, idempotency, persist raw input, publish canonical events | Python FastAPI, Pydantic, REST, object archive adapter | Batched telemetry payloads, invalid payload archives, replay metadata |
-| `Event Backbone Boundary` | Van chuyen su kien bat dong bo, DLQ, replay | Kafka | `telemetry.raw`, `telemetry.validated`, `telemetry.enriched`, `snapshot.updated`, `alert.candidate`, `alert.created`, `ai.inference.completed`, `inspection.submitted`, `simulation.events` |
-| `Stream Processing Boundary` | Enrich topology, materialize snapshot, evaluate rule, tao aggregate/feature, online scoring | Python workers, Kafka consumers, gRPC lookup, TimescaleDB jobs | Enriched telemetry, snapshot state, alert candidates, aggregate windows, feature windows, anomaly/risk outputs |
-| `Serving State Boundary` | Cung cap current state, alert/AI enrichment state, history views | Redis, TimescaleDB, MongoDB read models | Latest snapshot, active alert context, AI enrichment context, historical telemetry views |
-| `Control Plane Boundary` | Query orchestration, incident-ticket workflow, diagnostics bundle assembly, notification and audit integration | NestJS, REST, gRPC, Socket | Dashboard payloads, AR diagnostics inputs, incident/ticket lifecycle, notification events |
-| `Training and MLOps Boundary` | Batch feature export, model training, experiment tracking, model registry | Vertex AI | Feature datasets, training jobs, model artifacts, experiment metadata |
-| `Consumers` | Dashboard, AR, notification delivery | Web app, AR client, notification adapters | Dashboard views, AR diagnostics bundles, outbound operational notifications |
+| Boundary                      | Primary responsibilities                                                                                       | Primary tech stack                                             | Primary data owned or consumed                                                                                                                                                              |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Producers`                   | Sinh telemetry, metadata, simulation events, user commands                                                     | Go/Python collectors, simulation runtime, web/admin clients    | Raw metrics, container metadata, simulation events, commands                                                                                                                                |
+| `Ingestion Boundary`          | Nhan batch payload, auth, schema validation, idempotency, persist raw input, publish canonical events          | Python FastAPI, Pydantic, REST, object archive adapter         | Batched telemetry payloads, invalid payload archives, replay metadata                                                                                                                       |
+| `Event Backbone Boundary`     | Van chuyen su kien bat dong bo, DLQ, replay                                                                    | Kafka                                                          | `telemetry.raw`, `telemetry.validated`, `telemetry.enriched`, `snapshot.updated`, `alert.candidate`, `alert.created`, `ai.inference.completed`, `inspection.submitted`, `simulation.events` |
+| `Stream Processing Boundary`  | Enrich topology, materialize snapshot, evaluate rule, tao aggregate/feature, online scoring                    | Python workers, Kafka consumers, gRPC lookup, TimescaleDB jobs | Enriched telemetry, snapshot state, alert candidates, aggregate windows, feature windows, anomaly/risk outputs                                                                              |
+| `Serving State Boundary`      | Cung cap current state, alert/AI enrichment state, history views                                               | Redis, TimescaleDB, MongoDB read models                        | Latest snapshot, active alert context, AI enrichment context, historical telemetry views                                                                                                    |
+| `Control Plane Boundary`      | Query orchestration, incident-ticket workflow, diagnostics bundle assembly, notification and audit integration | NestJS, REST, gRPC, Socket                                     | Dashboard payloads, AR diagnostics inputs, incident/ticket lifecycle, notification events                                                                                                   |
+| `Training and MLOps Boundary` | Batch feature export, model training, experiment tracking, model registry                                      | Vertex AI                                                      | Feature datasets, training jobs, model artifacts, experiment metadata                                                                                                                       |
+| `Consumers`                   | Dashboard, AR, notification delivery                                                                           | Web app, AR client, notification adapters                      | Dashboard views, AR diagnostics bundles, outbound operational notifications                                                                                                                 |
 
 ## 6. Pipeline Responsibilities
 
@@ -193,17 +193,17 @@ Serving layer phai cung cap:
 
 Target architecture chot `Kafka` la backbone voi model su kien sau:
 
-| Topic | Producer boundary | Consumer boundary | Purpose |
-| --- | --- | --- | --- |
-| `telemetry.raw` | `Ingestion Boundary` | `Stream Processing Boundary` | Phan bo raw telemetry da qua auth va basic validation |
-| `telemetry.validated` | `Ingestion Boundary` | `Stream Processing Boundary` | Canonical event sau schema validation va idempotency |
-| `telemetry.enriched` | `Stream Processing Boundary` | `Stream Processing Boundary`, `Control Plane Boundary` | Du lieu da duoc map topology va co ngu canh asset |
-| `snapshot.updated` | `Stream Processing Boundary` | `Control Plane Boundary` | Cap nhat latest state cho dashboard va AR |
-| `alert.candidate` | `Stream Processing Boundary` | `Control Plane Boundary`, `Stream Processing Boundary` | Ket qua danh gia rule hoac AI can triage |
-| `alert.created` | `Control Plane Boundary` | `Consumers`, `Control Plane Boundary` | Alert chinh thuc trong workflow van hanh |
-| `ai.inference.completed` | `Stream Processing Boundary` | `Control Plane Boundary` | Ket qua anomaly/risk scoring |
-| `inspection.submitted` | `Control Plane Boundary` | `Control Plane Boundary`, `Consumers` | Dong bo inspection vao ticket/notification flow |
-| `simulation.events` | `Producers` | `Ingestion Boundary`, `Control Plane Boundary` | Trace va inject context tu simulation runtime |
+| Topic                    | Producer boundary            | Consumer boundary                                      | Purpose                                               |
+| ------------------------ | ---------------------------- | ------------------------------------------------------ | ----------------------------------------------------- |
+| `telemetry.raw`          | `Ingestion Boundary`         | `Stream Processing Boundary`                           | Phan bo raw telemetry da qua auth va basic validation |
+| `telemetry.validated`    | `Ingestion Boundary`         | `Stream Processing Boundary`                           | Canonical event sau schema validation va idempotency  |
+| `telemetry.enriched`     | `Stream Processing Boundary` | `Stream Processing Boundary`, `Control Plane Boundary` | Du lieu da duoc map topology va co ngu canh asset     |
+| `snapshot.updated`       | `Stream Processing Boundary` | `Control Plane Boundary`                               | Cap nhat latest state cho dashboard va AR             |
+| `alert.candidate`        | `Stream Processing Boundary` | `Control Plane Boundary`, `Stream Processing Boundary` | Ket qua danh gia rule hoac AI can triage              |
+| `alert.created`          | `Control Plane Boundary`     | `Consumers`, `Control Plane Boundary`                  | Alert chinh thuc trong workflow van hanh              |
+| `ai.inference.completed` | `Stream Processing Boundary` | `Control Plane Boundary`                               | Ket qua anomaly/risk scoring                          |
+| `inspection.submitted`   | `Control Plane Boundary`     | `Control Plane Boundary`, `Consumers`                  | Dong bo inspection vao ticket/notification flow       |
+| `simulation.events`      | `Producers`                  | `Ingestion Boundary`, `Control Plane Boundary`         | Trace va inject context tu simulation runtime         |
 
 Quy tac delivery:
 

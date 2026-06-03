@@ -1,0 +1,133 @@
+name: CI - Reusable Service Workflow
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        description: Deployable service name.
+        required: true
+        type: string
+      service_path:
+        description: Relative path to the service directory.
+        required: true
+        type: string
+      runtime:
+        description: Service runtime identifier.
+        required: false
+        default: node
+        type: string
+      node_version:
+        description: Node.js version to use for Node services.
+        required: false
+        default: "22"
+        type: string
+      dockerfile_path:
+        description: Relative path to the service Dockerfile.
+        required: false
+        default: ""
+        type: string
+      deploy_manifest_path:
+        description: Relative path to the deploy manifest directory.
+        required: false
+        default: ""
+        type: string
+      run_tests:
+        description: Whether to run unit tests.
+        required: false
+        default: true
+        type: boolean
+      run_build:
+        description: Whether to run the build step.
+        required: false
+        default: true
+        type: boolean
+    outputs:
+      image_repository:
+        description: Default image repository for the service.
+        value: ${{ jobs.service-ci.outputs.image_repository }}
+      image_tag_sha:
+        description: Immutable image tag derived from the commit SHA.
+        value: ${{ jobs.service-ci.outputs.image_tag_sha }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.service_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  service-ci:
+    name: CI - ${{ inputs.service_name }}
+    runs-on: ubuntu-latest
+    outputs:
+      image_repository: ${{ steps.meta.outputs.image_repository }}
+      image_tag_sha: ${{ steps.meta.outputs.image_tag_sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        if: ${{ inputs.runtime == 'node' }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        if: ${{ inputs.runtime == 'node' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.service_path }}/pnpm-lock.yaml
+
+      - name: Install dependencies
+        if: ${{ inputs.runtime == 'node' }}
+        working-directory: ${{ inputs.service_path }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint service
+        if: ${{ inputs.runtime == 'node' }}
+        working-directory: ${{ inputs.service_path }}
+        run: pnpm lint
+
+      - name: Run tests
+        if: ${{ inputs.runtime == 'node' && inputs.run_tests }}
+        working-directory: ${{ inputs.service_path }}
+        run: pnpm test
+
+      - name: Build service
+        if: ${{ inputs.runtime == 'node' && inputs.run_build }}
+        working-directory: ${{ inputs.service_path }}
+        run: pnpm build
+
+      - name: Compute image metadata
+        id: meta
+        env:
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          SERVICE_NAME: ${{ inputs.service_name }}
+          IMAGE_TAG_SHA: ${{ github.sha }}
+        run: |
+          IMAGE_OWNER="$(echo "$REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          IMAGE_REPOSITORY="ghcr.io/$IMAGE_OWNER/ar-monitoring-$SERVICE_NAME"
+          echo "image_repository=$IMAGE_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "image_tag_sha=$IMAGE_TAG_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifact
+        if: ${{ inputs.runtime == 'node' && inputs.run_build }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.service_name }}-dist-${{ github.sha }}
+          path: ${{ inputs.service_path }}/dist
+          if-no-files-found: error
+
+      - name: Write summary
+        run: |
+          {
+            echo "## Service CI Summary"
+            echo ""
+            echo "- service: \`${{ inputs.service_name }}\`"
+            echo "- path: \`${{ inputs.service_path }}\`"
+            echo "- runtime: \`${{ inputs.runtime }}\`"
+            echo "- dockerfile: \`${{ inputs.dockerfile_path || 'n/a' }}\`"
+            echo "- deploy manifests: \`${{ inputs.deploy_manifest_path || 'n/a' }}\`"
+            echo "- image repository: \`${{ steps.meta.outputs.image_repository }}\`"
+            echo "- image SHA tag: \`${{ steps.meta.outputs.image_tag_sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

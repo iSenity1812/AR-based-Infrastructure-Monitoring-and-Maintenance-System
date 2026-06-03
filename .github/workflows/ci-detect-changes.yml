@@ -1,0 +1,96 @@
+name: CI - Detect Changes
+
+on:
+  workflow_call:
+    inputs:
+      base_sha:
+        description: Optional explicit base SHA for diffing.
+        required: false
+        type: string
+      head_sha:
+        description: Optional explicit head SHA for diffing.
+        required: false
+        type: string
+      registry_path:
+        description: Path to the service registry JSON file.
+        required: false
+        default: .github/service-registry.json
+        type: string
+    outputs:
+      base_sha:
+        description: Resolved base SHA used for the diff.
+        value: ${{ jobs.detect.outputs.base_sha }}
+      head_sha:
+        description: Resolved head SHA used for the diff.
+        value: ${{ jobs.detect.outputs.head_sha }}
+      shared_changed:
+        description: Whether shared monorepo paths changed.
+        value: ${{ jobs.detect.outputs.shared_changed }}
+      workflow_changed:
+        description: Whether CI/CD workflow support paths changed.
+        value: ${{ jobs.detect.outputs.workflow_changed }}
+      infra_changed:
+        description: Whether non-service infra paths changed.
+        value: ${{ jobs.detect.outputs.infra_changed }}
+      docs_only:
+        description: Whether the diff is documentation-only.
+        value: ${{ jobs.detect.outputs.docs_only }}
+      identity_changed:
+        description: Whether identity-service CI should run.
+        value: ${{ jobs.detect.outputs.identity_changed }}
+      identity_deploy_changed:
+        description: Whether identity-service should be rebuilt and deployed.
+        value: ${{ jobs.detect.outputs.identity_deploy_changed }}
+      changed_files_json:
+        description: JSON array of changed files.
+        value: ${{ jobs.detect.outputs.changed_files_json }}
+  pull_request:
+  push:
+
+jobs:
+  detect:
+    name: Detect Affected Units
+    runs-on: ubuntu-latest
+    outputs:
+      base_sha: ${{ steps.detect.outputs.base_sha }}
+      head_sha: ${{ steps.detect.outputs.head_sha }}
+      shared_changed: ${{ steps.detect.outputs.shared_changed }}
+      workflow_changed: ${{ steps.detect.outputs.workflow_changed }}
+      infra_changed: ${{ steps.detect.outputs.infra_changed }}
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+      identity_changed: ${{ steps.detect.outputs.identity_service_changed }}
+      identity_deploy_changed: ${{ steps.detect.outputs.identity_service_deploy_changed }}
+      changed_files_json: ${{ steps.detect.outputs.changed_files_json }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        id: detect
+        env:
+          INPUT_BASE_SHA: ${{ inputs.base_sha }}
+          INPUT_HEAD_SHA: ${{ inputs.head_sha }}
+          INPUT_REGISTRY_PATH: ${{ inputs.registry_path }}
+        run: node infra/ci/detect-changes.mjs
+
+      - name: Write summary
+        run: |
+          {
+            echo "## Change Detection"
+            echo ""
+            echo "- base SHA: \`${{ steps.detect.outputs.base_sha }}\`"
+            echo "- head SHA: \`${{ steps.detect.outputs.head_sha }}\`"
+            echo "- shared changed: \`${{ steps.detect.outputs.shared_changed }}\`"
+            echo "- workflow changed: \`${{ steps.detect.outputs.workflow_changed }}\`"
+            echo "- infra changed: \`${{ steps.detect.outputs.infra_changed }}\`"
+            echo "- docs only: \`${{ steps.detect.outputs.docs_only }}\`"
+            echo "- identity changed: \`${{ steps.detect.outputs.identity_service_changed }}\`"
+            echo "- identity deploy changed: \`${{ steps.detect.outputs.identity_service_deploy_changed }}\`"
+            echo ""
+            echo "### Changed Files"
+            echo '\`\`\`json'
+            echo '${{ steps.detect.outputs.changed_files_json }}'
+            echo '\`\`\`'
+          } >> "$GITHUB_STEP_SUMMARY"

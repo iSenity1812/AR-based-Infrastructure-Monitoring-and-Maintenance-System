@@ -1,0 +1,53 @@
+{
+  "shared_paths": [
+    "packages/**",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml"
+  ],
+  "workflow_paths": [
+    ".github/workflows/**",
+    ".github/service-registry.json",
+    "infra/ci/**"
+  ],
+  "docs_paths": [
+    "docs/**",
+    "README.md",
+    "backend/README.md",
+    "backend/apps/control-plane/README.md",
+    "backend/apps/data-plane/README.md",
+    "frontend/README.md",
+    "apps/README.md",
+    "infra/README.md"
+  ],
+  "services": [
+    {
+      "service_name": "identity-service",
+      "path": "backend/apps/control-plane/identity-service",
+      "runtime": "node",
+      "build_tool": "pnpm",
+      "docker_context": "backend/apps/control-plane/identity-service",
+      "dockerfile_path": "backend/apps/control-plane/identity-service/Dockerfile",
+      "deploy_manifest_path": "infra/k8s/identity-service",
+      "ci_paths": [
+        "backend/apps/control-plane/identity-service/**",
+        ".github/workflows/**",
+        ".github/service-registry.json",
+        "infra/ci/**",
+        "packages/**",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml"
+      ],
+      "deploy_paths": [
+        "backend/apps/control-plane/identity-service/**",
+        "backend/apps/control-plane/identity-service/Dockerfile",
+        "infra/k8s/identity-service/**",
+        "packages/**",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml"
+      ]
+    }
+  ]
+}

@@ -49,15 +49,15 @@ Ngoai pham vi da xac nhan:
 
 ## 3. Actor va trach nhiem
 
-| Actor | Loai | Trach nhiem da xac nhan |
-| --- | --- | --- |
-| System User | Actor tong quat | Dang nhap va ket thuc phien su dung he thong. |
-| IT Administrator | Human primary | Quan ly user access, audit trail, node dang ky, marker mapping, alert rule va theo doi tong quan he thong. |
-| System Monitoring Operator | Human primary | Quan sat dashboard, xem chi tiet suc khoe tai san, xu ly alert queue, mo incident, dispatch ticket va van hanh simulation. |
-| Maintenance Technician | Human primary | Quet marker, xem AR diagnostics, thuc hien inspection va nop ket qua kiem tra. |
-| Telemetry Collector | System actor | Stream node telemetry, service/container metadata va network context vao he thong. |
-| AI Analytics Service | System actor | Detect anomaly va score risk cho tai san. |
-| Notification System | External/system actor | Gui operational notification khi co alert, ticket hoac ket qua inspection. |
+| Actor                      | Loai                  | Trach nhiem da xac nhan                                                                                                    |
+| -------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| System User                | Actor tong quat       | Dang nhap va ket thuc phien su dung he thong.                                                                              |
+| IT Administrator           | Human primary         | Quan ly user access, audit trail, node dang ky, marker mapping, alert rule va theo doi tong quan he thong.                 |
+| System Monitoring Operator | Human primary         | Quan sat dashboard, xem chi tiet suc khoe tai san, xu ly alert queue, mo incident, dispatch ticket va van hanh simulation. |
+| Maintenance Technician     | Human primary         | Quet marker, xem AR diagnostics, thuc hien inspection va nop ket qua kiem tra.                                             |
+| Telemetry Collector        | System actor          | Stream node telemetry, service/container metadata va network context vao he thong.                                         |
+| AI Analytics Service       | System actor          | Detect anomaly va score risk cho tai san.                                                                                  |
+| Notification System        | External/system actor | Gui operational notification khi co alert, ticket hoac ket qua inspection.                                                 |
 
 ## 4. Boi canh nghiep vu tong the
 
@@ -213,33 +213,33 @@ Song song, AI Analytics Service phan tich telemetry de phat hien anomaly, cham d
 
 ## 6. Functional requirement matrix
 
-| Ma | Nhom | Requirement tom tat | Actor chinh |
-| --- | --- | --- | --- |
-| SR-01 | Access Control | Dang nhap he thong | System User |
-| SR-02 | Access Control | Dang xuat/Ket thuc phien | System User |
-| SR-03 | Governance | Quan ly truy cap nguoi dung | IT Administrator |
-| SR-04 | Governance | Xem audit trail | IT Administrator |
-| SR-05 | Topology | Dang ky simulation node | IT Administrator |
-| SR-06 | Topology | Quan ly rack-switch-node-workload | IT Administrator |
-| SR-07 | AR Mapping | Map marker voi rack/switch/node | IT Administrator |
-| SR-08 | Alerting | Cau hinh alert rule | IT Administrator |
-| SR-09 | Telemetry | Nhan node telemetry | Telemetry Collector |
-| SR-10 | Telemetry | Nhan container metadata | Telemetry Collector |
-| SR-11 | Monitoring | Xem realtime dashboard | IT Administrator, System Monitoring Operator |
-| SR-12 | Monitoring | Xem chi tiet health tai san | IT Administrator, System Monitoring Operator |
-| SR-13 | Monitoring | Xem lich su telemetry | IT Administrator, System Monitoring Operator |
-| SR-14 | AI Analytics | Detect anomaly | AI Analytics Service |
-| SR-15 | AI Analytics | Score health risk | AI Analytics Service |
-| SR-16 | Alert Workflow | Xem alert queue | System Monitoring Operator |
-| SR-17 | Incident Workflow | Mo incident record | System Monitoring Operator |
-| SR-18 | Maintenance Workflow | Dispatch maintenance ticket | System Monitoring Operator |
-| SR-19 | Notification | Gui operational notification | Notification System |
-| SR-20 | AR Workflow | Conduct AR inspection | Maintenance Technician |
-| SR-21 | AR Workflow | Identify asset from marker | Maintenance Technician |
-| SR-22 | AR Workflow | Review AR diagnostics | Maintenance Technician |
-| SR-23 | AR Workflow | Submit AR inspection result | Maintenance Technician |
-| SR-24 | Simulation | Run simulation scenario | System Monitoring Operator |
-| SR-25 | Simulation | Inject simulation fault | System Monitoring Operator |
+| Ma    | Nhom                 | Requirement tom tat               | Actor chinh                                  |
+| ----- | -------------------- | --------------------------------- | -------------------------------------------- |
+| SR-01 | Access Control       | Dang nhap he thong                | System User                                  |
+| SR-02 | Access Control       | Dang xuat/Ket thuc phien          | System User                                  |
+| SR-03 | Governance           | Quan ly truy cap nguoi dung       | IT Administrator                             |
+| SR-04 | Governance           | Xem audit trail                   | IT Administrator                             |
+| SR-05 | Topology             | Dang ky simulation node           | IT Administrator                             |
+| SR-06 | Topology             | Quan ly rack-switch-node-workload | IT Administrator                             |
+| SR-07 | AR Mapping           | Map marker voi rack/switch/node   | IT Administrator                             |
+| SR-08 | Alerting             | Cau hinh alert rule               | IT Administrator                             |
+| SR-09 | Telemetry            | Nhan node telemetry               | Telemetry Collector                          |
+| SR-10 | Telemetry            | Nhan container metadata           | Telemetry Collector                          |
+| SR-11 | Monitoring           | Xem realtime dashboard            | IT Administrator, System Monitoring Operator |
+| SR-12 | Monitoring           | Xem chi tiet health tai san       | IT Administrator, System Monitoring Operator |
+| SR-13 | Monitoring           | Xem lich su telemetry             | IT Administrator, System Monitoring Operator |
+| SR-14 | AI Analytics         | Detect anomaly                    | AI Analytics Service                         |
+| SR-15 | AI Analytics         | Score health risk                 | AI Analytics Service                         |
+| SR-16 | Alert Workflow       | Xem alert queue                   | System Monitoring Operator                   |
+| SR-17 | Incident Workflow    | Mo incident record                | System Monitoring Operator                   |
+| SR-18 | Maintenance Workflow | Dispatch maintenance ticket       | System Monitoring Operator                   |
+| SR-19 | Notification         | Gui operational notification      | Notification System                          |
+| SR-20 | AR Workflow          | Conduct AR inspection             | Maintenance Technician                       |
+| SR-21 | AR Workflow          | Identify asset from marker        | Maintenance Technician                       |
+| SR-22 | AR Workflow          | Review AR diagnostics             | Maintenance Technician                       |
+| SR-23 | AR Workflow          | Submit AR inspection result       | Maintenance Technician                       |
+| SR-24 | Simulation           | Run simulation scenario           | System Monitoring Operator                   |
+| SR-25 | Simulation           | Inject simulation fault           | System Monitoring Operator                   |
 
 ## 7. Yeu cau du lieu muc he thong
 

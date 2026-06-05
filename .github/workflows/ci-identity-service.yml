@@ -1,0 +1,48 @@
+name: CI - Identity Service
+
+on:
+  pull_request:
+    paths:
+      - .github/service-registry.json
+      - .github/workflows/**
+      - infra/ci/**
+      - infra/k8s/identity-service/**
+      - backend/apps/control-plane/identity-service/**
+      - packages/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+  push:
+    paths:
+      - .github/service-registry.json
+      - .github/workflows/**
+      - infra/ci/**
+      - infra/k8s/identity-service/**
+      - backend/apps/control-plane/identity-service/**
+      - packages/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+
+jobs:
+  detect:
+    name: Detect Identity-Service Changes
+    uses: ./.github/workflows/ci-detect-changes.yml
+    with:
+      base_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+      head_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+  identity-service:
+    name: Validate Identity Service
+    needs: detect
+    if: ${{ needs.detect.outputs.identity_changed == 'true' }}
+    uses: ./.github/workflows/ci-service.yml
+    with:
+      service_name: identity-service
+      service_path: backend/apps/control-plane/identity-service
+      runtime: node
+      node_version: "22"
+      dockerfile_path: backend/apps/control-plane/identity-service/Dockerfile
+      deploy_manifest_path: infra/k8s/identity-service
+      run_tests: true
+      run_build: true

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-service
+  namespace: ar-monitoring-dev
+  labels:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/part-of: ar-monitoring
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: identity-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: identity-service
+        app.kubernetes.io/part-of: ar-monitoring
+    spec:
+      containers:
+        - name: identity-service
+          image: ghcr.io/example/ar-monitoring-identity-service:latest-main
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3001
+          envFrom:
+            - configMapRef:
+                name: identity-service-config
+            - secretRef:
+                name: identity-service-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

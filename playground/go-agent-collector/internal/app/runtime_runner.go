@@ -52,9 +52,10 @@ func (r *runner) Run() error {
 	}
 
 	fmt.Printf(
-		"agent runtime started: agent=%s node=%s scrape=%s send=%s endpoint=%s\n",
+		"agent runtime started: agent=%s node=%s sources=%v scrape=%s send=%s endpoint=%s\n",
 		r.cfg.Runtime.AgentID,
 		r.cfg.Runtime.NodeID,
+		r.cfg.Runtime.EnabledSources,
 		r.cfg.Scrape.Interval,
 		r.cfg.Send.Interval,
 		r.cfg.Send.Endpoint,
@@ -111,25 +112,27 @@ func (r *runner) runSendLoop(ctx context.Context) {
 
 func (r *runner) scrapeOnce(ctx context.Context) {
 	collectedAt := r.now()
-	raw, err := r.deps.source.Collect()
-	if err != nil {
-		r.stats.recordScrapeFailure(err)
-		fmt.Printf("scrape failed: %v\n", err)
+	collected := make([]domain.Metric, 0)
+	for _, src := range r.deps.sources {
+		metrics, err := src.Collect()
+		if err != nil {
+			r.stats.recordScrapeFailure(src.Name(), err)
+			fmt.Printf("scrape failed: source=%s err=%v\n", src.Name(), err)
+			continue
+		}
+		r.stats.recordScrapeSuccess(src.Name(), collectedAt)
+		collected = append(collected, metrics...)
+	}
+	if len(collected) == 0 {
+		_ = ctx
 		return
 	}
-	normalized, err := r.deps.mapper.Map(raw)
-	if err != nil {
-		r.stats.recordScrapeFailure(err)
-		fmt.Printf("mapping failed: %v\n", err)
-		return
-	}
-	records := buildQueueRecords(normalized, collectedAt)
+
+	records := buildQueueRecords(collected, collectedAt)
 	r.deps.queue.Enqueue(records)
-	r.stats.recordScrapeSuccess(collectedAt)
 	fmt.Printf(
-		"scrape ok: raw=%d normalized=%d queued=%d at=%s\n",
-		len(raw),
-		len(normalized),
+		"scrape ok: metrics=%d queued=%d at=%s\n",
+		len(collected),
 		r.deps.queue.Len(),
 		collectedAt.Format(time.RFC3339),
 	)

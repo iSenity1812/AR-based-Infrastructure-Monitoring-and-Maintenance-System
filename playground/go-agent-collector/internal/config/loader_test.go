@@ -142,6 +142,140 @@ func TestLoadValidatesHealthAddressWhenEndpointEnabled(t *testing.T) {
 	}
 }
 
+func TestLoadSupportsMultiSourceWindowsAndDocker(t *testing.T) {
+	root := t.TempDir()
+	configDir := filepath.Join(root, "configs")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("mkdir configs: %v", err)
+	}
+
+	writeTestFile(t, filepath.Join(configDir, "agent.yaml"), strings.TrimSpace(`
+agent:
+  schemaVersion: v1
+  sourceType: windows_exporter
+  mode: service
+  agentVersion: 0.1.0
+  identity:
+    agentIdEnv: GO_AGENT_ID
+    agentNameEnv: GO_AGENT_NAME
+    agentIdStrategy: hostname_slug
+    agentNameStrategy: hostname
+    agentIdPrefix: agent
+    hostnameEnv: TEST_HOSTNAME
+sources:
+  enabled:
+    - windows_exporter
+    - docker
+scrape:
+  endpoint: http://localhost:9182/metrics
+  interval: 5s
+  timeout: 3s
+  maxBodySizeMb: 8
+docker:
+  endpoint: npipe:////./pipe/docker_engine
+  timeout: 4s
+  collectStopped: true
+  enableServiceRollups: true
+send:
+  endpoint: http://localhost:8080/api/telemetry/ingest
+  interval: 5s
+  timeout: 5s
+  maxBatchItems: 100
+  maxBatchBytesKb: 512
+  authTokenEnv: GO_AGENT_API_TOKEN
+retry:
+  minBackoff: 1s
+  maxBackoff: 30s
+  maxAttempts: 0
+  retryableStatusCodes: [503]
+buffer:
+  enabled: false
+  path: data/buffer
+  maxSizeMb: 50
+  maxBatchFiles: 100
+  overflowPolicy: drop_oldest
+queue:
+  maxRecords: 100
+  overflowPolicy: drop_oldest
+logging:
+  level: info
+  format: json
+  output: stdout
+observability:
+  healthAddress: 127.0.0.1:9101
+features:
+  configReload: false
+  localHealthEndpoint: false
+  internalMetrics: true
+  linuxAdapter: false
+`))
+	writeTestFile(t, filepath.Join(configDir, "assets.yaml"), strings.TrimSpace(`
+node:
+  nodeIdEnv: GO_NODE_ID
+  nodeNameEnv: GO_NODE_NAME
+  hostnameEnv: TEST_HOSTNAME
+  nodeIdStrategy: hostname_slug
+  nodeNameStrategy: hostname
+  nodeIdPrefix: node
+  deviceType: laptop
+topology:
+  rackId: rack-a1
+  switchId: sw-a1
+  site: lab-local
+  environment: poc
+network:
+  primaryUplink: wifi
+  primaryNicEnv: GO_PRIMARY_NIC
+  excludeNicPatterns: []
+tags:
+  ownerTeam: telemetry
+  deployment: local-lab
+`))
+	writeTestFile(t, filepath.Join(configDir, "metrics.windows.yaml"), strings.TrimSpace(`
+metrics:
+  - category: runtime
+    key: node.process_count
+    enabled: true
+    sourceMetric: windows_system_processes
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: direct
+`))
+	writeTestFile(t, filepath.Join(configDir, "metrics.docker.yaml"), strings.TrimSpace(`
+dockerMetrics:
+  - category: inventory
+    key: container.name
+    enabled: true
+    sourceMetric: docker.inspect.name
+    scopeType: container
+    unit: text
+    valueType: text
+    aggregation: direct
+`))
+	t.Setenv("TEST_HOSTNAME", "Test Host")
+
+	cfg, err := Load(root)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Runtime.AgentSourceType != sourceTypeMultiSource {
+		t.Fatalf("expected runtime source type %q, got %q", sourceTypeMultiSource, cfg.Runtime.AgentSourceType)
+	}
+	if got := strings.Join(cfg.Runtime.EnabledSources, ","); got != "windows_exporter,docker" {
+		t.Fatalf("unexpected enabled sources: %s", got)
+	}
+	if len(cfg.Metrics) != 1 {
+		t.Fatalf("expected 1 windows metric rule, got %d", len(cfg.Metrics))
+	}
+	if len(cfg.DockerMetrics) != 1 {
+		t.Fatalf("expected 1 docker metric rule, got %d", len(cfg.DockerMetrics))
+	}
+	if cfg.Runtime.DockerTimeout.String() != "4s" {
+		t.Fatalf("expected docker timeout 4s, got %s", cfg.Runtime.DockerTimeout)
+	}
+}
+
 func writeTestFile(t *testing.T, path, body string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {

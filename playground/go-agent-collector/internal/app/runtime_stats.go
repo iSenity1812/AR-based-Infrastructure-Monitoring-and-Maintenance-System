@@ -24,24 +24,51 @@ type runtimeStats struct {
 	lastReplayBatchID       string
 	lastBufferedBatchID     string
 	lastDroppedBatchID      string
+	perSource               map[string]*sourceRuntimeStats
 }
 
 func newRuntimeStats(startedAt time.Time) *runtimeStats {
-	return &runtimeStats{startedAt: startedAt}
+	return &runtimeStats{
+		startedAt: startedAt,
+		perSource: map[string]*sourceRuntimeStats{},
+	}
 }
 
-func (s *runtimeStats) recordScrapeSuccess(at time.Time) {
+type sourceRuntimeStats struct {
+	successCount int64
+	failureCount int64
+	lastScrapeAt time.Time
+	lastError    string
+}
+
+func (s *runtimeStats) sourceStats(name string) *sourceRuntimeStats {
+	if stats, ok := s.perSource[name]; ok {
+		return stats
+	}
+	stats := &sourceRuntimeStats{}
+	s.perSource[name] = stats
+	return stats
+}
+
+func (s *runtimeStats) recordScrapeSuccess(sourceName string, at time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.scrapeSuccessCount++
 	s.lastScrapeAt = at
+	stats := s.sourceStats(sourceName)
+	stats.successCount++
+	stats.lastScrapeAt = at
+	stats.lastError = ""
 }
 
-func (s *runtimeStats) recordScrapeFailure(err error) {
+func (s *runtimeStats) recordScrapeFailure(sourceName string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.scrapeFailureCount++
 	s.lastError = err.Error()
+	stats := s.sourceStats(sourceName)
+	stats.failureCount++
+	stats.lastError = err.Error()
 }
 
 func (s *runtimeStats) recordSendSuccess(at time.Time, batchID string) {
@@ -112,6 +139,14 @@ type statsSnapshot struct {
 	RetryConsecutiveFailures int    `json:"retryConsecutiveFailures"`
 	NextRetryAt              string `json:"nextRetryAt,omitempty"`
 	Status                   string `json:"status"`
+	Sources                  map[string]sourceStatsSnapshot `json:"sources,omitempty"`
+}
+
+type sourceStatsSnapshot struct {
+	ScrapeSuccessCount int64  `json:"scrapeSuccessCount"`
+	ScrapeFailureCount int64  `json:"scrapeFailureCount"`
+	LastScrapeAt       string `json:"lastScrapeAt,omitempty"`
+	LastError          string `json:"lastError,omitempty"`
 }
 
 func (s *runtimeStats) snapshot(queueLength, bufferedBatchCount, retryFailures int, nextRetryAt time.Time, scrapeInterval time.Duration) statsSnapshot {
@@ -123,6 +158,16 @@ func (s *runtimeStats) snapshot(queueLength, bufferedBatchCount, retryFailures i
 		status = "unhealthy"
 	} else if retryFailures > 0 || bufferedBatchCount > 0 || s.sendFailureCount > 0 {
 		status = "degraded"
+	}
+
+	sourceSnapshots := make(map[string]sourceStatsSnapshot, len(s.perSource))
+	for name, stats := range s.perSource {
+		sourceSnapshots[name] = sourceStatsSnapshot{
+			ScrapeSuccessCount: stats.successCount,
+			ScrapeFailureCount: stats.failureCount,
+			LastScrapeAt:       formatTime(stats.lastScrapeAt),
+			LastError:          stats.lastError,
+		}
 	}
 
 	return statsSnapshot{
@@ -147,6 +192,7 @@ func (s *runtimeStats) snapshot(queueLength, bufferedBatchCount, retryFailures i
 		RetryConsecutiveFailures: retryFailures,
 		NextRetryAt:              formatTime(nextRetryAt),
 		Status:                   status,
+		Sources:                  sourceSnapshots,
 	}
 }
 

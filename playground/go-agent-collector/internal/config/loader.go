@@ -15,6 +15,8 @@ import (
 const (
 	sourceTypeWindowsExporter = "windows_exporter"
 	sourceTypeNodeExporter    = "node_exporter"
+	sourceTypeDocker          = "docker"
+	sourceTypeMultiSource     = "multi_source"
 )
 
 // Load reads YAML config, applies environment overrides, derives runtime
@@ -41,14 +43,19 @@ func Load(baseDir string) (*Config, error) {
 		return nil, err
 	}
 
-	metricPath, err := metricConfigPath(cfg.ConfigDir, cfg.Agent.SourceType)
+	enabledSources := resolveEnabledSources(cfg)
+	cfg.Runtime.EnabledSources = enabledSources
+
+	metricPaths, err := metricConfigPaths(cfg.ConfigDir, enabledSources)
 	if err != nil {
 		return nil, err
 	}
-	if err := mergeYAML(metricPath, cfg); err != nil {
-		return nil, err
+	for _, metricPath := range metricPaths {
+		if err := mergeYAML(metricPath, cfg); err != nil {
+			return nil, err
+		}
 	}
-	cfg.Runtime.MetricConfigPath = metricPath
+	cfg.Runtime.MetricConfigPath = strings.Join(metricPaths, ";")
 
 	if err := cfg.resolve(); err != nil {
 		return nil, err
@@ -71,15 +78,43 @@ func mergeYAML(path string, target any) error {
 	return nil
 }
 
-func metricConfigPath(configDir, sourceType string) (string, error) {
-	switch sourceType {
-	case sourceTypeWindowsExporter:
-		return filepath.Join(configDir, "metrics.windows.yaml"), nil
-	case sourceTypeNodeExporter:
-		return filepath.Join(configDir, "metrics.linux.yaml"), nil
-	default:
-		return "", fmt.Errorf("unsupported sourceType %q", sourceType)
+func metricConfigPaths(configDir string, enabledSources []string) ([]string, error) {
+	paths := make([]string, 0, len(enabledSources))
+	for _, sourceType := range enabledSources {
+		switch sourceType {
+		case sourceTypeWindowsExporter:
+			paths = append(paths, filepath.Join(configDir, "metrics.windows.yaml"))
+		case sourceTypeNodeExporter:
+			paths = append(paths, filepath.Join(configDir, "metrics.linux.yaml"))
+		case sourceTypeDocker:
+			paths = append(paths, filepath.Join(configDir, "metrics.docker.yaml"))
+		default:
+			return nil, fmt.Errorf("unsupported sourceType %q", sourceType)
+		}
 	}
+	return paths, nil
+}
+
+func resolveEnabledSources(cfg *Config) []string {
+	if len(cfg.Sources.Enabled) > 0 {
+		seen := make(map[string]struct{}, len(cfg.Sources.Enabled))
+		sources := make([]string, 0, len(cfg.Sources.Enabled))
+		for _, sourceType := range cfg.Sources.Enabled {
+			trimmed := strings.TrimSpace(sourceType)
+			if trimmed == "" {
+				continue
+			}
+			if _, exists := seen[trimmed]; exists {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			sources = append(sources, trimmed)
+		}
+		if len(sources) > 0 {
+			return sources
+		}
+	}
+	return []string{cfg.Agent.SourceType}
 }
 
 func (c *Config) resolve() error {
@@ -126,6 +161,10 @@ func (c *Config) resolve() error {
 	)
 	c.Network.PrimaryNICHint = c.Runtime.PrimaryNICHint
 	c.Runtime.AuthToken = readEnv(c.Send.AuthTokenEnv)
+	c.Runtime.AgentSourceType = c.Agent.SourceType
+	if len(c.Runtime.EnabledSources) > 1 {
+		c.Runtime.AgentSourceType = sourceTypeMultiSource
+	}
 
 	if c.Runtime.ScrapeInterval, err = time.ParseDuration(c.Scrape.Interval); err != nil {
 		return fmt.Errorf("parse scrape.interval: %w", err)
@@ -145,6 +184,15 @@ func (c *Config) resolve() error {
 	if c.Runtime.RetryMaxBackoff, err = time.ParseDuration(c.Retry.MaxBackoff); err != nil {
 		return fmt.Errorf("parse retry.maxBackoff: %w", err)
 	}
+	if strings.TrimSpace(c.Docker.Timeout) == "" {
+		c.Docker.Timeout = c.Scrape.Timeout
+	}
+	if c.Runtime.DockerTimeout, err = time.ParseDuration(c.Docker.Timeout); err != nil {
+		return fmt.Errorf("parse docker.timeout: %w", err)
+	}
+	if !c.Docker.CollectStopped {
+		c.Docker.CollectStopped = false
+	}
 
 	return nil
 }
@@ -155,8 +203,8 @@ func (c *Config) validate() error {
 	if c.Agent.SchemaVersion == "" {
 		problems = append(problems, "agent.schemaVersion is required")
 	}
-	if c.Agent.SourceType != sourceTypeWindowsExporter && c.Agent.SourceType != sourceTypeNodeExporter {
-		problems = append(problems, "agent.sourceType must be windows_exporter or node_exporter")
+	if c.Agent.SourceType != sourceTypeWindowsExporter && c.Agent.SourceType != sourceTypeNodeExporter && c.Agent.SourceType != sourceTypeDocker {
+		problems = append(problems, "agent.sourceType must be windows_exporter, node_exporter, or docker")
 	}
 	if err := validateURL("scrape.endpoint", c.Scrape.Endpoint); err != nil {
 		problems = append(problems, err.Error())
@@ -184,6 +232,9 @@ func (c *Config) validate() error {
 	}
 	if c.Runtime.RetryMaxBackoff < c.Runtime.RetryMinBackoff {
 		problems = append(problems, "retry.maxBackoff must be >= retry.minBackoff")
+	}
+	if c.Runtime.DockerTimeout <= 0 {
+		problems = append(problems, "docker.timeout must be > 0")
 	}
 	if c.Scrape.MaxBodySizeMB <= 0 {
 		problems = append(problems, "scrape.maxBodySizeMb must be > 0")
@@ -226,41 +277,73 @@ func (c *Config) validate() error {
 	if strings.TrimSpace(c.Node.Hostname) == "" {
 		problems = append(problems, "resolved hostname is empty")
 	}
-	if len(c.Metrics) == 0 {
-		problems = append(problems, "metrics list is empty")
+	if len(c.Runtime.EnabledSources) == 0 {
+		problems = append(problems, "sources.enabled must resolve to at least one source")
+	}
+
+	windowsEnabled := hasEnabledSource(c.Runtime.EnabledSources, sourceTypeWindowsExporter)
+	dockerEnabled := hasEnabledSource(c.Runtime.EnabledSources, sourceTypeDocker)
+	nodeExporterEnabled := hasEnabledSource(c.Runtime.EnabledSources, sourceTypeNodeExporter)
+
+	if windowsEnabled && len(c.Metrics) == 0 {
+		problems = append(problems, "metrics list is empty for windows_exporter")
+	}
+	if dockerEnabled && len(c.DockerMetrics) == 0 {
+		problems = append(problems, "dockerMetrics list is empty for docker")
+	}
+	if nodeExporterEnabled {
+		problems = append(problems, "node_exporter is documented but not implemented yet")
 	}
 
 	seenKeys := map[string]struct{}{}
 	for i, metric := range c.Metrics {
-		path := fmt.Sprintf("metrics[%d]", i)
-		if strings.TrimSpace(metric.Key) == "" {
-			problems = append(problems, path+".key is required")
-		}
-		if strings.TrimSpace(metric.Category) == "" {
-			problems = append(problems, path+".category is required")
-		}
-		if strings.TrimSpace(metric.ScopeType) == "" {
-			problems = append(problems, path+".scopeType is required")
-		}
-		if strings.TrimSpace(metric.ValueType) == "" {
-			problems = append(problems, path+".valueType is required")
-		}
-		if strings.TrimSpace(metric.Aggregation) == "" {
-			problems = append(problems, path+".aggregation is required")
-		}
-		if len(metric.SourceMetric) == 0 {
-			problems = append(problems, path+".sourceMetric is required")
-		}
-		if _, exists := seenKeys[metric.Key]; exists {
-			problems = append(problems, path+".key must be unique")
-		}
-		seenKeys[metric.Key] = struct{}{}
+		problems = append(problems, validateMetricRule(metric, fmt.Sprintf("metrics[%d]", i), seenKeys)...)
+	}
+
+	for i, metric := range c.DockerMetrics {
+		problems = append(problems, validateMetricRule(metric, fmt.Sprintf("dockerMetrics[%d]", i), seenKeys)...)
 	}
 
 	if len(problems) > 0 {
 		return errors.New("config validation failed:\n - " + strings.Join(problems, "\n - "))
 	}
 	return nil
+}
+
+func validateMetricRule(metric MetricRule, path string, seenKeys map[string]struct{}) []string {
+	var problems []string
+	if strings.TrimSpace(metric.Key) == "" {
+		problems = append(problems, path+".key is required")
+	}
+	if strings.TrimSpace(metric.Category) == "" {
+		problems = append(problems, path+".category is required")
+	}
+	if strings.TrimSpace(metric.ScopeType) == "" {
+		problems = append(problems, path+".scopeType is required")
+	}
+	if strings.TrimSpace(metric.ValueType) == "" {
+		problems = append(problems, path+".valueType is required")
+	}
+	if strings.TrimSpace(metric.Aggregation) == "" {
+		problems = append(problems, path+".aggregation is required")
+	}
+	if len(metric.SourceMetric) == 0 {
+		problems = append(problems, path+".sourceMetric is required")
+	}
+	if _, exists := seenKeys[metric.Key]; exists {
+		problems = append(problems, path+".key must be unique")
+	}
+	seenKeys[metric.Key] = struct{}{}
+	return problems
+}
+
+func hasEnabledSource(sources []string, expected string) bool {
+	for _, sourceType := range sources {
+		if sourceType == expected {
+			return true
+		}
+	}
+	return false
 }
 
 func validateURL(name, value string) error {

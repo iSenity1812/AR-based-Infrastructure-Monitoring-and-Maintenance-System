@@ -30,11 +30,11 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 		metrics = append(metrics, sender.MetricRecord{
 			MetricKey:    record.metric.Name,
 			ScopeType:    firstNonEmpty(record.metric.ScopeType, "node"),
-			ScopeID:      cfg.Runtime.NodeID,
+			ScopeID:      resolveScopeID(cfg, record.metric),
 			Value:        metricValue(record.metric),
 			Unit:         record.metric.Unit,
 			Timestamp:    record.collectedAt.UTC().Format(time.RFC3339),
-			Source:       cfg.Agent.SourceType,
+			Source:       firstNonEmpty(record.metric.Source, cfg.Agent.SourceType),
 			SourceMetric: record.metric.SourceMetric,
 			Tags:         buildTags(cfg, record.metric),
 		})
@@ -45,7 +45,7 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 		Agent: sender.AgentMeta{
 			AgentID:      cfg.Runtime.AgentID,
 			AgentName:    cfg.Runtime.AgentName,
-			SourceType:   cfg.Agent.SourceType,
+			SourceType:   firstNonEmpty(cfg.Runtime.AgentSourceType, cfg.Agent.SourceType),
 			AgentVersion: cfg.Agent.AgentVersion,
 			Hostname:     cfg.Runtime.Hostname,
 			StartedAt:    counter.startedAt.Format(time.RFC3339),
@@ -83,6 +83,13 @@ func buildTags(cfg *config.Config, metric domain.Metric) map[string]string {
 		tags[key] = value
 	}
 	return tags
+}
+
+func resolveScopeID(cfg *config.Config, metric domain.Metric) string {
+	if metric.ScopeID != "" {
+		return metric.ScopeID
+	}
+	return cfg.Runtime.NodeID
 }
 
 func metricValue(metric domain.Metric) any {

@@ -24,6 +24,7 @@ Agent nay duoc thiet ke de:
 - [05_payload_schema.md](/D:/Study/FPTU/WDP301/projects/AR-based-Infrastructure-Monitoring-and-Maintenance-System/playground/go-agent-collector/docs/05_payload_schema.md)
 - [06_state_and_buffering.md](/D:/Study/FPTU/WDP301/projects/AR-based-Infrastructure-Monitoring-and-Maintenance-System/playground/go-agent-collector/docs/06_state_and_buffering.md)
 - [07_windows_source_adapter.md](/D:/Study/FPTU/WDP301/projects/AR-based-Infrastructure-Monitoring-and-Maintenance-System/playground/go-agent-collector/docs/07_windows_source_adapter.md)
+- [08_docker_metric_mapping.md](/D:/Study/FPTU/WDP301/projects/AR-based-Infrastructure-Monitoring-and-Maintenance-System/playground/go-agent-collector/docs/08_docker_metric_mapping.md)
 - [architecture.d2](/D:/Study/FPTU/WDP301/projects/AR-based-Infrastructure-Monitoring-and-Maintenance-System/playground/go-agent-collector/docs/architecture.d2)
 - [09_package_structure.md](/D:/Study/FPTU/WDP301/projects/AR-based-Infrastructure-Monitoring-and-Maintenance-System/playground/go-agent-collector/docs/09_package_structure.md)
 
@@ -36,6 +37,7 @@ Agent nay duoc thiet ke de:
 - `05_payload_schema.md`
 - `06_state_and_buffering.md`
 - `07_windows_source_adapter.md`
+- `08_docker_metric_mapping.md`
 - `08_linux_source_adapter.md`
 - `09_package_structure.md`
 - `10_mvp_plan.md`

@@ -15,6 +15,7 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 	cfg.Agent.AgentVersion = "0.1.0"
 	cfg.Runtime.AgentID = "agent-1"
 	cfg.Runtime.AgentName = "agent-name"
+	cfg.Runtime.AgentSourceType = "multi_source"
 	cfg.Runtime.NodeID = "node-1"
 	cfg.Runtime.Hostname = "HOST"
 	cfg.Topology.Site = "lab-local"
@@ -32,6 +33,7 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 			Labels:       map[string]string{"custom": "x"},
 			SourceMetric: "windows_os_hostname",
 			ScopeType:    "node",
+			Source:       "windows_exporter",
 		},
 		collectedAt: collectedAt,
 	}}
@@ -48,5 +50,11 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 	}
 	if payload.Metrics[0].Tags["nodeId"] != "node-1" || payload.Metrics[0].Tags["custom"] != "x" {
 		t.Fatalf("expected tags to include nodeId and labels, got %#v", payload.Metrics[0].Tags)
+	}
+	if payload.Metrics[0].Source != "windows_exporter" {
+		t.Fatalf("expected metric source to be preserved, got %q", payload.Metrics[0].Source)
+	}
+	if payload.Agent.SourceType != "multi_source" {
+		t.Fatalf("expected agent source type to use runtime override, got %q", payload.Agent.SourceType)
 	}
 }

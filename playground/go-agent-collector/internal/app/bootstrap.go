@@ -5,7 +5,6 @@ import (
 
 	"github.com/iSenity1812/go-agent-collector/internal/buffer"
 	"github.com/iSenity1812/go-agent-collector/internal/config"
-	"github.com/iSenity1812/go-agent-collector/internal/mapping"
 	"github.com/iSenity1812/go-agent-collector/internal/sender"
 	"github.com/iSenity1812/go-agent-collector/internal/source"
 )
@@ -20,7 +19,7 @@ func Run() error {
 	if err != nil {
 		return err
 	}
-	src, err := source.New(cfg)
+	sources, err := source.NewAll(cfg)
 	if err != nil {
 		return err
 	}
@@ -30,11 +29,10 @@ func Run() error {
 	}
 
 	runner := newRunner(cfg, runtimeDeps{
-		source: src,
-		mapper: mapping.New(cfg),
-		sender: sender.NewHTTPSender(cfg),
-		buffer: bufferStore,
-		queue:  newRecordQueue(cfg.Queue.MaxRecords, cfg.Queue.OverflowPolicy),
+		sources: sources,
+		sender:  sender.NewHTTPSender(cfg),
+		buffer:  bufferStore,
+		queue:   newRecordQueue(cfg.Queue.MaxRecords, cfg.Queue.OverflowPolicy),
 	})
 	return runner.Run()
 }

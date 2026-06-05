@@ -9,6 +9,7 @@ type Config struct {
 	EnvFile   string `yaml:"-"`
 
 	Agent         AgentConfig         `yaml:"agent"`
+	Sources       SourcesConfig       `yaml:"sources"`
 	Scrape        ScrapeConfig        `yaml:"scrape"`
 	Send          SendConfig          `yaml:"send"`
 	Retry         RetryConfig         `yaml:"retry"`
@@ -20,8 +21,10 @@ type Config struct {
 	Node          NodeConfig          `yaml:"node"`
 	Topology      TopologyConfig      `yaml:"topology"`
 	Network       NetworkConfig       `yaml:"network"`
+	Docker        DockerConfig        `yaml:"docker"`
 	Tags          TagConfig           `yaml:"tags"`
 	Metrics       []MetricRule        `yaml:"metrics"`
+	DockerMetrics []MetricRule        `yaml:"dockerMetrics"`
 
 	Runtime RuntimeConfig `yaml:"-"`
 }
@@ -32,6 +35,10 @@ type AgentConfig struct {
 	Mode          string        `yaml:"mode"`
 	AgentVersion  string        `yaml:"agentVersion"`
 	Identity      IdentityRules `yaml:"identity"`
+}
+
+type SourcesConfig struct {
+	Enabled StringList `yaml:"enabled"`
 }
 
 type IdentityRules struct {
@@ -125,6 +132,13 @@ type NetworkConfig struct {
 	ExcludeNICPatterns []string `yaml:"excludeNicPatterns"`
 }
 
+type DockerConfig struct {
+	Endpoint             string `yaml:"endpoint"`
+	Timeout              string `yaml:"timeout"`
+	CollectStopped       bool   `yaml:"collectStopped"`
+	EnableServiceRollups bool   `yaml:"enableServiceRollups"`
+}
+
 type TagConfig struct {
 	OwnerTeam  string `yaml:"ownerTeam"`
 	Deployment string `yaml:"deployment"`
@@ -148,15 +162,18 @@ type RuntimeConfig struct {
 	Hostname         string
 	AgentID          string
 	AgentName        string
+	AgentSourceType  string
 	NodeID           string
 	NodeName         string
 	PrimaryNICHint   string
 	AuthToken        string
 	MetricConfigPath string
+	EnabledSources   []string
 	ScrapeInterval   time.Duration
 	ScrapeTimeout    time.Duration
 	SendInterval     time.Duration
 	SendTimeout      time.Duration
 	RetryMinBackoff  time.Duration
 	RetryMaxBackoff  time.Duration
+	DockerTimeout    time.Duration
 }

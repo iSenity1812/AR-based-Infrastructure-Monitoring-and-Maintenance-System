@@ -8,6 +8,7 @@ import (
 	"github.com/iSenity1812/go-agent-collector/internal/buffer"
 	"github.com/iSenity1812/go-agent-collector/internal/domain"
 	"github.com/iSenity1812/go-agent-collector/internal/sender"
+	"github.com/iSenity1812/go-agent-collector/internal/source"
 )
 
 type queueRecord struct {
@@ -89,19 +90,10 @@ func (q *recordQueue) Len() int {
 }
 
 type runtimeDeps struct {
-	source sourceCollector
-	mapper metricMapper
+	sources []source.Source
 	sender payloadSender
 	buffer bufferedStore
 	queue  *recordQueue
-}
-
-type sourceCollector interface {
-	Collect() ([]domain.Metric, error)
-}
-
-type metricMapper interface {
-	Map(raw []domain.Metric) ([]domain.Metric, error)
 }
 
 type payloadSender interface {

@@ -9,4 +9,6 @@ type Metric struct {
 	Labels       map[string]string `json:"labels,omitempty"`
 	SourceMetric string            `json:"sourceMetric,omitempty"`
 	ScopeType    string            `json:"scopeType,omitempty"`
+	ScopeID      string            `json:"scopeId,omitempty"`
+	Source       string            `json:"source,omitempty"`
 }

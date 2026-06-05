@@ -44,7 +44,7 @@ func TestHandleHealthReturnsServiceUnavailableBeforeSuccessfulScrape(t *testing.
 }
 
 func TestHandleStatsReturnsRuntimeSnapshot(t *testing.T) {
-	now := time.Date(2026, 5, 28, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC()
 	r := &runner{
 		cfg: &config.Config{
 			Runtime: config.RuntimeConfig{
@@ -63,7 +63,7 @@ func TestHandleStatsReturnsRuntimeSnapshot(t *testing.T) {
 	}
 
 	r.deps.queue.Enqueue(make([]queueRecord, 3))
-	r.stats.recordScrapeSuccess(now.Add(-2 * time.Second))
+	r.stats.recordScrapeSuccess("windows_exporter", now.Add(-2*time.Second))
 	r.stats.recordSendFailure(errors.New("send failed"), "batch-failed-1")
 
 	req := httptest.NewRequest(http.MethodGet, "/stats", nil)
@@ -87,5 +87,8 @@ func TestHandleStatsReturnsRuntimeSnapshot(t *testing.T) {
 	}
 	if snapshot.Status != "degraded" {
 		t.Fatalf("expected degraded status, got %q", snapshot.Status)
+	}
+	if snapshot.Sources["windows_exporter"].ScrapeSuccessCount != 1 {
+		t.Fatalf("expected windows_exporter source stats to be tracked, got %#v", snapshot.Sources)
 	}
 }

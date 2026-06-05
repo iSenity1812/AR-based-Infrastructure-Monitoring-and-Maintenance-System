@@ -6,6 +6,7 @@ actor "Operator / Admin" as Client
 
 package "Windows Host" as WindowsHost {
   database "windows_exporter\nPrometheus endpoint" as WindowsExporter
+  database "Docker Engine\nlocal daemon" as DockerEngine
 
   package "go-agent-collector" as GoAgent {
     package "Config Layer" as ConfigLayer {
@@ -22,7 +23,8 @@ package "Windows Host" as WindowsHost {
     }
 
     package "Processing Layer" as ProcessingLayer {
-      component "Windows Source Adapter" as SourceAdapter
+      component "Windows Source Adapter" as WindowsSourceAdapter
+      component "Docker Source Adapter" as DockerSourceAdapter
       component "Prometheus Parser" as Parser
       component "Allowlist Filter" as Filter
       component "Metric Mapping Engine" as Mapper
@@ -76,7 +78,8 @@ package "Future Linux Host" as FutureLinux {
 Client --> Dashboard : view
 Client --> AROverlay : inspect
 
-WindowsExporter --> SourceAdapter : scrape raw metrics
+WindowsExporter --> WindowsSourceAdapter : scrape raw metrics
+DockerEngine --> DockerSourceAdapter : inspect inventory and one-shot stats
 AgentConfig --> Bootstrap : runtime settings
 AssetConfig --> Enricher : node metadata
 MetricsConfig --> Mapper : mapping rules
@@ -85,11 +88,13 @@ Bootstrap --> ScrapeLoop
 Bootstrap --> SendLoop
 Bootstrap --> Shutdown
 
-ScrapeLoop --> SourceAdapter
-SourceAdapter --> Parser
+ScrapeLoop --> WindowsSourceAdapter
+ScrapeLoop --> DockerSourceAdapter
+WindowsSourceAdapter --> Parser
 Parser --> Filter
 Filter --> Mapper
 Mapper --> Aggregator
+DockerSourceAdapter --> Aggregator
 Aggregator --> Enricher
 Enricher --> MemoryQueue
 
@@ -122,7 +127,7 @@ SendLoop --> InternalMetrics
 HTTPSender --> Logs
 Mapper --> Logs
 
-NodeExporter --> SourceAdapter : same flow via Linux adapter
+NodeExporter --> WindowsSourceAdapter : same flow via Linux adapter
 LinuxConfig --> Mapper : linux mapping rules
 
 @enduml

@@ -8,6 +8,12 @@ export interface SeedIdentityCommand {
   adminUsername: string;
   adminEmail: string;
   adminPassword: string;
+  operatorUsername: string;
+  operatorEmail: string;
+  operatorPassword: string;
+  technicianUsername: string;
+  technicianEmail: string;
+  technicianPassword: string;
 }
 
 export class SeedIdentityUseCase {
@@ -20,20 +26,57 @@ export class SeedIdentityUseCase {
   async execute(command: SeedIdentityCommand): Promise<void> {
     await this.roleRepository.upsertSystemRoles(buildSystemRoles());
 
+    await this.seedUser({
+      username: command.adminUsername,
+      email: command.adminEmail,
+      password: command.adminPassword,
+      roleCodes: [RoleCode.IT_ADMINISTRATOR],
+      fullName: 'System Administrator',
+    });
+
+    await this.seedUser({
+      username: command.operatorUsername,
+      email: command.operatorEmail,
+      password: command.operatorPassword,
+      roleCodes: [RoleCode.SYSTEM_MONITORING_OPERATOR],
+      fullName: 'Monitoring Operator',
+    });
+
+    await this.seedUser({
+      username: command.technicianUsername,
+      email: command.technicianEmail,
+      password: command.technicianPassword,
+      roleCodes: [RoleCode.MAINTENANCE_TECHNICIAN],
+      fullName: 'Maintenance Technician',
+    });
+  }
+
+  private async seedUser(input: {
+    username: string;
+    email: string;
+    password: string;
+    roleCodes: RoleCode[];
+    fullName: string;
+  }): Promise<void> {
     const exists = await this.userRepository.existsByUsernameOrEmail(
-      command.adminUsername,
-      command.adminEmail.toLowerCase(),
+      input.username,
+      input.email.toLowerCase(),
     );
 
     if (exists) {
       return;
     }
 
+    const passwordChangedAt = new Date();
+
     await this.userRepository.create({
-      username: command.adminUsername,
-      email: command.adminEmail.toLowerCase(),
-      passwordHash: await this.passwordHasher.hash(command.adminPassword),
-      roleCodes: [RoleCode.IT_ADMINISTRATOR],
+      username: input.username,
+      email: input.email.toLowerCase(),
+      passwordHash: await this.passwordHasher.hash(input.password),
+      roleCodes: input.roleCodes,
+      fullName: input.fullName,
+      mustChangePassword: false,
+      passwordChangedAt,
     });
   }
 }

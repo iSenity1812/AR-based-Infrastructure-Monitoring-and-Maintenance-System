@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsEmail, IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
 
 import { RoleCode } from '../../../domain/constants/role-code.enum';
 
@@ -17,11 +17,38 @@ export class CreateUserRequestDto {
   email!: string;
 
   @ApiProperty({
-    example: 'Operator@123',
+    example: 'Nguyen Van A',
   })
   @IsString()
-  @MinLength(8)
-  password!: string;
+  fullName!: string;
+
+  @ApiPropertyOptional({
+    example: '+84901234567',
+  })
+  @IsOptional()
+  @IsString()
+  phoneNumber?: string;
+
+  @ApiPropertyOptional({
+    example: 'Maintenance Technician',
+  })
+  @IsOptional()
+  @IsString()
+  jobTitle?: string;
+
+  @ApiPropertyOptional({
+    example: 'Operations',
+  })
+  @IsOptional()
+  @IsString()
+  department?: string;
+
+  @ApiPropertyOptional({
+    example: 'https://example.com/avatars/operator01.png',
+  })
+  @IsOptional()
+  @IsUrl()
+  avatarUrl?: string;
 
   @ApiPropertyOptional({
     enum: RoleCode,

@@ -3,6 +3,7 @@ import { SessionRepositoryPort } from '../../domain/ports/session-repository.por
 import { UserRepositoryPort } from '../../domain/ports/user-repository.port';
 import { RoleRepositoryPort } from '../../domain/ports/role-repository.port';
 import type { AuthenticatedUserDto } from '../dto/authenticated-user.dto';
+import { toAuthenticatedUserDto } from '../dto/user-view.mapper';
 import { IdentityPermissionService } from '../services/identity-permission.service';
 import { NotFoundUseCaseError } from '../errors/use-case.errors';
 
@@ -30,13 +31,9 @@ export class UpdateUserStatusUseCase {
 
     const roles = await this.roleRepository.findByCodes(user.roleCodes);
 
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      status: user.status,
-      roleCodes: user.roleCodes,
-      permissions: this.identityPermissionService.resolvePermissions(roles),
-    };
+    return toAuthenticatedUserDto(
+      user,
+      this.identityPermissionService.resolvePermissions(roles),
+    );
   }
 }

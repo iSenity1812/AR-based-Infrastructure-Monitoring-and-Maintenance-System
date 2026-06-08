@@ -7,4 +7,5 @@ export interface CurrentAuthContextDto {
   sessionId: string;
   roles: RoleCode[];
   permissions: PermissionCode[];
+  mustChangePassword: boolean;
 }

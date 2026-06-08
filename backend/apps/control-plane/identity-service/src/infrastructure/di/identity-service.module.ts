@@ -1,45 +1,82 @@
-import { Module } from '@nestjs/common';
-import { APP_FILTER } from '@nestjs/core';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { MongooseModule } from '@nestjs/mongoose';
+import { Module } from "@nestjs/common";
+import { APP_FILTER } from "@nestjs/core";
+import { JwtModule } from "@nestjs/jwt";
+import { PassportModule } from "@nestjs/passport";
+import { MongooseModule } from "@nestjs/mongoose";
 
-import { UserModel, UserSchema } from '../../adapters/persistence/mongoose/schemas/user.schema';
-import { RoleModel, RoleSchema } from '../../adapters/persistence/mongoose/schemas/role.schema';
-import { SessionModel, SessionSchema } from '../../adapters/persistence/mongoose/schemas/session.schema';
-import { MongooseUserRepository } from '../../adapters/persistence/mongoose/repositories/mongoose-user.repository';
-import { MongooseRoleRepository } from '../../adapters/persistence/mongoose/repositories/mongoose-role.repository';
-import { MongooseSessionRepository } from '../../adapters/persistence/mongoose/repositories/mongoose-session.repository';
-import { BcryptPasswordHasherAdapter } from '../../adapters/security/bcrypt-password-hasher.adapter';
-import { JwtAccessTokenIssuerAdapter } from '../../adapters/security/jwt-access-token-issuer.adapter';
-import { UuidRefreshTokenGeneratorAdapter } from '../../adapters/security/uuid-refresh-token-generator.adapter';
-import { ACCESS_TOKEN_ISSUER, PASSWORD_HASHER, REFRESH_TOKEN_GENERATOR, ROLE_REPOSITORY, SESSION_REPOSITORY, USER_REPOSITORY } from '../../domain/ports/port.tokens';
-import type { AccessTokenIssuerPort } from '../../domain/ports/access-token-issuer.port';
-import type { PasswordHasherPort } from '../../domain/ports/password-hasher.port';
-import type { RefreshTokenGeneratorPort } from '../../domain/ports/refresh-token-generator.port';
-import type { RoleRepositoryPort } from '../../domain/ports/role-repository.port';
-import type { SessionRepositoryPort } from '../../domain/ports/session-repository.port';
-import type { UserRepositoryPort } from '../../domain/ports/user-repository.port';
-import { IdentityServiceConfig } from '../config/identity-service-config';
-import { AuthController } from '../../presentation/http/controllers/auth.controller';
-import { AdminUsersController } from '../../presentation/http/controllers/admin-users.controller';
-import { RolesController } from '../../presentation/http/controllers/roles.controller';
-import { HealthController } from '../../presentation/http/controllers/health.controller';
-import { JwtStrategy } from '../../presentation/http/strategies/jwt.strategy';
-import { PermissionsGuard } from '../../presentation/http/guards/permissions.guard';
-import { UseCaseHttpExceptionFilter } from '../../presentation/http/filters/use-case-http-exception.filter';
-import { IdentityPermissionService } from '../../use-cases/services/identity-permission.service';
-import { LoginUseCase } from '../../use-cases/commands/login.use-case';
-import { LogoutUseCase } from '../../use-cases/commands/logout.use-case';
-import { RefreshSessionUseCase } from '../../use-cases/commands/refresh-session.use-case';
-import { GetCurrentUserUseCase } from '../../use-cases/queries/get-current-user.use-case';
-import { CreateUserUseCase } from '../../use-cases/commands/create-user.use-case';
-import { UpdateUserStatusUseCase } from '../../use-cases/commands/update-user-status.use-case';
-import { AssignUserRolesUseCase } from '../../use-cases/commands/assign-user-roles.use-case';
-import { ListRolesUseCase } from '../../use-cases/queries/list-roles.use-case';
-import { GetHealthUseCase } from '../../use-cases/queries/get-health.use-case';
-import { SeedIdentityUseCase } from '../../use-cases/commands/seed-identity.use-case';
-import { ASSIGN_USER_ROLES_USE_CASE, CREATE_USER_USE_CASE, GET_CURRENT_USER_USE_CASE, GET_HEALTH_USE_CASE, LIST_ROLES_USE_CASE, LOGIN_USE_CASE, LOGOUT_USE_CASE, REFRESH_SESSION_USE_CASE, SEED_IDENTITY_USE_CASE, UPDATE_USER_STATUS_USE_CASE } from './use-case.tokens';
+import {
+  UserModel,
+  UserSchema,
+} from "../../adapters/persistence/mongoose/schemas/user.schema";
+import {
+  RoleModel,
+  RoleSchema,
+} from "../../adapters/persistence/mongoose/schemas/role.schema";
+import {
+  SessionModel,
+  SessionSchema,
+} from "../../adapters/persistence/mongoose/schemas/session.schema";
+import { MongooseUserRepository } from "../../adapters/persistence/mongoose/repositories/mongoose-user.repository";
+import { MongooseRoleRepository } from "../../adapters/persistence/mongoose/repositories/mongoose-role.repository";
+import { MongooseSessionRepository } from "../../adapters/persistence/mongoose/repositories/mongoose-session.repository";
+import { LoggingUserOnboardingNotificationAdapter } from "../../adapters/messaging/logging-user-onboarding-notification.adapter";
+import { BcryptPasswordHasherAdapter } from "../../adapters/security/bcrypt-password-hasher.adapter";
+import { JwtAccessTokenIssuerAdapter } from "../../adapters/security/jwt-access-token-issuer.adapter";
+import { UuidRefreshTokenGeneratorAdapter } from "../../adapters/security/uuid-refresh-token-generator.adapter";
+import {
+  ACCESS_TOKEN_ISSUER,
+  PASSWORD_HASHER,
+  REFRESH_TOKEN_GENERATOR,
+  ROLE_REPOSITORY,
+  SESSION_REPOSITORY,
+  USER_ONBOARDING_NOTIFICATION,
+  USER_REPOSITORY,
+} from "../../domain/ports/port.tokens";
+import type { AccessTokenIssuerPort } from "../../domain/ports/access-token-issuer.port";
+import type { PasswordHasherPort } from "../../domain/ports/password-hasher.port";
+import type { RefreshTokenGeneratorPort } from "../../domain/ports/refresh-token-generator.port";
+import type { RoleRepositoryPort } from "../../domain/ports/role-repository.port";
+import type { SessionRepositoryPort } from "../../domain/ports/session-repository.port";
+import type { UserOnboardingNotificationPort } from "../../domain/ports/user-onboarding-notification.port";
+import type { UserRepositoryPort } from "../../domain/ports/user-repository.port";
+import { IdentityServiceConfig } from "../config/identity-service-config";
+import { AuthController } from "../../presentation/http/controllers/auth.controller";
+import { AdminUsersController } from "../../presentation/http/controllers/admin-users.controller";
+import { RolesController } from "../../presentation/http/controllers/roles.controller";
+import { HealthController } from "../../presentation/http/controllers/health.controller";
+import { JwtStrategy } from "../../presentation/http/strategies/jwt.strategy";
+import { PasswordChangeRequiredGuard } from "../../presentation/http/guards/password-change-required.guard";
+import { PermissionsGuard } from "../../presentation/http/guards/permissions.guard";
+import { UseCaseHttpExceptionFilter } from "../../presentation/http/filters/use-case-http-exception.filter";
+import { IdentityPermissionService } from "../../use-cases/services/identity-permission.service";
+import { LoginUseCase } from "../../use-cases/commands/login.use-case";
+import { LogoutUseCase } from "../../use-cases/commands/logout.use-case";
+import { RefreshSessionUseCase } from "../../use-cases/commands/refresh-session.use-case";
+import { GetCurrentUserUseCase } from "../../use-cases/queries/get-current-user.use-case";
+import { CreateUserUseCase } from "../../use-cases/commands/create-user.use-case";
+import { ChangePasswordUseCase } from "../../use-cases/commands/change-password.use-case";
+import { UpdateUserStatusUseCase } from "../../use-cases/commands/update-user-status.use-case";
+import { AssignUserRolesUseCase } from "../../use-cases/commands/assign-user-roles.use-case";
+import { ListRolesUseCase } from "../../use-cases/queries/list-roles.use-case";
+import { GetHealthUseCase } from "../../use-cases/queries/get-health.use-case";
+import { SeedIdentityUseCase } from "../../use-cases/commands/seed-identity.use-case";
+import {
+  ASSIGN_USER_ROLES_USE_CASE,
+  CHANGE_PASSWORD_USE_CASE,
+  CREATE_USER_USE_CASE,
+  GET_CURRENT_USER_USE_CASE,
+  GET_HEALTH_USE_CASE,
+  LIST_ROLES_USE_CASE,
+  LOGIN_USE_CASE,
+  LOGOUT_USE_CASE,
+  REFRESH_SESSION_USE_CASE,
+  SEED_IDENTITY_USE_CASE,
+  UPDATE_USER_STATUS_USE_CASE,
+  LIST_USERS_USE_CASE,
+  GET_BY_USERNAME_USE_CASE,
+} from "./use-case.tokens";
+import { ListUsersUseCase } from "@use-cases/queries/list-users.use-case";
+import { GetByUsernameUseCase } from "@use-cases/queries/search-by-username.use-case";
 
 @Module({
   imports: [
@@ -60,6 +97,7 @@ import { ASSIGN_USER_ROLES_USE_CASE, CREATE_USER_USE_CASE, GET_CURRENT_USER_USE_
   providers: [
     IdentityServiceConfig,
     JwtStrategy,
+    PasswordChangeRequiredGuard,
     PermissionsGuard,
     {
       provide: APP_FILTER,
@@ -69,6 +107,7 @@ import { ASSIGN_USER_ROLES_USE_CASE, CREATE_USER_USE_CASE, GET_CURRENT_USER_USE_
     MongooseUserRepository,
     MongooseRoleRepository,
     MongooseSessionRepository,
+    LoggingUserOnboardingNotificationAdapter,
     BcryptPasswordHasherAdapter,
     JwtAccessTokenIssuerAdapter,
     UuidRefreshTokenGeneratorAdapter,
@@ -95,6 +134,10 @@ import { ASSIGN_USER_ROLES_USE_CASE, CREATE_USER_USE_CASE, GET_CURRENT_USER_USE_
     {
       provide: REFRESH_TOKEN_GENERATOR,
       useExisting: UuidRefreshTokenGeneratorAdapter,
+    },
+    {
+      provide: USER_ONBOARDING_NOTIFICATION,
+      useExisting: LoggingUserOnboardingNotificationAdapter,
     },
     {
       provide: LOGIN_USE_CASE,
@@ -182,18 +225,40 @@ import { ASSIGN_USER_ROLES_USE_CASE, CREATE_USER_USE_CASE, GET_CURRENT_USER_USE_
     },
     {
       provide: CREATE_USER_USE_CASE,
-      inject: [USER_REPOSITORY, ROLE_REPOSITORY, PASSWORD_HASHER, IdentityPermissionService],
+      inject: [
+        USER_REPOSITORY,
+        ROLE_REPOSITORY,
+        PASSWORD_HASHER,
+        IdentityPermissionService,
+        USER_ONBOARDING_NOTIFICATION,
+      ],
       useFactory: (
         userRepository: UserRepositoryPort,
         roleRepository: RoleRepositoryPort,
         passwordHasher: PasswordHasherPort,
         identityPermissionService: IdentityPermissionService,
+        userOnboardingNotification: UserOnboardingNotificationPort,
       ) =>
         new CreateUserUseCase(
           userRepository,
           roleRepository,
           passwordHasher,
           identityPermissionService,
+          userOnboardingNotification,
+        ),
+    },
+    {
+      provide: CHANGE_PASSWORD_USE_CASE,
+      inject: [USER_REPOSITORY, SESSION_REPOSITORY, PASSWORD_HASHER],
+      useFactory: (
+        userRepository: UserRepositoryPort,
+        sessionRepository: SessionRepositoryPort,
+        passwordHasher: PasswordHasherPort,
+      ) =>
+        new ChangePasswordUseCase(
+          userRepository,
+          sessionRepository,
+          passwordHasher,
         ),
     },
     {
@@ -216,6 +281,18 @@ import { ASSIGN_USER_ROLES_USE_CASE, CREATE_USER_USE_CASE, GET_CURRENT_USER_USE_
           sessionRepository,
           identityPermissionService,
         ),
+    },
+    {
+      provide: LIST_USERS_USE_CASE,
+      inject: [USER_REPOSITORY],
+      useFactory: (userRepository: UserRepositoryPort) =>
+        new ListUsersUseCase(userRepository),
+    },
+    {
+      provide: GET_BY_USERNAME_USE_CASE,
+      inject: [USER_REPOSITORY],
+      useFactory: (userRepository: UserRepositoryPort) =>
+        new GetByUsernameUseCase(userRepository),
     },
     {
       provide: ASSIGN_USER_ROLES_USE_CASE,
@@ -245,11 +322,7 @@ import { ASSIGN_USER_ROLES_USE_CASE, CREATE_USER_USE_CASE, GET_CURRENT_USER_USE_
         userRepository: UserRepositoryPort,
         passwordHasher: PasswordHasherPort,
       ) =>
-        new SeedIdentityUseCase(
-          roleRepository,
-          userRepository,
-          passwordHasher,
-        ),
+        new SeedIdentityUseCase(roleRepository, userRepository, passwordHasher),
     },
   ],
   exports: [SEED_IDENTITY_USE_CASE, IdentityServiceConfig],

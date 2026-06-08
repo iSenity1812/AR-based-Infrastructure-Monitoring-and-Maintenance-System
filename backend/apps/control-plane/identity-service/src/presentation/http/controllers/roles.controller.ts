@@ -6,13 +6,14 @@ import { LIST_ROLES_USE_CASE } from '../../../infrastructure/di/use-case.tokens'
 import { ListRolesUseCase } from '../../../use-cases/queries/list-roles.use-case';
 import { RequirePermissions } from '../decorators/require-permissions.decorator';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { PasswordChangeRequiredGuard } from '../guards/password-change-required.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
 import { serializeEnvelope } from '../serializers/api-envelope.serializer';
 
 @ApiTags('Roles')
 @ApiBearerAuth()
 @Controller('roles')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PasswordChangeRequiredGuard, PermissionsGuard)
 export class RolesController {
   constructor(
     @Inject(LIST_ROLES_USE_CASE)

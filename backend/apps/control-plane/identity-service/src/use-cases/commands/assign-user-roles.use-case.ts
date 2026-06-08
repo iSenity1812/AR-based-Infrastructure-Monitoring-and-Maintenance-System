@@ -2,6 +2,7 @@ import { RoleCode } from '../../domain/constants/role-code.enum';
 import { RoleRepositoryPort } from '../../domain/ports/role-repository.port';
 import { UserRepositoryPort } from '../../domain/ports/user-repository.port';
 import type { AuthenticatedUserDto } from '../dto/authenticated-user.dto';
+import { toAuthenticatedUserDto } from '../dto/user-view.mapper';
 import { IdentityPermissionService } from '../services/identity-permission.service';
 import {
   ConflictUseCaseError,
@@ -31,13 +32,9 @@ export class AssignUserRolesUseCase {
       throw new NotFoundUseCaseError('User not found.');
     }
 
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      status: user.status,
-      roleCodes: user.roleCodes,
-      permissions: this.identityPermissionService.resolvePermissions(roles),
-    };
+    return toAuthenticatedUserDto(
+      user,
+      this.identityPermissionService.resolvePermissions(roles),
+    );
   }
 }

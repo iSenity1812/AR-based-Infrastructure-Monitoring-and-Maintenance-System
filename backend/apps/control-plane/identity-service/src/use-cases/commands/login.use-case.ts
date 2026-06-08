@@ -5,6 +5,7 @@ import { PasswordHasherPort } from '../../domain/ports/password-hasher.port';
 import { AccessTokenIssuerPort } from '../../domain/ports/access-token-issuer.port';
 import { RefreshTokenGeneratorPort } from '../../domain/ports/refresh-token-generator.port';
 import { IdentityPermissionService } from '../services/identity-permission.service';
+import { toAuthenticatedUserDto } from '../dto/user-view.mapper';
 import type { AuthenticatedUserDto } from '../dto/authenticated-user.dto';
 import type { TokenPairDto } from '../dto/token-pair.dto';
 import {
@@ -23,6 +24,7 @@ export interface LoginCommand {
 export interface LoginResult {
   user: AuthenticatedUserDto;
   tokens: TokenPairDto;
+  mustChangePassword: boolean;
 }
 
 export class LoginUseCase {
@@ -59,6 +61,7 @@ export class LoginUseCase {
     const roles = await this.roleRepository.findByCodes(user.roleCodes);
     const permissions =
       this.identityPermissionService.resolvePermissions(roles);
+    const loggedInAt = new Date();
     const refreshToken = this.refreshTokenGenerator.generate();
     const refreshTokenHash = await this.passwordHasher.hash(refreshToken);
     const session = await this.sessionRepository.create({
@@ -68,28 +71,25 @@ export class LoginUseCase {
       userAgent: command.userAgent,
       ipAddress: command.ipAddress,
     });
+    const updatedUser =
+      (await this.userRepository.markLastLogin(user.id, loggedInAt)) ?? user;
     const accessToken = await this.accessTokenIssuer.issue({
-      userId: user.id,
-      username: user.username,
+      userId: updatedUser.id,
+      username: updatedUser.username,
       sessionId: session.id,
-      roles: user.roleCodes,
+      roles: updatedUser.roleCodes,
       permissions,
+      mustChangePassword: updatedUser.mustChangePassword,
     });
 
     return {
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        status: user.status,
-        roleCodes: user.roleCodes,
-        permissions,
-      },
+      user: toAuthenticatedUserDto(updatedUser, permissions),
       tokens: {
         accessToken,
         refreshToken,
         sessionId: session.id,
       },
+      mustChangePassword: updatedUser.mustChangePassword,
     };
   }
 }

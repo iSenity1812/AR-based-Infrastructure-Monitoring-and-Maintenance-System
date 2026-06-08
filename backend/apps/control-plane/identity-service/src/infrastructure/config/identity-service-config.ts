@@ -49,4 +49,43 @@ export class IdentityServiceConfig {
   get adminPassword(): string {
     return this.configService.get<string>('ADMIN_PASSWORD') ?? 'Admin@123456';
   }
+
+  get operatorUsername(): string {
+    return (
+      this.configService.get<string>('OPERATOR_USERNAME') ?? 'operator01'
+    );
+  }
+
+  get operatorEmail(): string {
+    return (
+      this.configService.get<string>('OPERATOR_EMAIL') ??
+      'operator01@example.com'
+    );
+  }
+
+  get operatorPassword(): string {
+    return (
+      this.configService.get<string>('OPERATOR_PASSWORD') ?? 'Operator@123456'
+    );
+  }
+
+  get technicianUsername(): string {
+    return (
+      this.configService.get<string>('TECHNICIAN_USERNAME') ?? 'technician01'
+    );
+  }
+
+  get technicianEmail(): string {
+    return (
+      this.configService.get<string>('TECHNICIAN_EMAIL') ??
+      'technician01@example.com'
+    );
+  }
+
+  get technicianPassword(): string {
+    return (
+      this.configService.get<string>('TECHNICIAN_PASSWORD') ??
+      'Technician@123456'
+    );
+  }
 }

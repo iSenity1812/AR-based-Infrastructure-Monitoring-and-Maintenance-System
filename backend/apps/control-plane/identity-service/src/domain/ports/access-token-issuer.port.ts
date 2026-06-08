@@ -7,6 +7,7 @@ export interface AccessTokenPayload {
   sessionId: string;
   roles: RoleCode[];
   permissions: PermissionCode[];
+  mustChangePassword: boolean;
 }
 
 export interface AccessTokenIssuerPort {

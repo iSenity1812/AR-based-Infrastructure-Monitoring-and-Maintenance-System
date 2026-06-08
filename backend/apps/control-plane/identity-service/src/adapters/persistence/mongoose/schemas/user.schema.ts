@@ -26,6 +26,30 @@ export class UserModel {
   @Prop({ type: [String], enum: RoleCode, default: [] })
   roleCodes!: RoleCode[];
 
+  @Prop({ required: true, trim: true })
+  fullName!: string;
+
+  @Prop({ trim: true, default: null })
+  phoneNumber?: string;
+
+  @Prop({ trim: true, default: null })
+  jobTitle?: string;
+
+  @Prop({ trim: true, default: null })
+  department?: string;
+
+  @Prop({ trim: true, default: null })
+  avatarUrl?: string;
+
+  @Prop({ required: true, default: true })
+  mustChangePassword!: boolean;
+
+  @Prop({ default: null })
+  passwordChangedAt?: Date;
+
+  @Prop({ default: null })
+  lastLoginAt?: Date;
+
   createdAt!: Date;
   updatedAt!: Date;
 }

@@ -16,12 +16,14 @@ import type { Request } from 'express';
 
 import { IdentityServiceConfig } from '../../../infrastructure/config/identity-service-config';
 import { parseDurationToMilliseconds } from '../../../infrastructure/config/time.util';
+import { CHANGE_PASSWORD_USE_CASE, GET_CURRENT_USER_USE_CASE, LOGIN_USE_CASE, LOGOUT_USE_CASE, REFRESH_SESSION_USE_CASE } from '../../../infrastructure/di/use-case.tokens';
+import { ChangePasswordUseCase } from '../../../use-cases/commands/change-password.use-case';
 import { GetCurrentUserUseCase } from '../../../use-cases/queries/get-current-user.use-case';
-import { LOGIN_USE_CASE, LOGOUT_USE_CASE, REFRESH_SESSION_USE_CASE, GET_CURRENT_USER_USE_CASE } from '../../../infrastructure/di/use-case.tokens';
 import { LoginUseCase } from '../../../use-cases/commands/login.use-case';
 import { LogoutUseCase } from '../../../use-cases/commands/logout.use-case';
 import { RefreshSessionUseCase } from '../../../use-cases/commands/refresh-session.use-case';
 import { CurrentAuthContext } from '../decorators/current-auth-context.decorator';
+import { ChangePasswordRequestDto } from '../dto/change-password-request.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { LoginRequestDto } from '../dto/login-request.dto';
 import { RefreshSessionRequestDto } from '../dto/refresh-session-request.dto';
@@ -40,6 +42,8 @@ export class AuthController {
     private readonly logoutUseCase: LogoutUseCase,
     @Inject(GET_CURRENT_USER_USE_CASE)
     private readonly getCurrentUserUseCase: GetCurrentUserUseCase,
+    @Inject(CHANGE_PASSWORD_USE_CASE)
+    private readonly changePasswordUseCase: ChangePasswordUseCase,
     private readonly config: IdentityServiceConfig,
   ) {}
 
@@ -99,5 +103,26 @@ export class AuthController {
     const result = await this.getCurrentUserUseCase.execute(context);
 
     return serializeEnvelope(result);
+  }
+
+  @Post('change-password')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Change the current authenticated user password and revoke all sessions.',
+  })
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @CurrentAuthContext() context: CurrentAuthContextDto,
+    @Body() requestDto: ChangePasswordRequestDto,
+  ) {
+    await this.changePasswordUseCase.execute(context, {
+      currentPassword: requestDto.currentPassword,
+      newPassword: requestDto.newPassword,
+    });
+
+    return serializeEnvelope({
+      success: true,
+      reauthenticationRequired: true,
+    });
   }
 }

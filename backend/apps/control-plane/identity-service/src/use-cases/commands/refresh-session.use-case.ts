@@ -74,6 +74,7 @@ export class RefreshSessionUseCase {
       sessionId: session.id,
       roles: user.roleCodes,
       permissions,
+      mustChangePassword: user.mustChangePassword,
     });
 
     return {

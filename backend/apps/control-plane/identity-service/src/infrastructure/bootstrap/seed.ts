@@ -18,6 +18,12 @@ async function bootstrap(): Promise<void> {
       adminUsername: config.adminUsername,
       adminEmail: config.adminEmail,
       adminPassword: config.adminPassword,
+      operatorUsername: config.operatorUsername,
+      operatorEmail: config.operatorEmail,
+      operatorPassword: config.operatorPassword,
+      technicianUsername: config.technicianUsername,
+      technicianEmail: config.technicianEmail,
+      technicianPassword: config.technicianPassword,
     });
   } finally {
     await app.close();

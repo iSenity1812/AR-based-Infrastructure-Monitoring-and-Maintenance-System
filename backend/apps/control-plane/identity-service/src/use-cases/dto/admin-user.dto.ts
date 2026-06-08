@@ -1,8 +1,7 @@
-import type { PermissionCode } from '../../domain/constants/permission-code.constant';
 import { RoleCode } from '../../domain/constants/role-code.enum';
 import { UserStatus } from '../../domain/constants/user-status.enum';
 
-export interface AuthenticatedUserDto {
+export interface AdminUserDto {
   id: string;
   username: string;
   email: string;
@@ -13,7 +12,6 @@ export interface AuthenticatedUserDto {
   avatarUrl?: string;
   status: UserStatus;
   roleCodes: RoleCode[];
-  permissions: PermissionCode[];
   mustChangePassword: boolean;
   passwordChangedAt?: Date;
   lastLoginAt?: Date;

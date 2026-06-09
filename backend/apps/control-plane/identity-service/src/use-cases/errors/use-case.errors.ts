@@ -1,19 +1,35 @@
-export class UnauthorizedUseCaseError extends Error {
-  readonly statusCode = 401;
-  readonly errorCode = 'UNAUTHENTICATED';
+abstract class UseCaseError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number,
+    readonly errorCode: string,
+    readonly details: unknown = {},
+  ) {
+    super(message);
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
 }
 
-export class ForbiddenUseCaseError extends Error {
-  readonly statusCode = 403;
-  readonly errorCode = 'PERMISSION_DENIED';
+export class UnauthorizedUseCaseError extends UseCaseError {
+  constructor(message: string, details: unknown = {}) {
+    super(message, 401, 'UNAUTHENTICATED', details);
+  }
 }
 
-export class ConflictUseCaseError extends Error {
-  readonly statusCode = 409;
-  readonly errorCode = 'CONFLICT';
+export class ForbiddenUseCaseError extends UseCaseError {
+  constructor(message: string, details: unknown = {}) {
+    super(message, 403, 'PERMISSION_DENIED', details);
+  }
 }
 
-export class NotFoundUseCaseError extends Error {
-  readonly statusCode = 404;
-  readonly errorCode = 'NOT_FOUND';
+export class ConflictUseCaseError extends UseCaseError {
+  constructor(message: string, details: unknown = {}) {
+    super(message, 409, 'CONFLICT', details);
+  }
+}
+
+export class NotFoundUseCaseError extends UseCaseError {
+  constructor(message: string, details: unknown = {}) {
+    super(message, 404, 'NOT_FOUND', details);
+  }
 }

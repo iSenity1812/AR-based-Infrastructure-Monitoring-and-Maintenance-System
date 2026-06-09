@@ -1,17 +1,17 @@
-import { RoleRepositoryPort } from '../../domain/ports/role-repository.port';
-import { SessionRepositoryPort } from '../../domain/ports/session-repository.port';
-import { UserRepositoryPort } from '../../domain/ports/user-repository.port';
-import { PasswordHasherPort } from '../../domain/ports/password-hasher.port';
-import { AccessTokenIssuerPort } from '../../domain/ports/access-token-issuer.port';
-import { RefreshTokenGeneratorPort } from '../../domain/ports/refresh-token-generator.port';
-import { IdentityPermissionService } from '../services/identity-permission.service';
-import { toAuthenticatedUserDto } from '../dto/user-view.mapper';
-import type { AuthenticatedUserDto } from '../dto/authenticated-user.dto';
-import type { TokenPairDto } from '../dto/token-pair.dto';
+import { RoleRepositoryPort } from "../../domain/ports/role-repository.port";
+import { SessionRepositoryPort } from "../../domain/ports/session-repository.port";
+import { UserRepositoryPort } from "../../domain/ports/user-repository.port";
+import { PasswordHasherPort } from "../../domain/ports/password-hasher.port";
+import { AccessTokenIssuerPort } from "../../domain/ports/access-token-issuer.port";
+import { RefreshTokenGeneratorPort } from "../../domain/ports/refresh-token-generator.port";
+import { IdentityPermissionService } from "../services/identity-permission.service";
+import { toAuthenticatedUserDto } from "../dto/user-view.mapper";
+import type { AuthenticatedUserDto } from "../dto/authenticated-user.dto";
+import type { TokenPairDto } from "../dto/token-pair.dto";
 import {
   ForbiddenUseCaseError,
   UnauthorizedUseCaseError,
-} from '../errors/use-case.errors';
+} from "../errors/use-case.errors";
 
 export interface LoginCommand {
   email: string;
@@ -24,7 +24,7 @@ export interface LoginCommand {
 export interface LoginResult {
   user: AuthenticatedUserDto;
   tokens: TokenPairDto;
-  mustChangePassword: boolean;
+  // mustChangePassword: boolean;
 }
 
 export class LoginUseCase {
@@ -42,11 +42,11 @@ export class LoginUseCase {
     const user = await this.userRepository.findByEmail(command.email);
 
     if (!user) {
-      throw new UnauthorizedUseCaseError('Invalid credentials.');
+      throw new UnauthorizedUseCaseError("Invalid credentials.");
     }
 
     if (!user.canLogin()) {
-      throw new ForbiddenUseCaseError('User is not allowed to sign in.');
+      throw new ForbiddenUseCaseError("User is not allowed to sign in.");
     }
 
     const isPasswordValid = await this.passwordHasher.compare(
@@ -55,7 +55,7 @@ export class LoginUseCase {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedUseCaseError('Invalid credentials.');
+      throw new UnauthorizedUseCaseError("Invalid credentials.");
     }
 
     const roles = await this.roleRepository.findByCodes(user.roleCodes);
@@ -89,7 +89,6 @@ export class LoginUseCase {
         refreshToken,
         sessionId: session.id,
       },
-      mustChangePassword: updatedUser.mustChangePassword,
     };
   }
 }

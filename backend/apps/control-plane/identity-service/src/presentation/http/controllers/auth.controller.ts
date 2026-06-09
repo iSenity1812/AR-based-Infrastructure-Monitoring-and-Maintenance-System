@@ -16,7 +16,13 @@ import type { Request } from 'express';
 
 import { IdentityServiceConfig } from '../../../infrastructure/config/identity-service-config';
 import { parseDurationToMilliseconds } from '../../../infrastructure/config/time.util';
-import { CHANGE_PASSWORD_USE_CASE, GET_CURRENT_USER_USE_CASE, LOGIN_USE_CASE, LOGOUT_USE_CASE, REFRESH_SESSION_USE_CASE } from '../../../infrastructure/di/use-case.tokens';
+import {
+  CHANGE_PASSWORD_USE_CASE,
+  GET_CURRENT_USER_USE_CASE,
+  LOGIN_USE_CASE,
+  LOGOUT_USE_CASE,
+  REFRESH_SESSION_USE_CASE,
+} from '../../../infrastructure/di/use-case.tokens';
 import { ChangePasswordUseCase } from '../../../use-cases/commands/change-password.use-case';
 import { GetCurrentUserUseCase } from '../../../use-cases/queries/get-current-user.use-case';
 import { LoginUseCase } from '../../../use-cases/commands/login.use-case';
@@ -27,7 +33,6 @@ import { ChangePasswordRequestDto } from '../dto/change-password-request.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { LoginRequestDto } from '../dto/login-request.dto';
 import { RefreshSessionRequestDto } from '../dto/refresh-session-request.dto';
-import { serializeEnvelope } from '../serializers/api-envelope.serializer';
 import type { CurrentAuthContextDto } from '../../../use-cases/dto/current-auth-context.dto';
 
 @ApiTags('Auth')
@@ -58,7 +63,7 @@ export class AuthController {
       typeof userAgentHeader === 'string' ? userAgentHeader : undefined;
     const ipAddress = request.ip;
 
-    const result = await this.loginUseCase.execute({
+    return this.loginUseCase.execute({
       email: requestDto.email,
       password: requestDto.password,
       userAgent,
@@ -67,22 +72,18 @@ export class AuthController {
         Date.now() + parseDurationToMilliseconds(this.config.refreshTokenTtl),
       ),
     });
-
-    return serializeEnvelope(result);
   }
 
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access and refresh tokens.' })
   async refresh(@Body() requestDto: RefreshSessionRequestDto) {
-    const result = await this.refreshSessionUseCase.execute({
+    return this.refreshSessionUseCase.execute({
       sessionId: requestDto.sessionId,
       refreshToken: requestDto.refreshToken,
       refreshTokenExpiresAt: new Date(
         Date.now() + parseDurationToMilliseconds(this.config.refreshTokenTtl),
       ),
     });
-
-    return serializeEnvelope(result);
   }
 
   @Post('logout')
@@ -92,7 +93,7 @@ export class AuthController {
   async logout(@CurrentAuthContext() context: CurrentAuthContextDto) {
     await this.logoutUseCase.execute(context.sessionId);
 
-    return serializeEnvelope({ success: true });
+    return { success: true };
   }
 
   @Get('me')
@@ -100,9 +101,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Get the current authenticated user profile.' })
   @UseGuards(JwtAuthGuard)
   async getCurrentUser(@CurrentAuthContext() context: CurrentAuthContextDto) {
-    const result = await this.getCurrentUserUseCase.execute(context);
-
-    return serializeEnvelope(result);
+    return this.getCurrentUserUseCase.execute(context);
   }
 
   @Post('change-password')
@@ -120,9 +119,9 @@ export class AuthController {
       newPassword: requestDto.newPassword,
     });
 
-    return serializeEnvelope({
+    return {
       success: true,
       reauthenticationRequired: true,
-    });
+    };
   }
 }

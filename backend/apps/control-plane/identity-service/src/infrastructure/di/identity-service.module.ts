@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { APP_FILTER } from "@nestjs/core";
+import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { MongooseModule } from "@nestjs/mongoose";
@@ -44,6 +44,7 @@ import { AuthController } from "../../presentation/http/controllers/auth.control
 import { AdminUsersController } from "../../presentation/http/controllers/admin-users.controller";
 import { RolesController } from "../../presentation/http/controllers/roles.controller";
 import { HealthController } from "../../presentation/http/controllers/health.controller";
+import { ApiResponseInterceptor } from "../../presentation/http/interceptors/api-response.interceptor";
 import { JwtStrategy } from "../../presentation/http/strategies/jwt.strategy";
 import { PasswordChangeRequiredGuard } from "../../presentation/http/guards/password-change-required.guard";
 import { PermissionsGuard } from "../../presentation/http/guards/permissions.guard";
@@ -102,6 +103,10 @@ import { GetByUsernameUseCase } from "@use-cases/queries/search-by-username.use-
     {
       provide: APP_FILTER,
       useClass: UseCaseHttpExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ApiResponseInterceptor,
     },
     IdentityPermissionService,
     MongooseUserRepository,

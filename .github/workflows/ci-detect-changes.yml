@@ -41,6 +41,12 @@ on:
       identity_deploy_changed:
         description: Whether identity-service should be rebuilt and deployed.
         value: ${{ jobs.detect.outputs.identity_deploy_changed }}
+      asset_changed:
+        description: Whether asset-service CI should run.
+        value: ${{ jobs.detect.outputs.asset_changed }}
+      asset_deploy_changed:
+        description: Whether asset-service should be rebuilt and deployed.
+        value: ${{ jobs.detect.outputs.asset_deploy_changed }}
       changed_files_json:
         description: JSON array of changed files.
         value: ${{ jobs.detect.outputs.changed_files_json }}
@@ -60,6 +66,8 @@ jobs:
       docs_only: ${{ steps.detect.outputs.docs_only }}
       identity_changed: ${{ steps.detect.outputs.identity_service_changed }}
       identity_deploy_changed: ${{ steps.detect.outputs.identity_service_deploy_changed }}
+      asset_changed: ${{ steps.detect.outputs.asset_service_changed }}
+      asset_deploy_changed: ${{ steps.detect.outputs.asset_service_deploy_changed }}
       changed_files_json: ${{ steps.detect.outputs.changed_files_json }}
     steps:
       - name: Check out repository
@@ -88,6 +96,8 @@ jobs:
             echo "- docs only: \`${{ steps.detect.outputs.docs_only }}\`"
             echo "- identity changed: \`${{ steps.detect.outputs.identity_service_changed }}\`"
             echo "- identity deploy changed: \`${{ steps.detect.outputs.identity_service_deploy_changed }}\`"
+            echo "- asset changed: \`${{ steps.detect.outputs.asset_service_changed }}\`"
+            echo "- asset deploy changed: \`${{ steps.detect.outputs.asset_service_deploy_changed }}\`"
             echo ""
             echo "### Changed Files"
             echo '\`\`\`json'

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "code-review-graph": {
+      "command": "uvx",
+      "args": [
+        "code-review-graph",
+        "serve"
+      ],
+      "cwd": "D:\\Study\\FPTU\\WDP301\\projects\\AR-based-Infrastructure-Monitoring-and-Maintenance-System",
+      "type": "stdio",
+      "env": []
+    }
+  }
+}

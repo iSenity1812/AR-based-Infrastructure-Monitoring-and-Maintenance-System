@@ -132,22 +132,20 @@ Ly do tach:
 
 Vai tro:
 
-- quan ly `rack`, `switch`, `node`, `service`, `container`
+- quan ly `rack` va `node`
 - quan ly marker mapping
 - cung cap asset graph va marker resolution context cho monitoring, ingestion va AR
 
 Primary ownership:
 
 - racks
-- switches
 - nodes
-- services
-- containers
 - markers
 
 Ly do tach:
 
 - `topology` va `marker mapping` co cung asset boundary. Tach thanh hai microservice se tao query-coupling khong can thiet, nhat la cho AR flow.
+- workload runtime nhu `container` va `service state` khong nen la truth trong asset boundary; no nen duoc compose tu monitoring/data plane khi can.
 
 ### 4.4 Telemetry Ingestion Service
 
@@ -254,6 +252,16 @@ Vai tro:
 - assignment, comment, status transition
 - lien ket alert, inspection va notification
 
+Ticket operations trong boundary nay bao gom:
+
+- tao ticket tu incident hoac alert da duoc triage
+- assign va reassign ticket cho `Maintenance Technician`
+- acknowledge ticket
+- cap nhat status `IN_PROGRESS`, `ESCALATED`, `RESOLVED`, `CANCELLED`
+- ghi comment, evidence va execution note
+- lien ket inspection result vao ticket
+- dong bo ticket outcome nguoc lai incident/notification flow
+
 Primary ownership:
 
 - incidents
@@ -262,9 +270,25 @@ Primary ownership:
 - ar_sessions
 - ar_inspections
 
+Authoritative write path:
+
+- `createTicket`
+- `assignTicket`
+- `reassignTicket`
+- `acknowledgeTicket`
+- `startTicketWork`
+- `escalateTicket`
+- `resolveTicket`
+- `cancelTicket`
+- `addTicketComment`
+- `attachInspectionEvidence`
+- `closeIncidentFromWorkflowOutcome`
+
 Ly do tach:
 
 - incident, ticket, comment, inspection la mot chuoi workflow lien tuc. Tach `Inspection Service` rieng se lam query-sharing va transaction boundary kho hon ma khong co them bounded context moi.
+- ticket operation khong nen nam trong `Asset Context Service` vi ticket khong phai topology truth.
+- ticket operation cung khong nen nam trong `Monitoring Service` vi monitoring owns alert lifecycle, con ticket la maintenance execution truth.
 
 ### 4.9 Simulation Service
 

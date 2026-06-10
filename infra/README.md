@@ -8,9 +8,14 @@ It defines how the system runs, not what the system does.
 
 - Database configurations (MongoDB, TimescaleDB, Redis)
 - Message broker setup (Kafka topics, configs)
-- Kubernetes manifests / deployment files
+- `k3s` manifests / deployment files
 - Docker configurations
 - Observability stack (logging, metrics, tracing)
+
+## Current deployment layout
+
+- `infra/ci`: shared CI/CD helper scripts
+- `infra/k3s`: service manifests for lightweight Kubernetes targets, including clusters running on Google Cloud VMs
 
 ## Rules
 

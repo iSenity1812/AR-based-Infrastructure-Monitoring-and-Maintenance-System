@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+const EMPTY_TREE_SHA = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
@@ -35,34 +37,91 @@ function git(args) {
   }).trim();
 }
 
+function tryGit(args) {
+  try {
+    return git(args);
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSha(value) {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue || /^0+$/.test(trimmedValue)) {
+    return null;
+  }
+
+  return trimmedValue;
+}
+
+function resolveCommitish(value) {
+  const normalizedValue = normalizeSha(value);
+
+  if (!normalizedValue) {
+    return null;
+  }
+
+  return tryGit(["rev-parse", "--verify", `${normalizedValue}^{commit}`]);
+}
+
+function resolveHeadSha(candidateHeadSha) {
+  return resolveCommitish(candidateHeadSha) ?? git(["rev-parse", "HEAD"]);
+}
+
+function resolvePushBaseSha(candidateBaseSha, headSha) {
+  const resolvedBaseSha = resolveCommitish(candidateBaseSha);
+  if (resolvedBaseSha) {
+    return resolvedBaseSha;
+  }
+
+  const firstParentSha = tryGit(["rev-parse", "--verify", `${headSha}^`]);
+  if (firstParentSha) {
+    return firstParentSha;
+  }
+
+  return EMPTY_TREE_SHA;
+}
+
 function resolveRange(eventName, eventPath) {
   const payload = readJson(eventPath);
-  const inputBaseSha = process.env.INPUT_BASE_SHA?.trim();
-  const inputHeadSha = process.env.INPUT_HEAD_SHA?.trim();
+  const inputBaseSha = normalizeSha(process.env.INPUT_BASE_SHA);
+  const inputHeadSha = normalizeSha(process.env.INPUT_HEAD_SHA);
 
-  if (inputBaseSha && inputHeadSha) {
-    return { baseSha: inputBaseSha, headSha: inputHeadSha };
+  if (inputHeadSha) {
+    const headSha = resolveHeadSha(inputHeadSha);
+
+    if (inputBaseSha) {
+      const baseSha = resolveCommitish(inputBaseSha) ?? EMPTY_TREE_SHA;
+      return { baseSha, headSha };
+    }
+
+    if (eventName === "push") {
+      return {
+        baseSha: resolvePushBaseSha(payload.before, headSha),
+        headSha,
+      };
+    }
   }
 
   if (eventName === "pull_request") {
+    const headSha = resolveHeadSha(payload.pull_request.head.sha);
     return {
-      baseSha: payload.pull_request.base.sha,
-      headSha: payload.pull_request.head.sha,
+      baseSha: resolveCommitish(payload.pull_request.base.sha) ?? EMPTY_TREE_SHA,
+      headSha,
     };
   }
 
   if (eventName === "push") {
-    const headSha = payload.after;
-    const baseSha =
-      payload.before && !/^0+$/.test(payload.before)
-        ? payload.before
-        : git(["rev-list", "--max-parents=0", headSha]).split("\n").pop();
-
-    return { baseSha, headSha };
+    const headSha = resolveHeadSha(payload.after);
+    return {
+      baseSha: resolvePushBaseSha(payload.before, headSha),
+      headSha,
+    };
   }
 
   const headSha = git(["rev-parse", "HEAD"]);
-  const baseSha = git(["rev-parse", "HEAD^"]);
+  const baseSha = tryGit(["rev-parse", "--verify", "HEAD^"]) ?? EMPTY_TREE_SHA;
   return { baseSha, headSha };
 }
 

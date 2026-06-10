@@ -148,7 +148,9 @@ Preferred success envelope:
 {
   "data": {},
   "meta": {
-    "correlationId": "req-123",
+    "requestId": "", //requestId → định danh 1 API call
+
+    "correlationId": "req-123", // optional, correlationId → định danh cả luồng xử lý nhiều API
     "version": "v1"
   }
 }
@@ -169,8 +171,13 @@ Canonical error envelope:
   "error": {
     "code": "RESOURCE_NOT_FOUND",
     "message": "Resource not found",
-    "details": {},
-    "correlationId": "req-123"
+    "details": {}
+  },
+  "meta": {
+    "requestId": "...",
+    "correlationId": "req-123",
+    "version": "v1",
+    "timestamp": "..."
   }
 }
 ```
@@ -180,7 +187,8 @@ Rules:
 - `code` is machine-readable and stable
 - `message` is human-readable
 - `details` is reserved for structured diagnostics
-- `correlationId` must be present
+- `correlationId` must be present in `meta`
+- `version` should be present in `meta` for externally consumed APIs
 
 ### Versioning
 

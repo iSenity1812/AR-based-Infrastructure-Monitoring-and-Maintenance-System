@@ -8,7 +8,7 @@ on:
       - .github/service-registry.json
       - .github/workflows/**
       - infra/ci/**
-      - infra/k8s/identity-service/**
+      - infra/k3s/identity-service/**
       - backend/apps/control-plane/identity-service/**
       - packages/**
       - package.json
@@ -35,12 +35,26 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     outputs:
       image_repository: ${{ steps.meta.outputs.image_repository }}
       image_tag_sha: ${{ steps.meta.outputs.image_tag_sha }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != '' }}
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -94,6 +108,9 @@ jobs:
       - build-and-push
     if: ${{ needs.detect.outputs.identity_deploy_changed == 'true' }}
     environment: dev
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -103,7 +120,30 @@ jobs:
         with:
           version: latest
 
-      - name: Configure kubeconfig
+      - name: Authenticate to Google Cloud
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != '' }}
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Configure kubeconfig from Google Secret Manager
+        if: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != '' && secrets.GCP_K3S_KUBECONFIG_SECRET != '' }}
+        env:
+          KUBECONFIG_SECRET_NAME: ${{ secrets.GCP_K3S_KUBECONFIG_SECRET }}
+        run: |
+          mkdir -p "$HOME/.kube"
+          gcloud secrets versions access latest --secret="$KUBECONFIG_SECRET_NAME" > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Configure kubeconfig from GitHub secret
+        if: ${{ !(secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != '' && secrets.GCP_K3S_KUBECONFIG_SECRET != '') }}
         env:
           KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG }}
         run: |
@@ -113,10 +153,10 @@ jobs:
 
       - name: Apply base manifests
         run: |
-          kubectl apply -f infra/k8s/identity-service/namespace.yaml
-          kubectl apply -f infra/k8s/identity-service/configmap.yaml
-          kubectl apply -f infra/k8s/identity-service/service.yaml
-          kubectl apply -f infra/k8s/identity-service/deployment.yaml
+          kubectl apply -f infra/k3s/identity-service/namespace.yaml
+          kubectl apply -f infra/k3s/identity-service/configmap.yaml
+          kubectl apply -f infra/k3s/identity-service/service.yaml
+          kubectl apply -f infra/k3s/identity-service/deployment.yaml
 
       - name: Update deployment image
         env:
@@ -138,5 +178,7 @@ jobs:
             echo ""
             echo "- namespace: \`$K8S_NAMESPACE\`"
             echo "- image: \`$IMAGE_REPOSITORY:$IMAGE_TAG_SHA\`"
+            echo "- platform: \`k3s\`"
+            echo "- Google Cloud auth: \`${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && secrets.GCP_SERVICE_ACCOUNT != '' }}\`"
             echo "- rollback: redeploy a prior SHA tag with \`kubectl set image\`"
           } >> "$GITHUB_STEP_SUMMARY"

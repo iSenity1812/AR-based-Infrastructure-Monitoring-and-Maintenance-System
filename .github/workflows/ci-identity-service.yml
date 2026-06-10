@@ -6,7 +6,7 @@ on:
       - .github/service-registry.json
       - .github/workflows/**
       - infra/ci/**
-      - infra/k8s/identity-service/**
+      - infra/k3s/identity-service/**
       - backend/apps/control-plane/identity-service/**
       - packages/**
       - package.json
@@ -17,7 +17,7 @@ on:
       - .github/service-registry.json
       - .github/workflows/**
       - infra/ci/**
-      - infra/k8s/identity-service/**
+      - infra/k3s/identity-service/**
       - backend/apps/control-plane/identity-service/**
       - packages/**
       - package.json
@@ -43,6 +43,6 @@ jobs:
       runtime: node
       node_version: "22"
       dockerfile_path: backend/apps/control-plane/identity-service/Dockerfile
-      deploy_manifest_path: infra/k8s/identity-service
+      deploy_manifest_path: infra/k3s/identity-service
       run_tests: true
       run_build: true

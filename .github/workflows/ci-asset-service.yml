@@ -1,0 +1,48 @@
+name: CI - Asset Service
+
+on:
+  pull_request:
+    paths:
+      - .github/service-registry.json
+      - .github/workflows/**
+      - infra/ci/**
+      - infra/k3s/asset-service/**
+      - backend/apps/control-plane/asset-service/**
+      - packages/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+  push:
+    paths:
+      - .github/service-registry.json
+      - .github/workflows/**
+      - infra/ci/**
+      - infra/k3s/asset-service/**
+      - backend/apps/control-plane/asset-service/**
+      - packages/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+
+jobs:
+  detect:
+    name: Detect Asset-Service Changes
+    uses: ./.github/workflows/ci-detect-changes.yml
+    with:
+      base_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+      head_sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+  asset-service:
+    name: Validate Asset Service
+    needs: detect
+    if: ${{ needs.detect.outputs.asset_changed == 'true' }}
+    uses: ./.github/workflows/ci-service.yml
+    with:
+      service_name: asset-service
+      service_path: backend/apps/control-plane/asset-service
+      runtime: node
+      node_version: "22"
+      dockerfile_path: backend/apps/control-plane/asset-service/Dockerfile
+      deploy_manifest_path: infra/k3s/asset-service
+      run_tests: true
+      run_build: true

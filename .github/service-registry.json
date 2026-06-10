@@ -28,7 +28,7 @@
       "build_tool": "pnpm",
       "docker_context": "backend/apps/control-plane/identity-service",
       "dockerfile_path": "backend/apps/control-plane/identity-service/Dockerfile",
-      "deploy_manifest_path": "infra/k8s/identity-service",
+      "deploy_manifest_path": "infra/k3s/identity-service",
       "ci_paths": [
         "backend/apps/control-plane/identity-service/**",
         ".github/workflows/**",
@@ -42,7 +42,36 @@
       "deploy_paths": [
         "backend/apps/control-plane/identity-service/**",
         "backend/apps/control-plane/identity-service/Dockerfile",
-        "infra/k8s/identity-service/**",
+        "infra/k3s/identity-service/**",
+        "packages/**",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml"
+      ]
+    },
+    {
+      "service_name": "asset-service",
+      "path": "backend/apps/control-plane/asset-service",
+      "runtime": "node",
+      "build_tool": "pnpm",
+      "docker_context": "backend/apps",
+      "dockerfile_path": "backend/apps/control-plane/asset-service/Dockerfile",
+      "deploy_manifest_path": "infra/k3s/asset-service",
+      "ci_paths": [
+        "backend/apps/control-plane/asset-service/**",
+        ".github/workflows/**",
+        ".github/service-registry.json",
+        "infra/ci/**",
+        "infra/k3s/asset-service/**",
+        "packages/**",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml"
+      ],
+      "deploy_paths": [
+        "backend/apps/control-plane/asset-service/**",
+        "backend/apps/control-plane/asset-service/Dockerfile",
+        "infra/k3s/asset-service/**",
         "packages/**",
         "package.json",
         "pnpm-lock.yaml",

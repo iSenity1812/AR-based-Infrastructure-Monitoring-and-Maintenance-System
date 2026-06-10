@@ -14,3 +14,8 @@ Create a Kubernetes secret named `identity-service-secrets` in the target namesp
 - `ADMIN_PASSWORD`
 
 The CD workflow applies the namespace, config map, service, and deployment, then updates the deployment image to the commit SHA tag published to `GHCR`.
+
+It supports two kubeconfig bootstrap modes:
+
+1. `KUBE_CONFIG` GitHub secret
+2. Google Cloud Workload Identity Federation plus a Secret Manager secret referenced by `GCP_K3S_KUBECONFIG_SECRET`

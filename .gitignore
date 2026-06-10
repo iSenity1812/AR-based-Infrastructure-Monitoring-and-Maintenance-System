@@ -1,1 +1,17 @@
 node_modules
+
+# .agents/**
+# .claude/**
+# docs/**
+# playground/docs/**
+
+# ENGINEER.md
+# OPS.md
+# CONTRACTS.md
+# FRONTEND.md
+.vscode/**
+.idea/**
+
+**/*.log
+# Added by code-review-graph
+.code-review-graph/

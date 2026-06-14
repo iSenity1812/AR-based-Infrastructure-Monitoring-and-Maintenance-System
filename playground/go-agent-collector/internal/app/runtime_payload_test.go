@@ -6,6 +6,7 @@ import (
 
 	"github.com/iSenity1812/go-agent-collector/internal/config"
 	"github.com/iSenity1812/go-agent-collector/internal/domain"
+	"github.com/iSenity1812/go-agent-collector/internal/sender"
 )
 
 func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
@@ -18,10 +19,11 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 	cfg.Runtime.AgentSourceType = "multi_source"
 	cfg.Runtime.NodeID = "node-1"
 	cfg.Runtime.Hostname = "HOST"
-	cfg.Topology.Site = "lab-local"
-	cfg.Topology.Environment = "poc"
-	cfg.Topology.RackID = "rack-a1"
 	cfg.Node.DeviceType = "laptop"
+	cfg.Runtime.OSProduct = "Windows 11 Pro"
+	cfg.Runtime.CPUArchitecture = "x86_64"
+	cfg.Runtime.LogicalCPUCount = 16
+	cfg.Runtime.HardwareSerial = "SERIAL-123"
 
 	counter := newBatchCounter()
 	collectedAt := time.Date(2026, 5, 28, 4, 0, 0, 0, time.UTC)
@@ -38,7 +40,15 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 		collectedAt: collectedAt,
 	}}
 
-	payload := buildPayload(cfg, records, 0, counter, collectedAt.Add(time.Second))
+	payload := buildPayload(cfg, records, 0, counter, collectedAt.Add(time.Second), sender.PayloadContext{
+		HardwareFingerprint: sender.HardwareFingerprint{
+			MotherboardModel: "MSI MS-158L",
+			CPUModel:         "AMD Ryzen 7 5800H with Radeon Graphics",
+			GPUModelPrimary:  "AMD Radeon RX 6600M",
+			SSDModelPrimary:  "KINGSTON SNV2S1000G",
+			BatteryModel:     "MS-158L",
+		},
+	})
 	if payload.SchemaVersion != "v1" {
 		t.Fatalf("expected schema version v1, got %s", payload.SchemaVersion)
 	}
@@ -48,13 +58,57 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 	if payload.Metrics[0].Value != "MSI" {
 		t.Fatalf("expected text value MSI, got %#v", payload.Metrics[0].Value)
 	}
-	if payload.Metrics[0].Tags["nodeId"] != "node-1" || payload.Metrics[0].Tags["custom"] != "x" {
-		t.Fatalf("expected tags to include nodeId and labels, got %#v", payload.Metrics[0].Tags)
+	if payload.Metrics[0].Tags["custom"] != "x" {
+		t.Fatalf("expected metric tags to keep only metric-specific labels, got %#v", payload.Metrics[0].Tags)
+	}
+	if payload.Metrics[0].Tags["nodeId"] != "" || payload.Metrics[0].Tags["rackId"] != "" || payload.Metrics[0].Tags["site"] != "" {
+		t.Fatalf("expected duplicated/sensitive node tags to be omitted, got %#v", payload.Metrics[0].Tags)
 	}
 	if payload.Metrics[0].Source != "windows_exporter" {
 		t.Fatalf("expected metric source to be preserved, got %q", payload.Metrics[0].Source)
 	}
 	if payload.Agent.SourceType != "multi_source" {
 		t.Fatalf("expected agent source type to use runtime override, got %q", payload.Agent.SourceType)
+	}
+	if payload.Context.Identity.NodeID != "node-1" || payload.Context.Identity.Hostname != "HOST" {
+		t.Fatalf("expected shared identity context, got %#v", payload.Context.Identity)
+	}
+	if payload.Context.HardwareFingerprint.OSProduct != "Windows 11 Pro" || payload.Context.HardwareFingerprint.HardwareSerial != "SERIAL-123" {
+		t.Fatalf("expected shared hardware fingerprint context, got %#v", payload.Context.HardwareFingerprint)
+	}
+	if payload.Context.HardwareFingerprint.MotherboardModel != "MSI MS-158L" || payload.Context.HardwareFingerprint.SSDModelPrimary != "KINGSTON SNV2S1000G" {
+		t.Fatalf("expected lhm fingerprint enrichments to merge into shared context, got %#v", payload.Context.HardwareFingerprint)
+	}
+}
+
+func TestBuildPayloadUsesLatestCollectedAtForBatch(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.SchemaVersion = "v1"
+	cfg.Runtime.AgentID = "agent-1"
+	cfg.Runtime.AgentName = "agent-name"
+	cfg.Runtime.NodeID = "node-1"
+	cfg.Runtime.Hostname = "HOST"
+
+	counter := newBatchCounter()
+	sentAt := time.Date(2026, 5, 28, 4, 1, 0, 0, time.UTC)
+	older := sentAt.Add(-30 * time.Second)
+	newer := sentAt.Add(-5 * time.Second)
+
+	payload := buildPayload(cfg, []queueRecord{
+		{
+			metric:      domain.Metric{Name: "node.hostname", TextValue: "MSI", Unit: "text", SourceMetric: "windows_os_hostname", ScopeType: "node"},
+			collectedAt: older,
+		},
+		{
+			metric:      domain.Metric{Name: "node.os_product", TextValue: "Windows 11 Pro", Unit: "text", SourceMetric: "windows_os_info", ScopeType: "node"},
+			collectedAt: newer,
+		},
+	}, 0, counter, sentAt, sender.PayloadContext{})
+
+	if got := payload.Batch.CollectedAt; got != newer.UTC().Format("2006-01-02T15:04:05") {
+		t.Fatalf("expected batch collectedAt to use latest record timestamp, got %s", got)
+	}
+	if got := payload.Batch.SentAt; got != sentAt.UTC().Format("2006-01-02T15:04:05") {
+		t.Fatalf("expected batch sentAt to use send timestamp, got %s", got)
 	}
 }

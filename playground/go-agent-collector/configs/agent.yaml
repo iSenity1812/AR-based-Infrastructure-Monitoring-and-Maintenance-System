@@ -22,12 +22,18 @@ sources:
   enabled:
     - windows_exporter
     - docker
+    - lhm
 
 scrape:
   endpoint: http://localhost:9182/metrics
-  interval: 5s
+  interval: 15s
   timeout: 3s
   maxBodySizeMb: 8
+
+lhm:
+  endpoint: http://localhost:8085/data.json
+  timeout: 3s
+  fingerprintInterval: 120s
 
 docker:
   endpoint: npipe:////./pipe/docker_engine
@@ -36,12 +42,26 @@ docker:
   enableServiceRollups: true
 
 send:
-  endpoint: http://localhost:8080/api/telemetry/ingest
-  interval: 5s
+  transport: http # grpc support is planned for future release
+  endpoint: http://localhost:8090/api/telemetry/ingest # example: 127.0.0.1:8091 for gRPC or http://localhost:8090/api/telemetry/ingest for HTTP
+  interval: 15s
   timeout: 5s
+  grpcTimeout: 15s
   maxBatchItems: 200
   maxBatchBytesKb: 512
   authTokenEnv: GO_AGENT_API_TOKEN
+
+registration:
+  enabled: true
+  endpoint: 127.0.0.1:8443
+  tlsEnabled: true
+  caCertPath: ../../backend/apps/ingestion-worker/deployment/local-ca/pki/ca.crt
+  serverName: local-ingestion.local
+  bootstrapToken: ""
+  sharedConfigPath: ../../backend/apps/ingestion-worker/config/config.yaml
+  credentialStatePath: data/registration/registration-state.json
+  deviceType: WORKSTATION
+  timeout: 15s
 
 retry:
   minBackoff: 1s

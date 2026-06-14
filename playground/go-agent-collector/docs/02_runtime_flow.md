@@ -79,7 +79,7 @@ Trach nhiem:
 
 Goi y mac dinh cho PoC:
 
-- `scrapeInterval = 5s`
+- `scrapeInterval = 15s`
 
 ### 5.2. Send loop
 
@@ -95,7 +95,7 @@ Trach nhiem:
 
 Goi y mac dinh cho PoC:
 
-- `sendInterval = 5s`
+- `sendInterval = 15s`
 
 ## 6. Flow chi tiet cua scrape loop
 

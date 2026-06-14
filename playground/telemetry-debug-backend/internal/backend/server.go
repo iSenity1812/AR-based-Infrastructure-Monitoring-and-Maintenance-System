@@ -9,14 +9,18 @@ import (
 )
 
 type Server struct {
-	store *store
-	nowFn func() time.Time
+	store         *store
+	nowFn         func() time.Time
+	publisher     envelopePublisher
+	redpandaTopic string
 }
 
-func NewServer() *Server {
+func NewServer(publisher envelopePublisher, redpandaTopic string) *Server {
 	return &Server{
-		store: newStore(),
-		nowFn: time.Now,
+		store:         newStore(),
+		nowFn:         time.Now,
+		publisher:     publisher,
+		redpandaTopic: redpandaTopic,
 	}
 }
 
@@ -71,7 +75,7 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 		"status":      "accepted",
 		"batchId":     payload.Batch.BatchID,
 		"recordCount": payload.Batch.RecordCount,
-		"receivedAt":  now.Format(time.RFC3339),
+		"receivedAt":  now.Format("2006-01-02T15:04:05"),
 	})
 }
 

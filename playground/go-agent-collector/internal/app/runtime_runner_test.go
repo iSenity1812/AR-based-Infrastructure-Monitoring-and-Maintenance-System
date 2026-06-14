@@ -8,6 +8,7 @@ import (
 
 	"github.com/iSenity1812/go-agent-collector/internal/config"
 	"github.com/iSenity1812/go-agent-collector/internal/domain"
+	"github.com/iSenity1812/go-agent-collector/internal/sender"
 	"github.com/iSenity1812/go-agent-collector/internal/source"
 )
 
@@ -15,6 +16,7 @@ type fakeSource struct {
 	name    string
 	metrics []domain.Metric
 	err     error
+	context sender.PayloadContext
 }
 
 func (f fakeSource) Name() string { return f.name }
@@ -24,6 +26,10 @@ func (f fakeSource) Collect() ([]domain.Metric, error) {
 		return nil, f.err
 	}
 	return append([]domain.Metric(nil), f.metrics...), nil
+}
+
+func (f fakeSource) SharedContext() sender.PayloadContext {
+	return f.context
 }
 
 func TestScrapeOnceMergesMultipleSourcesAndKeepsHealthySource(t *testing.T) {
@@ -58,6 +64,15 @@ func TestScrapeOnceMergesMultipleSourcesAndKeepsHealthySource(t *testing.T) {
 				}},
 			},
 			fakeSource{
+				name: "lhm",
+				context: sender.PayloadContext{
+					HardwareFingerprint: sender.HardwareFingerprint{
+						MotherboardModel: "MSI MS-158L",
+						CPUModel:         "AMD Ryzen 7 5800H with Radeon Graphics",
+					},
+				},
+			},
+			fakeSource{
 				name: "broken",
 				err:  errors.New("boom"),
 			},
@@ -72,6 +87,9 @@ func TestScrapeOnceMergesMultipleSourcesAndKeepsHealthySource(t *testing.T) {
 	if got := r.deps.queue.Len(); got != 2 {
 		t.Fatalf("expected 2 metrics from healthy sources, got %d", got)
 	}
+	if got := r.sharedContext().HardwareFingerprint.MotherboardModel; got != "MSI MS-158L" {
+		t.Fatalf("expected shared context to keep lhm fingerprint, got %#v", r.sharedContext())
+	}
 
 	snapshot := r.stats.snapshot(r.deps.queue.Len(), 0, 0, time.Time{}, cfg.Runtime.ScrapeInterval)
 	if snapshot.Sources["windows_exporter"].ScrapeSuccessCount != 1 {
@@ -79,6 +97,9 @@ func TestScrapeOnceMergesMultipleSourcesAndKeepsHealthySource(t *testing.T) {
 	}
 	if snapshot.Sources["docker"].ScrapeSuccessCount != 1 {
 		t.Fatalf("expected docker success count 1, got %#v", snapshot.Sources)
+	}
+	if snapshot.Sources["lhm"].ScrapeSuccessCount != 1 {
+		t.Fatalf("expected lhm success count 1, got %#v", snapshot.Sources)
 	}
 	if snapshot.Sources["broken"].ScrapeFailureCount != 1 {
 		t.Fatalf("expected broken source failure count 1, got %#v", snapshot.Sources)

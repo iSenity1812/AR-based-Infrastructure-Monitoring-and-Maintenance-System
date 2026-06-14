@@ -1,0 +1,297 @@
+lhmMetrics:
+  - category: hardware_health
+    key: node.cpu_temperature_c
+    status: draft
+    enabled: true
+    sourceMetric: lhm.cpu.temperature
+    scopeType: node
+    unit: C
+    valueType: gauge
+    aggregation: direct
+    notes: CPU package temperature from LibreHardwareMonitor.
+
+  - category: hardware_health
+    key: node.cpu_package_power_w
+    status: draft
+    enabled: true
+    sourceMetric: lhm.cpu.package_power
+    scopeType: node
+    unit: W
+    valueType: gauge
+    aggregation: direct
+    notes: CPU package power from LibreHardwareMonitor.
+
+  - category: hardware_health
+    key: node.gpu_core_load_pct
+    status: draft
+    enabled: true
+    sourceMetric: lhm.gpu.core_load
+    scopeType: node
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - gpu
+      - gpu_index
+    notes: GPU utilization per detected GPU.
+
+  - category: hardware_health
+    key: node.gpu_core_clock_mhz
+    status: draft
+    enabled: true
+    sourceMetric: lhm.gpu.core_clock
+    scopeType: node
+    unit: MHz
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - gpu
+      - gpu_index
+    notes: GPU core clock per detected GPU.
+
+  - category: hardware_health
+    key: node.gpu_memory_clock_mhz
+    status: draft
+    enabled: true
+    sourceMetric: lhm.gpu.memory_clock
+    scopeType: node
+    unit: MHz
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - gpu
+      - gpu_index
+    notes: GPU memory clock per detected GPU.
+
+  - category: hardware_health
+    key: node.ssd_temperature_c
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.temperature
+    scopeType: node
+    unit: C
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: Composite NVMe temperature per drive.
+
+  - category: hardware_health
+    key: node.ssd_life_pct
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.life
+    scopeType: node
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: Remaining NVMe life per drive.
+
+  - category: hardware_health
+    key: node.ssd_percentage_used_pct
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.percentage_used
+    scopeType: node
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: NVMe wear percentage per drive.
+
+  - category: hardware_health
+    key: node.ssd_available_spare_pct
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.available_spare
+    scopeType: node
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: NVMe available spare percentage per drive.
+
+  - category: hardware_health
+    key: node.ssd_power_on_hours
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.power_on_hours
+    scopeType: node
+    unit: hours
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: NVMe power on hours per drive.
+
+  - category: hardware_health
+    key: node.ssd_power_on_count
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.power_on_count
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: NVMe power cycle count per drive.
+
+  - category: hardware_health
+    key: node.ssd_data_read_gb
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.data_read_gb
+    scopeType: node
+    unit: GB
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: Cumulative data read per NVMe drive.
+
+  - category: hardware_health
+    key: node.ssd_data_written_gb
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.data_written_gb
+    scopeType: node
+    unit: GB
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: Cumulative data written per NVMe drive.
+
+  - category: hardware_health
+    key: node.ssd_free_space_gb
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.free_space_gb
+    scopeType: node
+    unit: GB
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: Free space per NVMe drive.
+
+  - category: hardware_health
+    key: node.ssd_total_space_gb
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.total_space_gb
+    scopeType: node
+    unit: GB
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: Total space per NVMe drive.
+
+  - category: hardware_health
+    key: node.ssd_read_rate
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.read_rate_kb_sec
+    scopeType: node
+    unit: KB/s
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: NVMe read throughput per drive.
+
+  - category: hardware_health
+    key: node.ssd_write_rate
+    status: draft
+    enabled: true
+    sourceMetric: lhm.nvme.write_rate_kb_sec
+    scopeType: node
+    unit: KB/s
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - drive
+      - drive_index
+    notes: NVMe write throughput per drive.
+
+  - category: hardware_health
+    key: node.battery_charge_pct
+    status: draft
+    enabled: true
+    sourceMetric: lhm.battery.charge_pct
+    scopeType: node
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - battery
+    notes: Current battery charge level.
+
+  - category: hardware_health
+    key: node.battery_degradation_pct
+    status: draft
+    enabled: true
+    sourceMetric: lhm.battery.degradation_pct
+    scopeType: node
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - battery
+    notes: Battery degradation level.
+
+  - category: hardware_health
+    key: node.battery_design_capacity_mwh
+    status: draft
+    enabled: true
+    sourceMetric: lhm.battery.design_capacity_mwh
+    scopeType: node
+    unit: mWh
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - battery
+    notes: Designed battery capacity.
+
+  - category: hardware_health
+    key: node.battery_full_charge_capacity_mwh
+    status: draft
+    enabled: true
+    sourceMetric: lhm.battery.full_charge_capacity_mwh
+    scopeType: node
+    unit: mWh
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - battery
+    notes: Current full charge capacity.
+
+  - category: hardware_health
+    key: node.battery_remaining_capacity_mwh
+    status: draft
+    enabled: true
+    sourceMetric: lhm.battery.remaining_capacity_mwh
+    scopeType: node
+    unit: mWh
+    valueType: gauge
+    aggregation: direct
+    keepLabels:
+      - battery
+    notes: Remaining battery capacity.

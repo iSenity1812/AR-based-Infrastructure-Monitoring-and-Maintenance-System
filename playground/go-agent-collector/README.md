@@ -22,13 +22,29 @@ GO_AGENT_RUN_DURATION=15s go run ./cmd/agent
 
 Current runtime behavior
 
-1. Scrape local exporter metrics on `scrape.interval`
+1. Scrape local exporter metrics on `scrape.interval` (`15s` in `configs/agent.yaml`)
 2. Parse and normalize metrics into `node.*`
 3. Queue normalized metrics in memory
-4. Build batch payloads on `send.interval`
-5. Send payloads to backend over HTTP
+4. Build batch payloads and send them on `send.interval` (`15s` in `configs/agent.yaml`)
+5. Send payloads to backend over HTTP or gRPC
 6. Persist retryable failed batches to `data/buffer`
 7. Replay buffered batches before sending new queue data
+
+gRPC delivery notes
+
+- Set `send.transport=grpc` to enable unary gRPC delivery
+- Keep `send.timeout` for REST behavior
+- Use `send.grpcTimeout` for gRPC calls, default `15s`
+- For gRPC, `send.endpoint` should be `host:port`, for example `127.0.0.1:8091`
+
+Quick E2E test
+
+1. Start Redpanda locally.
+2. Run the telemetry debug backend on `127.0.0.1:8090` for HTTP and `127.0.0.1:8091` for gRPC.
+3. Set the agent to `send.transport: grpc` and point `send.endpoint` to the backend gRPC address.
+4. Run the agent with `GO_AGENT_RUN_DURATION=35s go run ./cmd/agent` so it has time for at least two 15s cycles.
+5. Check `GET /api/telemetry/stats` on `http://127.0.0.1:8090` and confirm `receivedBatchCount` increases.
+6. Optional: read `telemetry.grpc.raw` with `rpk topic consume` to verify the binary envelope landed in Redpanda.
 
 Backend contract
 

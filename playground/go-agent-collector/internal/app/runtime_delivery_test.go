@@ -35,7 +35,7 @@ func TestSendPayloadSchedulesRetryAndBuffersOnFailure(t *testing.T) {
 	now := time.Date(2026, 5, 28, 4, 0, 0, 0, time.UTC)
 	r.nowFn = func() time.Time { return now }
 
-	payload := buildPayload(cfg, []queueRecord{{metric: domain.Metric{Name: "node.process_count", Value: 3, Unit: "count"}, collectedAt: now}}, 0, r.counter, now)
+	payload := buildPayload(cfg, []queueRecord{{metric: domain.Metric{Name: "node.process_count", Value: 3, Unit: "count"}, collectedAt: now}}, 0, r.counter, now, sender.PayloadContext{})
 	result, err := r.sendPayload(context.Background(), payload, true)
 	if !errors.Is(err, sendErr) {
 		t.Fatalf("expected send error to be returned, got %v", err)

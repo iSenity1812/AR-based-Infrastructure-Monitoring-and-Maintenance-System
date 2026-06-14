@@ -12,6 +12,7 @@ type Config struct {
 	Sources       SourcesConfig       `yaml:"sources"`
 	Scrape        ScrapeConfig        `yaml:"scrape"`
 	Send          SendConfig          `yaml:"send"`
+	Registration  RegistrationConfig  `yaml:"registration"`
 	Retry         RetryConfig         `yaml:"retry"`
 	Buffer        BufferConfig        `yaml:"buffer"`
 	Queue         QueueConfig         `yaml:"queue"`
@@ -22,9 +23,11 @@ type Config struct {
 	Topology      TopologyConfig      `yaml:"topology"`
 	Network       NetworkConfig       `yaml:"network"`
 	Docker        DockerConfig        `yaml:"docker"`
+	LHM           LHMConfig           `yaml:"lhm"`
 	Tags          TagConfig           `yaml:"tags"`
 	Metrics       []MetricRule        `yaml:"metrics"`
 	DockerMetrics []MetricRule        `yaml:"dockerMetrics"`
+	LHMMetrics    []MetricRule        `yaml:"lhmMetrics"`
 
 	Runtime RuntimeConfig `yaml:"-"`
 }
@@ -60,12 +63,27 @@ type ScrapeConfig struct {
 }
 
 type SendConfig struct {
+	Transport       string `yaml:"transport"`
 	Endpoint        string `yaml:"endpoint"`
 	Interval        string `yaml:"interval"`
 	Timeout         string `yaml:"timeout"`
+	GRPCTimeout     string `yaml:"grpcTimeout"`
 	MaxBatchItems   int    `yaml:"maxBatchItems"`
 	MaxBatchBytesKB int    `yaml:"maxBatchBytesKb"`
 	AuthTokenEnv    string `yaml:"authTokenEnv"`
+}
+
+type RegistrationConfig struct {
+	Enabled             bool   `yaml:"enabled"`
+	Endpoint            string `yaml:"endpoint"`
+	TLSEnabled          bool   `yaml:"tlsEnabled"`
+	CACertPath          string `yaml:"caCertPath"`
+	ServerName          string `yaml:"serverName"`
+	BootstrapToken      string `yaml:"bootstrapToken"`
+	SharedConfigPath    string `yaml:"sharedConfigPath"`
+	CredentialStatePath string `yaml:"credentialStatePath"`
+	DeviceType          string `yaml:"deviceType"`
+	Timeout             string `yaml:"timeout"`
 }
 
 type RetryConfig struct {
@@ -139,6 +157,12 @@ type DockerConfig struct {
 	EnableServiceRollups bool   `yaml:"enableServiceRollups"`
 }
 
+type LHMConfig struct {
+	Endpoint            string `yaml:"endpoint"`
+	Timeout             string `yaml:"timeout"`
+	FingerprintInterval string `yaml:"fingerprintInterval"`
+}
+
 type TagConfig struct {
 	OwnerTeam  string `yaml:"ownerTeam"`
 	Deployment string `yaml:"deployment"`
@@ -159,21 +183,39 @@ type MetricRule struct {
 }
 
 type RuntimeConfig struct {
-	Hostname         string
-	AgentID          string
-	AgentName        string
-	AgentSourceType  string
-	NodeID           string
-	NodeName         string
-	PrimaryNICHint   string
-	AuthToken        string
-	MetricConfigPath string
-	EnabledSources   []string
-	ScrapeInterval   time.Duration
-	ScrapeTimeout    time.Duration
-	SendInterval     time.Duration
-	SendTimeout      time.Duration
-	RetryMinBackoff  time.Duration
-	RetryMaxBackoff  time.Duration
-	DockerTimeout    time.Duration
+	Hostname               string
+	AgentID                string
+	AgentName              string
+	AgentSourceType        string
+	NodeID                 string
+	NodeName               string
+	PrimaryNICHint         string
+	OSProduct              string
+	HardwareSerial         string
+	CPUArchitecture        string
+	LogicalCPUCount        int
+	AuthToken              string
+	MetricConfigPath       string
+	EnabledSources         []string
+	RegistrationEnabled    bool
+	RegistrationEndpoint   string
+	RegistrationTimeout    time.Duration
+	RegistrationStatePath  string
+	RegistrationDeviceType string
+	RegistrationToken      string
+	RegistrationConfigPath string
+	RegistrationTLSEnabled bool
+	RegistrationCACertPath string
+	RegistrationServerName string
+	ScrapeInterval         time.Duration
+	ScrapeTimeout          time.Duration
+	SendInterval           time.Duration
+	SendTimeout            time.Duration
+	GRPCSendTimeout        time.Duration
+	RetryMinBackoff        time.Duration
+	RetryMaxBackoff        time.Duration
+	DockerTimeout          time.Duration
+	LHMTimeout             time.Duration
+	LHMFingerprintInterval time.Duration
+	SendTransport          string
 }

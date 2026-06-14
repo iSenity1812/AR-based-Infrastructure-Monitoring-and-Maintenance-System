@@ -36,7 +36,7 @@ scrape:
   timeout: 3s
   maxBodySizeMb: 8
 send:
-  endpoint: http://localhost:8080/api/telemetry/ingest
+  endpoint: http://localhost:8090/api/telemetry/ingest
   interval: 5s
   timeout: 5s
   maxBatchItems: 100
@@ -177,7 +177,7 @@ docker:
   collectStopped: true
   enableServiceRollups: true
 send:
-  endpoint: http://localhost:8080/api/telemetry/ingest
+  endpoint: http://localhost:8090/api/telemetry/ingest
   interval: 5s
   timeout: 5s
   maxBatchItems: 100
@@ -273,6 +273,181 @@ dockerMetrics:
 	}
 	if cfg.Runtime.DockerTimeout.String() != "4s" {
 		t.Fatalf("expected docker timeout 4s, got %s", cfg.Runtime.DockerTimeout)
+	}
+}
+
+func TestLoadDefaultsGRPCTimeoutAndTransport(t *testing.T) {
+	root := t.TempDir()
+	configDir := filepath.Join(root, "configs")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("mkdir configs: %v", err)
+	}
+
+	writeTestFile(t, filepath.Join(configDir, "agent.yaml"), strings.TrimSpace(`
+agent:
+  schemaVersion: v1
+  sourceType: windows_exporter
+  mode: service
+  agentVersion: 0.1.0
+  identity:
+    agentIdEnv: GO_AGENT_ID
+    agentNameEnv: GO_AGENT_NAME
+    agentIdStrategy: hostname_slug
+    agentNameStrategy: hostname
+    agentIdPrefix: agent
+    hostnameEnv: TEST_HOSTNAME
+scrape:
+  endpoint: http://localhost:9182/metrics
+  interval: 5s
+  timeout: 3s
+  maxBodySizeMb: 8
+send:
+  transport: grpc
+  endpoint: 127.0.0.1:8091
+  interval: 5s
+  timeout: 5s
+  maxBatchItems: 100
+  maxBatchBytesKb: 512
+retry:
+  minBackoff: 1s
+  maxBackoff: 30s
+  maxAttempts: 0
+  retryableStatusCodes: [503]
+buffer:
+  enabled: false
+  path: data/buffer
+  maxSizeMb: 50
+  maxBatchFiles: 100
+  overflowPolicy: drop_oldest
+queue:
+  maxRecords: 100
+  overflowPolicy: drop_oldest
+logging:
+  level: info
+  format: json
+  output: stdout
+observability:
+  healthAddress: 127.0.0.1:9101
+features:
+  localHealthEndpoint: false
+`))
+	writeTestFile(t, filepath.Join(configDir, "assets.yaml"), "node:\n  nodeIdEnv: GO_NODE_ID\n  nodeNameEnv: GO_NODE_NAME\n  hostnameEnv: TEST_HOSTNAME\n  nodeIdStrategy: hostname_slug\n  nodeNameStrategy: hostname\n  nodeIdPrefix: node\n  deviceType: laptop\ntopology:\n  rackId: rack-a1\n  switchId: sw-a1\n  site: lab-local\n  environment: poc\nnetwork:\n  primaryUplink: wifi\n  primaryNicEnv: GO_PRIMARY_NIC\n  excludeNicPatterns: []\ntags:\n  ownerTeam: telemetry\n  deployment: local-lab\n")
+	writeTestFile(t, filepath.Join(configDir, "metrics.windows.yaml"), "metrics:\n  - category: runtime\n    key: node.process_count\n    enabled: true\n    sourceMetric: windows_system_processes\n    scopeType: node\n    unit: count\n    valueType: gauge\n    aggregation: direct\n")
+	t.Setenv("TEST_HOSTNAME", "Test Host")
+
+	cfg, err := Load(root)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Runtime.SendTransport != sendTransportGRPC {
+		t.Fatalf("expected grpc transport, got %s", cfg.Runtime.SendTransport)
+	}
+	if cfg.Runtime.GRPCSendTimeout.String() != "15s" {
+		t.Fatalf("expected default grpc timeout 15s, got %s", cfg.Runtime.GRPCSendTimeout)
+	}
+}
+
+func TestLoadSupportsLHMSecondarySource(t *testing.T) {
+	root := t.TempDir()
+	configDir := filepath.Join(root, "configs")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("mkdir configs: %v", err)
+	}
+
+	writeTestFile(t, filepath.Join(configDir, "agent.yaml"), strings.TrimSpace(`
+agent:
+  schemaVersion: v1
+  sourceType: windows_exporter
+  mode: service
+  agentVersion: 0.1.0
+  identity:
+    agentIdEnv: GO_AGENT_ID
+    agentNameEnv: GO_AGENT_NAME
+    agentIdStrategy: hostname_slug
+    agentNameStrategy: hostname
+    agentIdPrefix: agent
+    hostnameEnv: TEST_HOSTNAME
+sources:
+  enabled:
+    - windows_exporter
+    - lhm
+scrape:
+  endpoint: http://localhost:9182/metrics
+  interval: 15s
+  timeout: 3s
+  maxBodySizeMb: 8
+lhm:
+  endpoint: http://localhost:8085/data.json
+  timeout: 4s
+  fingerprintInterval: 120s
+send:
+  endpoint: http://localhost:8090/api/telemetry/ingest
+  interval: 15s
+  timeout: 5s
+  maxBatchItems: 100
+  maxBatchBytesKb: 512
+retry:
+  minBackoff: 1s
+  maxBackoff: 30s
+  maxAttempts: 0
+  retryableStatusCodes: [503]
+buffer:
+  enabled: false
+  path: data/buffer
+  maxSizeMb: 50
+  maxBatchFiles: 100
+  overflowPolicy: drop_oldest
+queue:
+  maxRecords: 100
+  overflowPolicy: drop_oldest
+logging:
+  level: info
+  format: json
+  output: stdout
+observability:
+  healthAddress: 127.0.0.1:9101
+features:
+  localHealthEndpoint: false
+`))
+	writeTestFile(t, filepath.Join(configDir, "assets.yaml"), "node:\n  nodeIdEnv: GO_NODE_ID\n  nodeNameEnv: GO_NODE_NAME\n  hostnameEnv: TEST_HOSTNAME\n  nodeIdStrategy: hostname_slug\n  nodeNameStrategy: hostname\n  nodeIdPrefix: node\n  deviceType: laptop\ntopology:\n  rackId: rack-a1\n  switchId: sw-a1\n  site: lab-local\n  environment: poc\nnetwork:\n  primaryUplink: wifi\n  primaryNicEnv: GO_PRIMARY_NIC\n  excludeNicPatterns: []\ntags:\n  ownerTeam: telemetry\n  deployment: local-lab\n")
+	writeTestFile(t, filepath.Join(configDir, "metrics.windows.yaml"), "metrics:\n  - category: runtime\n    key: node.process_count\n    enabled: true\n    sourceMetric: windows_system_processes\n    scopeType: node\n    unit: count\n    valueType: gauge\n    aggregation: direct\n")
+	writeTestFile(t, filepath.Join(configDir, "metrics.lhm.yaml"), "lhmMetrics:\n  - category: hardware_health\n    key: node.cpu_temperature_c\n    enabled: true\n    sourceMetric: lhm.cpu.temperature\n    scopeType: node\n    unit: C\n    valueType: gauge\n    aggregation: direct\n")
+	t.Setenv("TEST_HOSTNAME", "Test Host")
+
+	cfg, err := Load(root)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if got := strings.Join(cfg.Runtime.EnabledSources, ","); got != "windows_exporter,lhm" {
+		t.Fatalf("unexpected enabled sources: %s", got)
+	}
+	if len(cfg.LHMMetrics) != 1 {
+		t.Fatalf("expected 1 lhm metric rule, got %d", len(cfg.LHMMetrics))
+	}
+	if cfg.Runtime.LHMTimeout.String() != "4s" {
+		t.Fatalf("expected lhm timeout 4s, got %s", cfg.Runtime.LHMTimeout)
+	}
+	if cfg.Runtime.LHMFingerprintInterval.String() != "2m0s" {
+		t.Fatalf("expected lhm fingerprint interval 120s, got %s", cfg.Runtime.LHMFingerprintInterval)
+	}
+}
+
+func TestLoadRejectsInvalidLHMConfig(t *testing.T) {
+	root := t.TempDir()
+	configDir := filepath.Join(root, "configs")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("mkdir configs: %v", err)
+	}
+
+	writeTestFile(t, filepath.Join(configDir, "agent.yaml"), "agent:\n  schemaVersion: v1\n  sourceType: windows_exporter\n  mode: service\n  agentVersion: 0.1.0\n  identity:\n    hostnameEnv: TEST_HOSTNAME\nsources:\n  enabled:\n    - windows_exporter\n    - lhm\nscrape:\n  endpoint: http://localhost:9182/metrics\n  interval: 5s\n  timeout: 3s\n  maxBodySizeMb: 8\nlhm:\n  endpoint: not-a-url\n  timeout: 3s\n  fingerprintInterval: 0s\nsend:\n  endpoint: http://localhost:8090/api/telemetry/ingest\n  interval: 5s\n  timeout: 5s\n  maxBatchItems: 100\n  maxBatchBytesKb: 512\nretry:\n  minBackoff: 1s\n  maxBackoff: 30s\n  maxAttempts: 0\n  retryableStatusCodes: [503]\nbuffer:\n  enabled: false\n  path: data/buffer\n  maxSizeMb: 50\n  maxBatchFiles: 100\n  overflowPolicy: drop_oldest\nqueue:\n  maxRecords: 100\n  overflowPolicy: drop_oldest\nlogging:\n  level: info\n  format: json\n  output: stdout\nobservability:\n  healthAddress: 127.0.0.1:9101\nfeatures:\n  localHealthEndpoint: false\n")
+	writeTestFile(t, filepath.Join(configDir, "assets.yaml"), "node:\n  nodeIdStrategy: hostname_slug\n  nodeNameStrategy: hostname\n  nodeIdPrefix: node\n  deviceType: laptop\n")
+	writeTestFile(t, filepath.Join(configDir, "metrics.windows.yaml"), "metrics:\n  - category: runtime\n    key: node.process_count\n    enabled: true\n    sourceMetric: windows_system_processes\n    scopeType: node\n    unit: count\n    valueType: gauge\n    aggregation: direct\n")
+	writeTestFile(t, filepath.Join(configDir, "metrics.lhm.yaml"), "lhmMetrics:\n  - category: hardware_health\n    key: node.cpu_temperature_c\n    enabled: true\n    sourceMetric: lhm.cpu.temperature\n    scopeType: node\n    unit: C\n    valueType: gauge\n    aggregation: direct\n")
+	t.Setenv("TEST_HOSTNAME", "Test Host")
+
+	_, err := Load(root)
+	if err == nil || !strings.Contains(err.Error(), "lhm.") {
+		t.Fatalf("expected lhm validation error, got %v", err)
 	}
 }
 

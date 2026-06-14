@@ -4,6 +4,7 @@ type Payload struct {
 	SchemaVersion string         `json:"schemaVersion"`
 	Agent         AgentMeta      `json:"agent"`
 	Batch         BatchMeta      `json:"batch"`
+	Context       PayloadContext `json:"context,omitempty"`
 	Metrics       []MetricRecord `json:"metrics"`
 }
 
@@ -25,6 +26,27 @@ type BatchMeta struct {
 	DroppedCount int    `json:"droppedCount"`
 }
 
+type PayloadContext struct {
+	Identity            ContextIdentity     `json:"identity,omitempty"`
+	HardwareFingerprint HardwareFingerprint `json:"hardwareFingerprint,omitempty"`
+}
+
+type ContextIdentity struct {
+	Hostname   string `json:"hostname,omitempty"`
+	NodeID     string `json:"nodeId,omitempty"`
+	Source     string `json:"source,omitempty"`
+	DeviceType string `json:"deviceType,omitempty"`
+}
+
+type HardwareFingerprint struct {
+	PrimaryIPv4     string `json:"primaryIpv4,omitempty"`
+	MACAddress      string `json:"macAddress,omitempty"`
+	HardwareSerial  string `json:"hardwareSerial,omitempty"`
+	OSProduct       string `json:"osProduct,omitempty"`
+	LogicalCPUCount string `json:"logicalCpuCount,omitempty"`
+	CPUArchitecture string `json:"cpuArchitecture,omitempty"`
+}
+
 type MetricRecord struct {
 	MetricKey    string            `json:"metricKey"`
 	ScopeType    string            `json:"scopeType"`
@@ -41,9 +63,13 @@ type BatchSummary struct {
 	BatchID      string         `json:"batchId"`
 	AgentID      string         `json:"agentId"`
 	Hostname     string         `json:"hostname"`
+	Context      PayloadContext `json:"context,omitempty"`
+	Transport    string         `json:"transport,omitempty"`
 	RecordCount  int            `json:"recordCount"`
 	DroppedCount int            `json:"droppedCount"`
 	ReceivedAt   string         `json:"receivedAt"`
+	PublishedTo  string         `json:"publishedTo,omitempty"`
+	EnvelopeSize int            `json:"envelopeSize,omitempty"`
 	MetricKeys   []string       `json:"metricKeys"`
 	Metrics      []MetricRecord `json:"metrics,omitempty"`
 }

@@ -11,19 +11,28 @@ import (
 
 	"github.com/iSenity1812/go-agent-collector/internal/config"
 	"github.com/iSenity1812/go-agent-collector/internal/domain"
+	"github.com/iSenity1812/go-agent-collector/internal/sender"
+	"github.com/iSenity1812/go-agent-collector/internal/source"
 )
 
 type runner struct {
-	cfg     *config.Config
-	deps    runtimeDeps
-	counter *batchCounter
-	retry   *retryState
-	stats   *runtimeStats
-	nowFn   func() time.Time
+	cfg       *config.Config
+	deps      runtimeDeps
+	counter   *batchCounter
+	retry     *retryState
+	stats     *runtimeStats
+	nowFn     func() time.Time
+	contextMu sync.RWMutex
+	context   sender.PayloadContext
+	loc       *time.Location
 }
 
 func newRunner(cfg *config.Config, deps runtimeDeps) *runner {
+
+	loc, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
+
 	return &runner{
+		loc:     loc,
 		cfg:     cfg,
 		deps:    deps,
 		counter: newBatchCounter(),
@@ -111,7 +120,7 @@ func (r *runner) runSendLoop(ctx context.Context) {
 }
 
 func (r *runner) scrapeOnce(ctx context.Context) {
-	collectedAt := r.now()
+	collectedAt := r.now().UTC()
 	collected := make([]domain.Metric, 0)
 	for _, src := range r.deps.sources {
 		metrics, err := src.Collect()
@@ -122,6 +131,7 @@ func (r *runner) scrapeOnce(ctx context.Context) {
 		}
 		r.stats.recordScrapeSuccess(src.Name(), collectedAt)
 		collected = append(collected, metrics...)
+		r.mergeSourceContext(src)
 	}
 	if len(collected) == 0 {
 		_ = ctx
@@ -134,9 +144,25 @@ func (r *runner) scrapeOnce(ctx context.Context) {
 		"scrape ok: metrics=%d queued=%d at=%s\n",
 		len(collected),
 		r.deps.queue.Len(),
-		collectedAt.Format(time.RFC3339),
+		collectedAt.In(r.loc).Format("2006-01-02T15:04:05"),
 	)
 	_ = ctx
+}
+
+func (r *runner) mergeSourceContext(src source.Source) {
+	provider, ok := src.(source.ContextProvider)
+	if !ok {
+		return
+	}
+	r.contextMu.Lock()
+	defer r.contextMu.Unlock()
+	r.context = mergePayloadContexts(r.context, provider.SharedContext())
+}
+
+func (r *runner) sharedContext() sender.PayloadContext {
+	r.contextMu.RLock()
+	defer r.contextMu.RUnlock()
+	return r.context
 }
 
 func (r *runner) flushOnce() {

@@ -230,8 +230,8 @@ Flow de xuat:
 
 Cho PoC, co the bat dau rat thuc dung:
 
-- scrape local exporter moi `5s`
-- batch send ve backend moi `5s`
+- scrape local exporter moi `15s`
+- batch send ve backend moi `15s`
 - metric cham hon van co the scrape cung nhip, nhung khong nhat thiet phai gui rieng
 
 Sau nay neu can toi uu:

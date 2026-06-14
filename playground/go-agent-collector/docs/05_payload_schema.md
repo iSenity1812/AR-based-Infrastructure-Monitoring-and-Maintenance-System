@@ -41,6 +41,7 @@ Payload top-level nen co:
 - `schemaVersion`
 - `agent`
 - `batch`
+- `context`
 - `metrics`
 
 ## 5. Top-level fields
@@ -77,6 +78,15 @@ Chua metadata cua lan gui:
 
 Mang chua danh sach metric records da duoc normalize.
 
+### 5.5. `context`
+
+Shared context duoc gui 1 lan moi batch de tranh lap node-level metadata tren tung metric.
+
+`context` gom 2 nhom:
+
+- `identity`
+- `hardwareFingerprint`
+
 ## 6. Metric record structure
 
 Moi metric record nen co:
@@ -90,6 +100,8 @@ Moi metric record nen co:
 - `source`
 - `sourceMetric`
 - `tags`
+
+`tags` luc nay chi nen giu phan metric-specific hoac scope-specific labels.
 
 ## 7. Field spec chi tiet
 
@@ -194,36 +206,71 @@ Field nay rat quan trong khi can trace mapping sai.
 
 Metadata enrich bo sung.
 
-Vi du:
+Vi du sau khi toi uu:
 
-- `nodeId`
-- `rackId`
-- `switchId`
-- `site`
-- `environment`
+- `core`
+- `family`
+- `nic`
+- `build_number`
+- `version`
+- `container_id`
+- `container_name`
+- `service_name`
+- `image`
+- `image_tag`
+
+Khong dua vao `tags` cac field node-level da duoc gom chung:
+
 - `hostname`
-- `primaryNic`
+- `nodeId`
+- `deviceType`
+- `rackId`
+- `site`
+- `switchId`
+- `environment`
+
+### 7.10. `context.identity`
+
+Metadata nhan dien node duoc chia se cho ca batch:
+
+- `hostname`
+- `nodeId`
+- `source`
+- `deviceType`
+
+### 7.11. `context.hardwareFingerprint`
+
+Fingerprint phuc vu discovery/register:
+
+- `primaryIpv4`
+- `macAddress`
+- `hardwareSerial`
+- `osProduct`
+- `logicalCpuCount`
+- `cpuArchitecture`
 
 ## 8. Tags bat buoc va tags nen co
 
-### 8.1. Tags bat buoc
+### 8.1. Shared context bat buoc
 
 Nen co:
 
-- `nodeId`
-- `site`
-- `environment`
+- `context.identity.hostname`
+- `context.identity.nodeId`
+- `context.identity.source`
 
 ### 8.2. Tags nen co
 
-Nen co neu biet:
+Nen co neu metric can:
 
-- `rackId`
-- `switchId`
-- `hostname`
-- `deviceType`
-- `primaryNic`
-- `osProduct`
+- `core`
+- `family`
+- `nic`
+- `build_number`
+- `version`
+- `container_id`
+- `container_name`
+- `service_name`
 
 ## 9. Agent metadata structure
 
@@ -274,6 +321,22 @@ Vi du:
     "recordCount": 4,
     "droppedCount": 0
   },
+  "context": {
+    "identity": {
+      "hostname": "MSI",
+      "nodeId": "node-host-01",
+      "source": "multi_source",
+      "deviceType": "laptop"
+    },
+    "hardwareFingerprint": {
+      "primaryIpv4": "10.10.9.11",
+      "macAddress": "94:E9:79:A1:B2:C3",
+      "hardwareSerial": "FX80GE-9382173",
+      "osProduct": "Windows 11 Pro",
+      "logicalCpuCount": "16",
+      "cpuArchitecture": "x86_64"
+    }
+  },
   "metrics": [
     {
       "metricKey": "node.cpu_usage_pct",
@@ -285,28 +348,39 @@ Vi du:
       "source": "windows_exporter",
       "sourceMetric": "windows_cpu_time_total",
       "tags": {
-        "nodeId": "node-host-01",
-        "rackId": "rack-a1",
-        "switchId": "sw-a1",
-        "site": "lab-local",
-        "environment": "poc",
-        "hostname": "MSI",
-        "primaryNic": "RZ608 Wi-Fi 6E 80MHz"
+        "core": "0,0"
       }
     },
     {
-      "metricKey": "node.memory_used_pct",
-      "scopeType": "node",
-      "scopeId": "node-host-01",
+      "metricKey": "container.cpu_usage_pct",
+      "scopeType": "container",
+      "scopeId": "container-redpanda-1",
       "value": 71.2,
       "unit": "%",
       "timestamp": "2026-05-28T12:30:00Z",
-      "source": "windows_exporter",
-      "sourceMetric": "windows_memory_available_bytes",
+      "source": "docker",
+      "sourceMetric": "docker.stats.cpu",
       "tags": {
-        "nodeId": "node-host-01",
-        "site": "lab-local",
-        "environment": "poc"
+        "container_id": "1591d7a55c8b56d8a0b58e3a4be1f58816c98946c64711771c34a1543afcc2c8",
+        "container_name": "redpanda-data-processing-redpanda-1",
+        "service_name": "redpanda",
+        "image": "docker.redpanda.com/redpandadata/redpanda",
+        "image_tag": "v25.3.15-fips"
+      }
+    },
+    {
+      "metricKey": "node.os_product",
+      "scopeType": "node",
+      "scopeId": "node-host-01",
+      "value": "Windows 11 Pro",
+      "unit": "text",
+      "timestamp": "2026-05-28T12:30:00Z",
+      "source": "windows_exporter",
+      "sourceMetric": "windows_os_info",
+      "tags": {
+        "build_number": "26200",
+        "revision": "8457",
+        "version": "10.0.26200"
       }
     }
   ]
@@ -332,22 +406,27 @@ Vi du:
 - `timestamp`
 - `source`
 - `sourceMetric`
+- `context.identity.*`
+- `context.hardwareFingerprint.*`
 
 ### 12.2. Nen de trong `tags`
 
 Nen de trong tags khi:
 
-- field la context enrich
-- co the thay doi theo moi deployment
+- field la metric-specific delta
+- field phan biet record cung scope
+- field thuoc container/service/network/core cu the
 
 Vi du:
 
-- `rackId`
-- `switchId`
-- `site`
-- `environment`
-- `deviceType`
-- `primaryNic`
+- `core`
+- `family`
+- `nic`
+- `build_number`
+- `version`
+- `container_id`
+- `container_name`
+- `service_name`
 
 ## 13. Kieu du lieu trong Go
 

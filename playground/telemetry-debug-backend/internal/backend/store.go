@@ -8,6 +8,7 @@ import (
 )
 
 type store struct {
+	loc               *time.Location
 	mu                sync.Mutex
 	receivedCount     int
 	receivedMetricSum int
@@ -20,20 +21,60 @@ type store struct {
 }
 
 func newStore() *store {
-	return &store{}
+	loc, _ := time.LoadLocation("Asia/Ho_Chi_Minh")
+	return &store{
+		loc: loc,
+	}
 }
 
 func (s *store) save(payload Payload, now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	enrichPayloadCompatibility(&payload)
 	s.receivedCount++
 	s.receivedMetricSum += len(payload.Metrics)
-	s.lastReceivedAt = now.UTC()
+	s.lastReceivedAt = now.In(s.loc).UTC()
 	s.lastBatchID = payload.Batch.BatchID
 	s.lastAgentID = payload.Agent.AgentID
 	s.lastError = ""
 	s.batches = append([]BatchSummary{summarize(payload, now)}, s.batches...)
+	if len(s.batches) > 50 {
+		s.batches = s.batches[:50]
+	}
+}
+
+func (s *store) saveEnvelope(envelope TransportEnvelope, now time.Time, topic string, payload *Payload) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var context PayloadContext
+	var hostname string
+	if payload != nil {
+		enrichPayloadCompatibility(payload)
+		context = payload.Context
+		hostname = firstNonEmpty(payload.Context.Identity.Hostname, payload.Agent.Hostname)
+	}
+
+	s.receivedCount++
+	s.receivedMetricSum += int(envelope.RecordCount)
+	s.lastReceivedAt = now.In(s.loc).UTC()
+	s.lastBatchID = envelope.BatchID
+	s.lastAgentID = envelope.AgentID
+	s.lastError = ""
+	s.batches = append([]BatchSummary{{
+		BatchID:      envelope.BatchID,
+		AgentID:      envelope.AgentID,
+		Hostname:     hostname,
+		Context:      context,
+		Transport:    "grpc",
+		RecordCount:  int(envelope.RecordCount),
+		DroppedCount: int(envelope.DroppedCount),
+		ReceivedAt:   now.In(s.loc).UTC().Format("2006-01-02T15:04:05"),
+		PublishedTo:  topic,
+		EnvelopeSize: len(envelope.PayloadBytes),
+		MetricKeys:   nil,
+	}}, s.batches...)
 	if len(s.batches) > 50 {
 		s.batches = s.batches[:50]
 	}
@@ -101,6 +142,7 @@ func (s *store) recordError(err error) {
 }
 
 func summarize(payload Payload, now time.Time) BatchSummary {
+	enrichPayloadCompatibility(&payload)
 	keys := make([]string, 0, min(len(payload.Metrics), 8))
 	seen := map[string]struct{}{}
 	for _, metric := range payload.Metrics {
@@ -117,10 +159,12 @@ func summarize(payload Payload, now time.Time) BatchSummary {
 	return BatchSummary{
 		BatchID:      payload.Batch.BatchID,
 		AgentID:      payload.Agent.AgentID,
-		Hostname:     payload.Agent.Hostname,
+		Hostname:     firstNonEmpty(payload.Context.Identity.Hostname, payload.Agent.Hostname),
+		Context:      payload.Context,
+		Transport:    "http",
 		RecordCount:  payload.Batch.RecordCount,
 		DroppedCount: payload.Batch.DroppedCount,
-		ReceivedAt:   now.UTC().Format(time.RFC3339),
+		ReceivedAt:   now.UTC().Format("2006-01-02T15:04:05"),
 		MetricKeys:   keys,
 		Metrics:      append([]MetricRecord(nil), payload.Metrics...),
 	}
@@ -141,7 +185,7 @@ func formatTime(value time.Time) string {
 	if value.IsZero() {
 		return ""
 	}
-	return value.UTC().Format(time.RFC3339)
+	return value.UTC().Format("2006-01-02T15:04:05")
 }
 
 func min(a, b int) int {

@@ -4,7 +4,8 @@ Small local backend to verify the Go collector agent end to end.
 
 Default address
 
-- `127.0.0.1:8080`
+- `127.0.0.1:8090`
+- `127.0.0.1:8091` for gRPC ingest
 
 Run
 
@@ -21,7 +22,14 @@ Endpoints
 - `GET /api/telemetry/fail-mode`
 - `POST /api/telemetry/fail-mode`
 
-`/api/telemetry/batches` returns full metric records now, so you can inspect actual `value`, `unit`, `timestamp`, and `tags` for each batch directly.
+gRPC ingest
+
+- unary method: `telemetry.v1.TelemetryIngestService/IngestBatch`
+- default Redpanda topic: `telemetry.grpc.raw`
+- default brokers: `localhost:19092`
+- the gRPC worker does not parse telemetry business payload; it forwards `payloadBytes` inside a binary transport envelope to Redpanda
+
+`/api/telemetry/batches` returns full metric records now, and with the new collector schema it also surfaces shared `context.identity` and `context.hardwareFingerprint` when present.
 
 Example fail mode request
 

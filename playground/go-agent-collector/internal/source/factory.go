@@ -6,6 +6,7 @@ import (
 	"github.com/iSenity1812/go-agent-collector/internal/config"
 	"github.com/iSenity1812/go-agent-collector/internal/mapping"
 	"github.com/iSenity1812/go-agent-collector/internal/source/docker"
+	"github.com/iSenity1812/go-agent-collector/internal/source/lhm"
 	"github.com/iSenity1812/go-agent-collector/internal/source/windows"
 )
 
@@ -18,6 +19,8 @@ func NewAll(cfg *config.Config) ([]Source, error) {
 			sources = append(sources, windows.NewCollector(cfg, mapping.New(cfg)))
 		case "docker":
 			sources = append(sources, docker.New(cfg))
+		case "lhm":
+			sources = append(sources, lhm.New(cfg))
 		case "node_exporter":
 			return nil, fmt.Errorf("source type %q is documented but not implemented yet", sourceType)
 		default:

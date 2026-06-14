@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iSenity1812/go-agent-collector/internal/hostmeta"
 	"gopkg.in/yaml.v3"
 )
 
@@ -16,7 +17,10 @@ const (
 	sourceTypeWindowsExporter = "windows_exporter"
 	sourceTypeNodeExporter    = "node_exporter"
 	sourceTypeDocker          = "docker"
+	sourceTypeLHM             = "lhm"
 	sourceTypeMultiSource     = "multi_source"
+	sendTransportHTTP         = "http"
+	sendTransportGRPC         = "grpc"
 )
 
 // Load reads YAML config, applies environment overrides, derives runtime
@@ -88,6 +92,8 @@ func metricConfigPaths(configDir string, enabledSources []string) ([]string, err
 			paths = append(paths, filepath.Join(configDir, "metrics.linux.yaml"))
 		case sourceTypeDocker:
 			paths = append(paths, filepath.Join(configDir, "metrics.docker.yaml"))
+		case sourceTypeLHM:
+			paths = append(paths, filepath.Join(configDir, "metrics.lhm.yaml"))
 		default:
 			return nil, fmt.Errorf("unsupported sourceType %q", sourceType)
 		}
@@ -160,8 +166,75 @@ func (c *Config) resolve() error {
 		c.Network.PrimaryNICHint,
 	)
 	c.Network.PrimaryNICHint = c.Runtime.PrimaryNICHint
+	staticMeta := hostmeta.LoadStatic()
+	c.Runtime.OSProduct = staticMeta.OSProduct
+	c.Runtime.HardwareSerial = staticMeta.HardwareSerial
+	c.Runtime.CPUArchitecture = staticMeta.CPUArchitecture
+	c.Runtime.LogicalCPUCount = staticMeta.LogicalCPUCount
 	c.Runtime.AuthToken = readEnv(c.Send.AuthTokenEnv)
 	c.Runtime.AgentSourceType = c.Agent.SourceType
+	c.Runtime.SendTransport = normalizedSendTransport(c.Send.Transport)
+	c.Runtime.RegistrationEnabled = c.Registration.Enabled
+	if !c.Runtime.RegistrationEnabled {
+		c.Runtime.RegistrationEnabled = true
+	}
+	if strings.TrimSpace(c.Registration.Endpoint) == "" {
+		c.Registration.Endpoint = "127.0.0.1:8443"
+	}
+	if !c.Registration.TLSEnabled {
+		c.Registration.TLSEnabled = true
+	}
+	if strings.TrimSpace(c.Registration.CACertPath) == "" {
+		c.Registration.CACertPath = filepath.Join(
+			c.BaseDir,
+			"..",
+			"..",
+			"backend",
+			"apps",
+			"ingestion-worker",
+			"deployment",
+			"local-ca",
+			"pki",
+			"ca.crt",
+		)
+	}
+	if strings.TrimSpace(c.Registration.ServerName) == "" {
+		c.Registration.ServerName = "local-ingestion.local"
+	}
+	if strings.TrimSpace(c.Registration.CredentialStatePath) == "" {
+		c.Registration.CredentialStatePath = filepath.Join(
+			c.BaseDir,
+			"data",
+			"registration",
+			"registration-state.json",
+		)
+	}
+	if strings.TrimSpace(c.Registration.SharedConfigPath) == "" {
+		c.Registration.SharedConfigPath = filepath.Join(
+			c.BaseDir,
+			"..",
+			"..",
+			"backend",
+			"apps",
+			"ingestion-worker",
+			"config",
+			"config.yaml",
+		)
+	}
+	if strings.TrimSpace(c.Registration.DeviceType) == "" {
+		c.Registration.DeviceType = "WORKSTATION"
+	}
+	if strings.TrimSpace(c.Registration.Timeout) == "" {
+		c.Registration.Timeout = "15s"
+	}
+	c.Runtime.RegistrationEndpoint = c.Registration.Endpoint
+	c.Runtime.RegistrationStatePath = c.Registration.CredentialStatePath
+	c.Runtime.RegistrationDeviceType = c.Registration.DeviceType
+	c.Runtime.RegistrationToken = c.Registration.BootstrapToken
+	c.Runtime.RegistrationConfigPath = c.Registration.SharedConfigPath
+	c.Runtime.RegistrationTLSEnabled = c.Registration.TLSEnabled
+	c.Runtime.RegistrationCACertPath = c.Registration.CACertPath
+	c.Runtime.RegistrationServerName = c.Registration.ServerName
 	if len(c.Runtime.EnabledSources) > 1 {
 		c.Runtime.AgentSourceType = sourceTypeMultiSource
 	}
@@ -178,6 +251,16 @@ func (c *Config) resolve() error {
 	if c.Runtime.SendTimeout, err = time.ParseDuration(c.Send.Timeout); err != nil {
 		return fmt.Errorf("parse send.timeout: %w", err)
 	}
+	grpcTimeout := strings.TrimSpace(c.Send.GRPCTimeout)
+	if grpcTimeout == "" {
+		grpcTimeout = "15s"
+	}
+	if c.Runtime.GRPCSendTimeout, err = time.ParseDuration(grpcTimeout); err != nil {
+		return fmt.Errorf("parse send.grpcTimeout: %w", err)
+	}
+	if c.Runtime.RegistrationTimeout, err = time.ParseDuration(c.Registration.Timeout); err != nil {
+		return fmt.Errorf("parse registration.timeout: %w", err)
+	}
 	if c.Runtime.RetryMinBackoff, err = time.ParseDuration(c.Retry.MinBackoff); err != nil {
 		return fmt.Errorf("parse retry.minBackoff: %w", err)
 	}
@@ -189,6 +272,21 @@ func (c *Config) resolve() error {
 	}
 	if c.Runtime.DockerTimeout, err = time.ParseDuration(c.Docker.Timeout); err != nil {
 		return fmt.Errorf("parse docker.timeout: %w", err)
+	}
+	if strings.TrimSpace(c.LHM.Endpoint) == "" {
+		c.LHM.Endpoint = "http://localhost:8085/data.json"
+	}
+	if strings.TrimSpace(c.LHM.Timeout) == "" {
+		c.LHM.Timeout = c.Scrape.Timeout
+	}
+	if c.Runtime.LHMTimeout, err = time.ParseDuration(c.LHM.Timeout); err != nil {
+		return fmt.Errorf("parse lhm.timeout: %w", err)
+	}
+	if strings.TrimSpace(c.LHM.FingerprintInterval) == "" {
+		c.LHM.FingerprintInterval = "120s"
+	}
+	if c.Runtime.LHMFingerprintInterval, err = time.ParseDuration(c.LHM.FingerprintInterval); err != nil {
+		return fmt.Errorf("parse lhm.fingerprintInterval: %w", err)
 	}
 	if !c.Docker.CollectStopped {
 		c.Docker.CollectStopped = false
@@ -203,14 +301,20 @@ func (c *Config) validate() error {
 	if c.Agent.SchemaVersion == "" {
 		problems = append(problems, "agent.schemaVersion is required")
 	}
-	if c.Agent.SourceType != sourceTypeWindowsExporter && c.Agent.SourceType != sourceTypeNodeExporter && c.Agent.SourceType != sourceTypeDocker {
-		problems = append(problems, "agent.sourceType must be windows_exporter, node_exporter, or docker")
+	if c.Agent.SourceType != sourceTypeWindowsExporter && c.Agent.SourceType != sourceTypeNodeExporter && c.Agent.SourceType != sourceTypeDocker && c.Agent.SourceType != sourceTypeLHM {
+		problems = append(problems, "agent.sourceType must be windows_exporter, node_exporter, docker, or lhm")
 	}
 	if err := validateURL("scrape.endpoint", c.Scrape.Endpoint); err != nil {
 		problems = append(problems, err.Error())
 	}
-	if err := validateURL("send.endpoint", c.Send.Endpoint); err != nil {
-		problems = append(problems, err.Error())
+	if c.Runtime.SendTransport == sendTransportGRPC {
+		if err := validateGRPCEndpoint("send.endpoint", c.Send.Endpoint); err != nil {
+			problems = append(problems, err.Error())
+		}
+	} else {
+		if err := validateURL("send.endpoint", c.Send.Endpoint); err != nil {
+			problems = append(problems, err.Error())
+		}
 	}
 	if c.Runtime.ScrapeInterval <= 0 {
 		problems = append(problems, "scrape.interval must be > 0")
@@ -224,6 +328,29 @@ func (c *Config) validate() error {
 	if c.Runtime.SendTimeout <= 0 {
 		problems = append(problems, "send.timeout must be > 0")
 	}
+	if c.Runtime.GRPCSendTimeout <= 0 {
+		problems = append(problems, "send.grpcTimeout must be > 0")
+	}
+	if c.Runtime.RegistrationEnabled {
+		if err := validateGRPCEndpoint(
+			"registration.endpoint",
+			c.Runtime.RegistrationEndpoint,
+		); err != nil {
+			problems = append(problems, err.Error())
+		}
+		if c.Runtime.RegistrationTLSEnabled && strings.TrimSpace(c.Runtime.RegistrationCACertPath) == "" {
+			problems = append(
+				problems,
+				"registration.caCertPath is required when registration.tlsEnabled=true",
+			)
+		}
+		if c.Runtime.RegistrationTimeout <= 0 {
+			problems = append(
+				problems,
+				"registration.timeout must be > 0 when registration.enabled=true",
+			)
+		}
+	}
 	if c.Runtime.RetryMinBackoff <= 0 {
 		problems = append(problems, "retry.minBackoff must be > 0")
 	}
@@ -235,6 +362,12 @@ func (c *Config) validate() error {
 	}
 	if c.Runtime.DockerTimeout <= 0 {
 		problems = append(problems, "docker.timeout must be > 0")
+	}
+	if c.Runtime.LHMTimeout <= 0 {
+		problems = append(problems, "lhm.timeout must be > 0")
+	}
+	if c.Runtime.LHMFingerprintInterval <= 0 {
+		problems = append(problems, "lhm.fingerprintInterval must be > 0")
 	}
 	if c.Scrape.MaxBodySizeMB <= 0 {
 		problems = append(problems, "scrape.maxBodySizeMb must be > 0")
@@ -280,16 +413,28 @@ func (c *Config) validate() error {
 	if len(c.Runtime.EnabledSources) == 0 {
 		problems = append(problems, "sources.enabled must resolve to at least one source")
 	}
+	if c.Runtime.SendTransport != sendTransportHTTP && c.Runtime.SendTransport != sendTransportGRPC {
+		problems = append(problems, "send.transport must be http or grpc")
+	}
 
 	windowsEnabled := hasEnabledSource(c.Runtime.EnabledSources, sourceTypeWindowsExporter)
 	dockerEnabled := hasEnabledSource(c.Runtime.EnabledSources, sourceTypeDocker)
 	nodeExporterEnabled := hasEnabledSource(c.Runtime.EnabledSources, sourceTypeNodeExporter)
+	lhmEnabled := hasEnabledSource(c.Runtime.EnabledSources, sourceTypeLHM)
 
 	if windowsEnabled && len(c.Metrics) == 0 {
 		problems = append(problems, "metrics list is empty for windows_exporter")
 	}
 	if dockerEnabled && len(c.DockerMetrics) == 0 {
 		problems = append(problems, "dockerMetrics list is empty for docker")
+	}
+	if lhmEnabled {
+		if err := validateURL("lhm.endpoint", c.LHM.Endpoint); err != nil {
+			problems = append(problems, err.Error())
+		}
+		if len(c.LHMMetrics) == 0 {
+			problems = append(problems, "lhmMetrics list is empty for lhm")
+		}
 	}
 	if nodeExporterEnabled {
 		problems = append(problems, "node_exporter is documented but not implemented yet")
@@ -302,6 +447,9 @@ func (c *Config) validate() error {
 
 	for i, metric := range c.DockerMetrics {
 		problems = append(problems, validateMetricRule(metric, fmt.Sprintf("dockerMetrics[%d]", i), seenKeys)...)
+	}
+	for i, metric := range c.LHMMetrics {
+		problems = append(problems, validateMetricRule(metric, fmt.Sprintf("lhmMetrics[%d]", i), seenKeys)...)
 	}
 
 	if len(problems) > 0 {
@@ -355,6 +503,28 @@ func validateURL(name, value string) error {
 		return fmt.Errorf("%s must start with http:// or https://", name)
 	}
 	return nil
+}
+
+func validateGRPCEndpoint(name, value string) error {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return fmt.Errorf("%s is required", name)
+	}
+	if strings.Contains(trimmed, "://") {
+		return fmt.Errorf("%s must be host:port for grpc transport", name)
+	}
+	if !strings.Contains(trimmed, ":") {
+		return fmt.Errorf("%s must include host:port for grpc transport", name)
+	}
+	return nil
+}
+
+func normalizedSendTransport(value string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(value))
+	if trimmed == "" {
+		return sendTransportHTTP
+	}
+	return trimmed
 }
 
 func resolveHostname(names ...string) (string, error) {

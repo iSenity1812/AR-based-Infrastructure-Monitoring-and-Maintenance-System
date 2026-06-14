@@ -11,7 +11,7 @@ import (
 )
 
 func (r *runner) sendOnce(ctx context.Context) {
-	now := r.now()
+	now := r.now().UTC()
 	if !r.retry.ready(now) {
 		return
 	}
@@ -30,7 +30,7 @@ func (r *runner) sendOnce(ctx context.Context) {
 		return
 	}
 
-	payload := buildPayload(r.cfg, records, dropped, r.counter, now)
+	payload := buildPayload(r.cfg, records, dropped, r.counter, now, r.sharedContext())
 	result, err := r.sendPayload(ctx, payload, true)
 	if err != nil {
 		if result.retryable && !result.persisted {
@@ -55,7 +55,7 @@ func (r *runner) sendOnce(ctx context.Context) {
 		payload.Batch.RecordCount,
 		r.deps.queue.Len(),
 		r.bufferedCount(),
-		now.Format(time.RFC3339),
+		now.In(r.loc).Format("2006-01-02T15:04:05"),
 	)
 }
 
@@ -93,7 +93,7 @@ func (r *runner) replayBuffered(ctx context.Context, now time.Time) (bool, error
 		"replay ok: batch=%s buffered_remaining=%d at=%s\n",
 		item.Payload.Batch.BatchID,
 		r.bufferedCount(),
-		now.Format(time.RFC3339),
+		now.In(r.loc).Format("2006-01-02T15:04:05"),
 	)
 	return true, nil
 }
@@ -139,6 +139,16 @@ func (r *runner) isRetryable(err error) bool {
 			}
 		}
 		return false
+	}
+
+	var grpcErr sender.GRPCStatusError
+	if errors.As(err, &grpcErr) {
+		switch grpcErr.Code {
+		case 4, 8, 13, 14:
+			return true
+		default:
+			return false
+		}
 	}
 
 	return true

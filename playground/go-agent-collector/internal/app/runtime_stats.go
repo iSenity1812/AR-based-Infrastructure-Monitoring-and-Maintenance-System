@@ -118,27 +118,27 @@ func (s *runtimeStats) recordBufferWriteFailure(err error, batchID string) {
 }
 
 type statsSnapshot struct {
-	StartedAt                string `json:"startedAt"`
-	ScrapeSuccessCount       int64  `json:"scrapeSuccessCount"`
-	ScrapeFailureCount       int64  `json:"scrapeFailureCount"`
-	SendSuccessCount         int64  `json:"sendSuccessCount"`
-	SendFailureCount         int64  `json:"sendFailureCount"`
-	ReplaySuccessCount       int64  `json:"replaySuccessCount"`
-	BufferWriteFailureCount  int64  `json:"bufferWriteFailureCount"`
-	LastScrapeAt             string `json:"lastScrapeAt,omitempty"`
-	LastSendAt               string `json:"lastSendAt,omitempty"`
-	LastReplayAt             string `json:"lastReplayAt,omitempty"`
-	LastError                string `json:"lastError,omitempty"`
-	LastSendBatchID          string `json:"lastSendBatchId,omitempty"`
-	LastFailedBatchID        string `json:"lastFailedBatchId,omitempty"`
-	LastReplayBatchID        string `json:"lastReplayBatchId,omitempty"`
-	LastBufferedBatchID      string `json:"lastBufferedBatchId,omitempty"`
-	LastDroppedBatchID       string `json:"lastDroppedBatchId,omitempty"`
-	QueueLength              int    `json:"queueLength"`
-	BufferedBatchCount       int    `json:"bufferedBatchCount"`
-	RetryConsecutiveFailures int    `json:"retryConsecutiveFailures"`
-	NextRetryAt              string `json:"nextRetryAt,omitempty"`
-	Status                   string `json:"status"`
+	StartedAt                string                         `json:"startedAt"`
+	ScrapeSuccessCount       int64                          `json:"scrapeSuccessCount"`
+	ScrapeFailureCount       int64                          `json:"scrapeFailureCount"`
+	SendSuccessCount         int64                          `json:"sendSuccessCount"`
+	SendFailureCount         int64                          `json:"sendFailureCount"`
+	ReplaySuccessCount       int64                          `json:"replaySuccessCount"`
+	BufferWriteFailureCount  int64                          `json:"bufferWriteFailureCount"`
+	LastScrapeAt             string                         `json:"lastScrapeAt,omitempty"`
+	LastSendAt               string                         `json:"lastSendAt,omitempty"`
+	LastReplayAt             string                         `json:"lastReplayAt,omitempty"`
+	LastError                string                         `json:"lastError,omitempty"`
+	LastSendBatchID          string                         `json:"lastSendBatchId,omitempty"`
+	LastFailedBatchID        string                         `json:"lastFailedBatchId,omitempty"`
+	LastReplayBatchID        string                         `json:"lastReplayBatchId,omitempty"`
+	LastBufferedBatchID      string                         `json:"lastBufferedBatchId,omitempty"`
+	LastDroppedBatchID       string                         `json:"lastDroppedBatchId,omitempty"`
+	QueueLength              int                            `json:"queueLength"`
+	BufferedBatchCount       int                            `json:"bufferedBatchCount"`
+	RetryConsecutiveFailures int                            `json:"retryConsecutiveFailures"`
+	NextRetryAt              string                         `json:"nextRetryAt,omitempty"`
+	Status                   string                         `json:"status"`
 	Sources                  map[string]sourceStatsSnapshot `json:"sources,omitempty"`
 }
 
@@ -171,7 +171,7 @@ func (s *runtimeStats) snapshot(queueLength, bufferedBatchCount, retryFailures i
 	}
 
 	return statsSnapshot{
-		StartedAt:                s.startedAt.Format(time.RFC3339),
+		StartedAt:                s.startedAt.Format("2006-01-02T15:04:05"),
 		ScrapeSuccessCount:       s.scrapeSuccessCount,
 		ScrapeFailureCount:       s.scrapeFailureCount,
 		SendSuccessCount:         s.sendSuccessCount,
@@ -200,5 +200,5 @@ func formatTime(value time.Time) string {
 	if value.IsZero() {
 		return ""
 	}
-	return value.UTC().Format(time.RFC3339)
+	return value.UTC().Format("2006-01-02T15:04:05")
 }

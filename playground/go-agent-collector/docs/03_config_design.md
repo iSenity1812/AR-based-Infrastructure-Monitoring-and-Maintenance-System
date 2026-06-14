@@ -374,12 +374,12 @@ agent:
 
 scrape:
   endpoint: http://localhost:9182/metrics
-  interval: 5s
+  interval: 15s
   timeout: 3s
 
 send:
-  endpoint: http://localhost:8080/api/telemetry/ingest
-  interval: 5s
+  endpoint: http://localhost:8090/api/telemetry/ingest
+  interval: 15s
   timeout: 5s
   maxBatchItems: 200
 

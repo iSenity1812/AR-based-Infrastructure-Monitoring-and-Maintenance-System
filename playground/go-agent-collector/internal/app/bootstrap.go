@@ -19,6 +19,9 @@ func Run() error {
 	if err != nil {
 		return err
 	}
+	if err := ensureRegistered(cfg); err != nil {
+		return err
+	}
 	sources, err := source.NewAll(cfg)
 	if err != nil {
 		return err
@@ -28,9 +31,14 @@ func Run() error {
 		bufferStore = buffer.New(cfg.Buffer.Path, cfg.Buffer.MaxBatchFiles)
 	}
 
+	selectedSender, err := sender.New(cfg)
+	if err != nil {
+		return err
+	}
+
 	runner := newRunner(cfg, runtimeDeps{
 		sources: sources,
-		sender:  sender.NewHTTPSender(cfg),
+		sender:  selectedSender,
 		buffer:  bufferStore,
 		queue:   newRecordQueue(cfg.Queue.MaxRecords, cfg.Queue.OverflowPolicy),
 	})

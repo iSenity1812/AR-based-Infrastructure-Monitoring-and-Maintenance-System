@@ -109,6 +109,11 @@ func registrationTransportCredentials(cfg *config.Config) (credentials.Transport
 		return insecure.NewCredentials(), nil
 	}
 
+	clientCert, err := loadClientCertificate(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	caPEM, err := os.ReadFile(cfg.Runtime.RegistrationCACertPath)
 	if err != nil {
 		return nil, fmt.Errorf("read registration CA cert %s: %w", cfg.Runtime.RegistrationCACertPath, err)
@@ -119,11 +124,35 @@ func registrationTransportCredentials(cfg *config.Config) (credentials.Transport
 		return nil, fmt.Errorf("parse registration CA cert %s", cfg.Runtime.RegistrationCACertPath)
 	}
 
-	return credentials.NewTLS(&tls.Config{
+	tlsConfig := &tls.Config{
 		MinVersion: tls.VersionTLS12,
 		RootCAs:    roots,
 		ServerName: cfg.Runtime.RegistrationServerName,
-	}), nil
+	}
+	if clientCert != nil {
+		tlsConfig.Certificates = []tls.Certificate{*clientCert}
+	}
+	return credentials.NewTLS(tlsConfig), nil
+}
+
+func loadClientCertificate(cfg *config.Config) (*tls.Certificate, error) {
+	certPath := cfg.Runtime.RegistrationClientCertPath
+	keyPath := cfg.Runtime.RegistrationClientKeyPath
+	if certPath == "" || keyPath == "" {
+		return nil, nil
+	}
+	if _, err := os.Stat(certPath); err != nil {
+		return nil, nil
+	}
+	if _, err := os.Stat(keyPath); err != nil {
+		return nil, nil
+	}
+
+	certificate, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("load registration client certificate: %w", err)
+	}
+	return &certificate, nil
 }
 
 func applyRegisteredIdentity(cfg *config.Config, agentID string) {

@@ -42,8 +42,8 @@ docker:
   enableServiceRollups: true
 
 send:
-  transport: http # grpc support is planned for future release
-  endpoint: http://localhost:8090/api/telemetry/ingest # example: 127.0.0.1:8091 for gRPC or http://localhost:8090/api/telemetry/ingest for HTTP
+  transport: grpc
+  endpoint: 127.0.0.1:9443
   interval: 15s
   timeout: 5s
   grpcTimeout: 15s

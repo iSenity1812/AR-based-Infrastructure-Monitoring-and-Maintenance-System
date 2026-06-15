@@ -209,6 +209,18 @@ func (c *Config) resolve() error {
 			"registration-state.json",
 		)
 	}
+	if strings.TrimSpace(c.Registration.ClientCertPath) == "" {
+		c.Registration.ClientCertPath = filepath.Join(
+			filepath.Dir(c.Registration.CredentialStatePath),
+			"client.crt",
+		)
+	}
+	if strings.TrimSpace(c.Registration.ClientKeyPath) == "" {
+		c.Registration.ClientKeyPath = filepath.Join(
+			filepath.Dir(c.Registration.CredentialStatePath),
+			"client.key",
+		)
+	}
 	if strings.TrimSpace(c.Registration.SharedConfigPath) == "" {
 		c.Registration.SharedConfigPath = filepath.Join(
 			c.BaseDir,
@@ -235,6 +247,8 @@ func (c *Config) resolve() error {
 	c.Runtime.RegistrationTLSEnabled = c.Registration.TLSEnabled
 	c.Runtime.RegistrationCACertPath = c.Registration.CACertPath
 	c.Runtime.RegistrationServerName = c.Registration.ServerName
+	c.Runtime.RegistrationClientCertPath = c.Registration.ClientCertPath
+	c.Runtime.RegistrationClientKeyPath = c.Registration.ClientKeyPath
 	if len(c.Runtime.EnabledSources) > 1 {
 		c.Runtime.AgentSourceType = sourceTypeMultiSource
 	}
@@ -343,6 +357,16 @@ func (c *Config) validate() error {
 				problems,
 				"registration.caCertPath is required when registration.tlsEnabled=true",
 			)
+		}
+		if c.Runtime.RegistrationTLSEnabled {
+			if _, err := os.Stat(c.Runtime.RegistrationClientCertPath); err == nil {
+				if _, err := os.Stat(c.Runtime.RegistrationClientKeyPath); err != nil {
+					problems = append(
+						problems,
+						"registration.clientKeyPath must exist when client cert is present",
+					)
+				}
+			}
 		}
 		if c.Runtime.RegistrationTimeout <= 0 {
 			problems = append(

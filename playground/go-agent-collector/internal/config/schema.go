@@ -79,6 +79,8 @@ type RegistrationConfig struct {
 	TLSEnabled          bool   `yaml:"tlsEnabled"`
 	CACertPath          string `yaml:"caCertPath"`
 	ServerName          string `yaml:"serverName"`
+	ClientCertPath      string `yaml:"clientCertPath"`
+	ClientKeyPath       string `yaml:"clientKeyPath"`
 	BootstrapToken      string `yaml:"bootstrapToken"`
 	SharedConfigPath    string `yaml:"sharedConfigPath"`
 	CredentialStatePath string `yaml:"credentialStatePath"`
@@ -183,39 +185,41 @@ type MetricRule struct {
 }
 
 type RuntimeConfig struct {
-	Hostname               string
-	AgentID                string
-	AgentName              string
-	AgentSourceType        string
-	NodeID                 string
-	NodeName               string
-	PrimaryNICHint         string
-	OSProduct              string
-	HardwareSerial         string
-	CPUArchitecture        string
-	LogicalCPUCount        int
-	AuthToken              string
-	MetricConfigPath       string
-	EnabledSources         []string
-	RegistrationEnabled    bool
-	RegistrationEndpoint   string
-	RegistrationTimeout    time.Duration
-	RegistrationStatePath  string
-	RegistrationDeviceType string
-	RegistrationToken      string
-	RegistrationConfigPath string
-	RegistrationTLSEnabled bool
-	RegistrationCACertPath string
-	RegistrationServerName string
-	ScrapeInterval         time.Duration
-	ScrapeTimeout          time.Duration
-	SendInterval           time.Duration
-	SendTimeout            time.Duration
-	GRPCSendTimeout        time.Duration
-	RetryMinBackoff        time.Duration
-	RetryMaxBackoff        time.Duration
-	DockerTimeout          time.Duration
-	LHMTimeout             time.Duration
-	LHMFingerprintInterval time.Duration
-	SendTransport          string
+	Hostname                   string
+	AgentID                    string
+	AgentName                  string
+	AgentSourceType            string
+	NodeID                     string
+	NodeName                   string
+	PrimaryNICHint             string
+	OSProduct                  string
+	HardwareSerial             string
+	CPUArchitecture            string
+	LogicalCPUCount            int
+	AuthToken                  string
+	MetricConfigPath           string
+	EnabledSources             []string
+	RegistrationEnabled        bool
+	RegistrationEndpoint       string
+	RegistrationTimeout        time.Duration
+	RegistrationStatePath      string
+	RegistrationDeviceType     string
+	RegistrationToken          string
+	RegistrationConfigPath     string
+	RegistrationTLSEnabled     bool
+	RegistrationCACertPath     string
+	RegistrationServerName     string
+	RegistrationClientCertPath string
+	RegistrationClientKeyPath  string
+	ScrapeInterval             time.Duration
+	ScrapeTimeout              time.Duration
+	SendInterval               time.Duration
+	SendTimeout                time.Duration
+	GRPCSendTimeout            time.Duration
+	RetryMinBackoff            time.Duration
+	RetryMaxBackoff            time.Duration
+	DockerTimeout              time.Duration
+	LHMTimeout                 time.Duration
+	LHMFingerprintInterval     time.Duration
+	SendTransport              string
 }

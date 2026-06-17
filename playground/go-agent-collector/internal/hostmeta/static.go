@@ -7,6 +7,9 @@ type StaticMetadata struct {
 	OSVersion string
 	OSBuild   string
 
+	Vendor string
+	Model  string
+
 	HardwareSerial string
 
 	LogicalCPUCount int

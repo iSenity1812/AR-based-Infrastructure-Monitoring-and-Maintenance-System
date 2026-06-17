@@ -73,19 +73,7 @@ func ensureRegistered(cfg *config.Config) error {
 	networkMeta := hostmeta.ResolveNetwork(cfg.Network.PrimaryNICHint, "")
 
 	client := registrationpb.NewRegistrationServiceClient(conn)
-	response, err := client.RegisterNode(callCtx, &registrationpb.RegisterNodeRequest{
-		BootstrapToken: bootstrapToken,
-		Hostname:       cfg.Node.Hostname,
-		DeviceType:     cfg.Runtime.RegistrationDeviceType,
-		HardwareInfo: &registrationpb.HardwareInfo{
-			PrimaryIpv4:     networkMeta.PrimaryIPv4,
-			MacAddress:      networkMeta.MACAddress,
-			HardwareSerial:  cfg.Runtime.HardwareSerial,
-			OsProduct:       cfg.Runtime.OSProduct,
-			LogicalCpuCount: int32(cfg.Runtime.LogicalCPUCount),
-			CpuArchitecture: cfg.Runtime.CPUArchitecture,
-		},
-	})
+	response, err := client.RegisterNode(callCtx, buildRegisterNodeRequest(cfg, bootstrapToken, networkMeta))
 	if err != nil {
 		return fmt.Errorf("register node: %w", err)
 	}
@@ -193,6 +181,37 @@ func resolveBootstrapToken(cfg *config.Config) (string, error) {
 		)
 	}
 	return token, nil
+}
+
+func buildRegisterNodeRequest(
+	cfg *config.Config,
+	bootstrapToken string,
+	networkMeta hostmeta.NetworkMetadata,
+) *registrationpb.RegisterNodeRequest {
+	return &registrationpb.RegisterNodeRequest{
+		BootstrapToken:  bootstrapToken,
+		Hostname:        cfg.Node.Hostname,
+		DeviceType:      cfg.Runtime.RegistrationDeviceType,
+		DiscoverySource: discoverSource(cfg),
+		HardwareInfo: &registrationpb.HardwareInfo{
+			PrimaryIpv4:     networkMeta.PrimaryIPv4,
+			MacAddress:      networkMeta.MACAddress,
+			HardwareSerial:  cfg.Runtime.HardwareSerial,
+			Vendor:          cfg.Runtime.Vendor,
+			Model:           cfg.Runtime.Model,
+			OsProduct:       cfg.Runtime.OSProduct,
+			LogicalCpuCount: int32(cfg.Runtime.LogicalCPUCount),
+			CpuArchitecture: cfg.Runtime.CPUArchitecture,
+		},
+	}
+}
+
+func discoverSource(cfg *config.Config) string {
+	source := strings.TrimSpace(cfg.Agent.SourceType)
+	if source != "" {
+		return source
+	}
+	return strings.TrimSpace(cfg.Runtime.AgentSourceType)
 }
 
 func loadRegistrationState(path string) (*registrationState, error) {

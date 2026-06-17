@@ -10,8 +10,15 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+var queryWMI = wmi.Query
+
 type win32BaseBoard struct {
 	SerialNumber string
+}
+
+type win32ComputerSystem struct {
+	Manufacturer string
+	Model        string
 }
 
 type windowsVersionInfo struct {
@@ -28,6 +35,10 @@ func enrichPlatformStatic(meta *StaticMetadata) {
 	}
 	if serial := readHardwareSerial(); serial != "" {
 		meta.HardwareSerial = serial
+	}
+	if vendor, model := readComputerSystemInfo(); vendor != "" || model != "" {
+		meta.Vendor = vendor
+		meta.Model = model
 	}
 }
 
@@ -76,7 +87,7 @@ func readWindowsVersionInfo() windowsVersionInfo {
 
 func readHardwareSerial() string {
 	var boards []win32BaseBoard
-	if err := wmi.Query("SELECT SerialNumber FROM Win32_BaseBoard", &boards); err != nil {
+	if err := queryWMI("SELECT SerialNumber FROM Win32_BaseBoard", &boards); err != nil {
 		return ""
 	}
 	for _, board := range boards {
@@ -86,4 +97,21 @@ func readHardwareSerial() string {
 		}
 	}
 	return ""
+}
+
+func readComputerSystemInfo() (string, string) {
+	var systems []win32ComputerSystem
+	if err := queryWMI("SELECT Manufacturer, Model FROM Win32_ComputerSystem", &systems); err != nil {
+		return "", ""
+	}
+
+	for _, system := range systems {
+		vendor := strings.TrimSpace(system.Manufacturer)
+		model := strings.TrimSpace(system.Model)
+		if vendor != "" || model != "" {
+			return vendor, model
+		}
+	}
+
+	return "", ""
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -14,13 +13,14 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
+	telemetrypb "ingestion-worker/api/telemetry/v1"
 )
-
-const grpcServiceMethod = "/telemetry.v1.TelemetryIngestService/IngestBatch"
 
 // GRPCSender posts payload batches over gRPC.
 type GRPCSender struct {
-	conn *grpc.ClientConn
+	conn   *grpc.ClientConn
+	client telemetrypb.TelemetryIngestServiceClient
 }
 
 // NewGRPCSender constructs a gRPC sender using the collector runtime config.
@@ -33,16 +33,18 @@ func NewGRPCSender(cfg *config.Config) (*GRPCSender, error) {
 	conn, err := grpc.NewClient(
 		cfg.Send.Endpoint,
 		grpc.WithTransportCredentials(transportCredentials),
-		grpc.WithDefaultCallOptions(grpc.ForceCodec(jsonCodec{})),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create grpc client: %w", err)
 	}
 
-	return &GRPCSender{conn: conn}, nil
+	return &GRPCSender{
+		conn:   conn,
+		client: telemetrypb.NewTelemetryIngestServiceClient(conn),
+	}, nil
 }
 
-// Send invokes the IngestBatch gRPC method with the JSON payload body.
+// Send invokes the IngestBatch gRPC method with protobuf messages.
 func (s *GRPCSender) Send(ctx context.Context, payload Payload) error {
 	if err := ValidatePayload(payload); err != nil {
 		return err
@@ -51,9 +53,12 @@ func (s *GRPCSender) Send(ctx context.Context, payload Payload) error {
 	callCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	req := payload
-	resp := new(struct{})
-	if err := s.conn.Invoke(callCtx, grpcServiceMethod, req, resp); err != nil {
+	req, err := toProtoPayload(payload)
+	if err != nil {
+		return err
+	}
+
+	if _, err := s.client.IngestBatch(callCtx, req); err != nil {
 		if st, ok := status.FromError(err); ok {
 			return GRPCStatusError{Code: int(st.Code()), Message: st.Message()}
 		}
@@ -114,18 +119,67 @@ func loadSendClientCertificate(cfg *config.Config) (*tls.Certificate, error) {
 	return &certificate, nil
 }
 
-type jsonCodec struct{}
+func toProtoPayload(payload Payload) (*telemetrypb.IngestBatchRequest, error) {
+	metrics := make([]*telemetrypb.MetricRecord, 0, len(payload.Metrics))
+	for _, metric := range payload.Metrics {
+		value, err := structpb.NewValue(metric.Value)
+		if err != nil {
+			return nil, fmt.Errorf("convert metric %s value to protobuf: %w", metric.MetricKey, err)
+		}
+		metrics = append(metrics, &telemetrypb.MetricRecord{
+			MetricKey:    metric.MetricKey,
+			ScopeType:    metric.ScopeType,
+			ScopeId:      metric.ScopeID,
+			Value:        value,
+			Unit:         metric.Unit,
+			Timestamp:    metric.Timestamp,
+			Source:       metric.Source,
+			SourceMetric: metric.SourceMetric,
+			Tags:         metric.Tags,
+		})
+	}
 
-func (jsonCodec) Marshal(v any) ([]byte, error) {
-	return json.Marshal(v)
-}
-
-func (jsonCodec) Unmarshal(data []byte, v any) error {
-	return json.Unmarshal(data, v)
-}
-
-func (jsonCodec) Name() string {
-	return "json"
+	return &telemetrypb.IngestBatchRequest{
+		SchemaVersion: payload.SchemaVersion,
+		Agent: &telemetrypb.AgentMeta{
+			AgentId:      payload.Agent.AgentID,
+			AgentName:    payload.Agent.AgentName,
+			SourceType:   payload.Agent.SourceType,
+			AgentVersion: payload.Agent.AgentVersion,
+			Hostname:     payload.Agent.Hostname,
+			StartedAt:    payload.Agent.StartedAt,
+		},
+		Batch: &telemetrypb.BatchMeta{
+			BatchId:      payload.Batch.BatchID,
+			Sequence:     payload.Batch.Sequence,
+			CollectedAt:  payload.Batch.CollectedAt,
+			SentAt:       payload.Batch.SentAt,
+			RecordCount:  int32(payload.Batch.RecordCount),
+			DroppedCount: int32(payload.Batch.DroppedCount),
+		},
+		Context: &telemetrypb.PayloadContext{
+			Identity: &telemetrypb.ContextIdentity{
+				Hostname:   payload.Context.Identity.Hostname,
+				NodeId:     payload.Context.Identity.NodeID,
+				Source:     payload.Context.Identity.Source,
+				DeviceType: payload.Context.Identity.DeviceType,
+			},
+			HardwareFingerprint: &telemetrypb.HardwareFingerprint{
+				PrimaryIpv4:      payload.Context.HardwareFingerprint.PrimaryIPv4,
+				MacAddress:       payload.Context.HardwareFingerprint.MACAddress,
+				HardwareSerial:   payload.Context.HardwareFingerprint.HardwareSerial,
+				OsProduct:        payload.Context.HardwareFingerprint.OSProduct,
+				LogicalCpuCount:  payload.Context.HardwareFingerprint.LogicalCPUCount,
+				CpuArchitecture:  payload.Context.HardwareFingerprint.CPUArchitecture,
+				MotherboardModel: payload.Context.HardwareFingerprint.MotherboardModel,
+				CpuModel:         payload.Context.HardwareFingerprint.CPUModel,
+				GpuModelPrimary:  payload.Context.HardwareFingerprint.GPUModelPrimary,
+				SsdModelPrimary:  payload.Context.HardwareFingerprint.SSDModelPrimary,
+				BatteryModel:     payload.Context.HardwareFingerprint.BatteryModel,
+			},
+		},
+		Metrics: metrics,
+	}, nil
 }
 
 // GRPCStatusError captures non-OK gRPC status codes for retry policy matching.

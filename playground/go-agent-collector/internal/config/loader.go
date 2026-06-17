@@ -169,6 +169,8 @@ func (c *Config) resolve() error {
 	staticMeta := hostmeta.LoadStatic()
 	c.Runtime.OSProduct = staticMeta.OSProduct
 	c.Runtime.HardwareSerial = staticMeta.HardwareSerial
+	c.Runtime.Vendor = staticMeta.Vendor
+	c.Runtime.Model = staticMeta.Model
 	c.Runtime.CPUArchitecture = staticMeta.CPUArchitecture
 	c.Runtime.LogicalCPUCount = staticMeta.LogicalCPUCount
 	c.Runtime.AuthToken = readEnv(c.Send.AuthTokenEnv)

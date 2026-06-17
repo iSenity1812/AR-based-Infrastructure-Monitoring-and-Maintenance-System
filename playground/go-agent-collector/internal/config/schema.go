@@ -194,6 +194,8 @@ type RuntimeConfig struct {
 	PrimaryNICHint             string
 	OSProduct                  string
 	HardwareSerial             string
+	Vendor                     string
+	Model                      string
 	CPUArchitecture            string
 	LogicalCPUCount            int
 	AuthToken                  string

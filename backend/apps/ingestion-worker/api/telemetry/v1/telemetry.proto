@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package api.telemetry.v1;
+option go_package = "./api/telemetry/v1;telemetrypb";
+
+import "google/protobuf/struct.proto";
+
+service TelemetryIngestService {
+  rpc IngestBatch(IngestBatchRequest) returns (IngestBatchResponse);
+}
+
+message IngestBatchRequest {
+  string schema_version = 1;
+  AgentMeta agent = 2;
+  BatchMeta batch = 3;
+  PayloadContext context = 4;
+  repeated MetricRecord metrics = 5;
+}
+
+message AgentMeta {
+  string agent_id = 1;
+  string agent_name = 2;
+  string source_type = 3;
+  string agent_version = 4;
+  string hostname = 5;
+  string started_at = 6;
+}
+
+message BatchMeta {
+  string batch_id = 1;
+  int64 sequence = 2;
+  string collected_at = 3;
+  string sent_at = 4;
+  int32 record_count = 5;
+  int32 dropped_count = 6;
+}
+
+message PayloadContext {
+  ContextIdentity identity = 1;
+  HardwareFingerprint hardware_fingerprint = 2;
+}
+
+message ContextIdentity {
+  string hostname = 1;
+  string node_id = 2;
+  string source = 3;
+  string device_type = 4;
+}
+
+message HardwareFingerprint {
+  string primary_ipv4 = 1;
+  string mac_address = 2;
+  string hardware_serial = 3;
+  string os_product = 4;
+  string logical_cpu_count = 5;
+  string cpu_architecture = 6;
+  string motherboard_model = 7;
+  string cpu_model = 8;
+  string gpu_model_primary = 9;
+  string ssd_model_primary = 10;
+  string battery_model = 11;
+}
+
+message MetricRecord {
+  string metric_key = 1;
+  string scope_type = 2;
+  string scope_id = 3;
+  google.protobuf.Value value = 4;
+  string unit = 5;
+  string timestamp = 6;
+  string source = 7;
+  string source_metric = 8;
+  map<string, string> tags = 9;
+}
+
+message IngestBatchResponse {
+  bool accepted = 1;
+  string envelope_id = 2;
+  string received_at = 3;
+}

@@ -1,0 +1,148 @@
+networks:
+  redpanda-network:
+    driver: bridge
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: backend-shared-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - backend-shared-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    container_name: backend-shared-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - backend-shared-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v25.3.15-fips
+    container_name: backend-shared-redpanda
+    command:
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://host.docker.internal:19092
+    ports:
+      - "19092:19092"
+      - "8082:8082"
+    networks:
+      - redpanda-network
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health --brokers=localhost:9092 >/dev/null 2>&1 || exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v3.7.2
+    container_name: backend-shared-redpanda-console
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml; /app/console"
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda:9092"]
+    ports:
+      - "8080:8080"
+    networks:
+      - redpanda-network
+    depends_on:
+      - redpanda
+
+  vector:
+    image: timberio/vector:0.34.1-alpine
+    container_name: backend-shared-vector
+    restart: unless-stopped
+    volumes:
+      - ./shared/vector/vector.yaml:/etc/vector/vector.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "vector", "--config", "/etc/vector/vector.yaml", "--test"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      - redis
+      - mongo
+      - redpanda
+
+  ingestion-worker:
+    build:
+      context: ./ingestion-worker
+      dockerfile: Dockerfile
+    container_name: backend-ingestion-worker
+    restart: unless-stopped
+    environment:
+      INGESTION_SERVER_PORT: "4040"
+      INGESTION_REDIS_ADDRESS: host.docker.internal:6379
+      INGESTION_REDIS_DB: "0"
+      INGESTION_BROKER_BROKERS: redpanda:9092
+      INGESTION_BROKER_DOMAIN: telemetry
+      INGESTION_BROKER_DATA_AREA: ingested-raw
+      INGESTION_BROKER_STATUS: received
+    ports:
+      - "4040:4040"
+    volumes:
+      - ./ingestion-worker/config:/app/config:ro
+      - ./ingestion-worker/data:/app/data
+      - ./ingestion-worker/deployment/local-ca/pki:/app/deployment/local-ca/pki
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - redpanda-network
+    depends_on:
+      - redis
+      - redpanda
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "4040"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: backend-ingestion-nginx
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+      - "9443:9443"
+    volumes:
+      - ./shared/nginx/ingestion-nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ingestion-worker/deployment/local-ca/pki:/etc/nginx/certs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  backend-shared-redis-data:
+  backend-shared-mongo-data:
+  backend-shared-vector-data:

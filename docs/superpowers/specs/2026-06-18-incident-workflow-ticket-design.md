@@ -70,7 +70,193 @@ Subdomain trong ticket:
 7. Workflow Audit
 8. Read Models
 
-## 4. Domain Flow Overview
+## 4. Actors and Responsibilities
+
+### 4.1 Human Actors
+
+#### 4.1.1 IT Administrator
+
+Vai tro:
+
+- quan ly user, role, permission
+- cau hinh he thong va policy van hanh
+- xem toan bo ticket neu duoc cap quyen
+- seed hoac tao ticket thu cong trong moi truong test hoac admin
+
+Trong ticket domain, actor nay co quyen:
+
+- view all tickets neu co permission
+- create operational ticket
+- manage assignment policy
+- view read models
+
+Khong nen:
+
+- can thiep vao evidence cua technician neu khong co business need
+- thay doi alert truth trong monitoring
+- thay doi telemetry history
+
+#### 4.1.2 System Monitoring Operator
+
+Vai tro:
+
+- quan sat ticket queue va workflow state
+- tao ticket thu cong khi can
+- triage, assign, escalate, close ticket
+- theo doi timeline va current status
+
+Trong ticket domain, actor nay co quyen:
+
+- create ticket
+- assign/reassign
+- add comment
+- update status
+- view read models
+
+Khong nen:
+
+- sua topology asset
+- sua alert truth trong monitoring
+- chinh telemetry history
+
+#### 4.1.3 Maintenance Technician
+
+Vai tro:
+
+- nhan ticket duoc assign
+- lam work tai hien truong hoac trong data center
+- cap nhat progress va evidence
+- submit inspection result
+- dong ticket khi hoan tat
+
+Trong ticket domain, actor nay co quyen:
+
+- acknowledge ticket
+- start work
+- add comment
+- attach evidence
+- submit inspection result
+- resolve ticket
+
+Khong nen:
+
+- create incident lifecycle truth neu khong duoc phan quyen
+- thay doi alert lifecycle
+- thay doi asset ownership truth
+
+### 4.2 System Actors
+
+#### 4.2.1 Monitoring Service as System Actor
+
+Vai tro:
+
+- phat hien alert candidate hoac alert chinh thuc
+- tao handoff sang Incident Workflow Service
+- cung cap nguyen nhan, severity, va alert context
+
+Trong ticket domain, actor nay co quyen:
+
+- request ticket creation via integration event or internal handoff
+- attach originating alert context
+
+Khong nen:
+
+- cap nhat ticket comment nhu mot user
+- thao tac manual ownership
+- own ticket lifecycle truth
+
+#### 4.2.2 Control Plane API and BFF as System Actor
+
+Vai tro:
+
+- compose read models cho dashboard va WebAR
+- route command requests toi ticket/incident service
+- ap authz va response shaping
+
+Trong ticket domain, actor nay co quyen:
+
+- expose read-only ticket/incident views
+- forward command requests
+- assemble diagnostics bundle
+
+Khong nen:
+
+- giu ticket truth cua rieng minh
+- can thiep business state neu khong co use case owner
+
+#### 4.2.3 Notification Service as System Actor
+
+Vai tro:
+
+- consume workflow events
+- gui canh bao va delivery updates
+- cung cap delivery status
+
+Trong ticket domain, actor nay co quyen:
+
+- nhan event tu ticket workflow
+- emit delivery acknowledgment
+
+Khong nen:
+
+- thay doi ticket lifecycle
+- tao ticket thay cho workflow owner
+
+#### 4.2.4 Audit Service as System Actor
+
+Vai tro:
+
+- ghi lai tat ca thao tac nghiep vu quan trong
+- support truy vet va compliance
+
+Trong ticket domain, actor nay co quyen:
+
+- receive audit events
+- store immutable trace
+
+Khong nen:
+
+- tham gia quyet dinh nghiep vu
+- sua doi workflow state
+
+#### 4.2.5 Asset Context Service as System Actor
+
+Vai tro:
+
+- cung cap rack/node/marker context
+- resolve asset reference cho ticket va inspection
+
+Trong ticket domain, actor nay co quyen:
+
+- expose asset reference
+- support context enrichment
+
+Khong nen:
+
+- own ticket lifecycle
+- own incident lifecycle
+
+#### 4.2.6 WebAR Client as Field Actor
+
+Vai tro:
+
+- scan QR marker
+- xem diagnostics bundle
+- hien thi checklist
+- submit inspection evidence
+
+Trong ticket domain, actor nay co quyen:
+
+- view assigned ticket context
+- submit inspection result
+- attach field evidence via BFF
+
+Khong nen:
+
+- doc raw telemetry
+- sua workflow truth truc tiep
+
+## 5. Domain Flow Overview
 
 ```mermaid
 flowchart LR
@@ -93,7 +279,7 @@ flowchart LR
     INCIDENT -. "optional inspection context" .-> WAR
 ```
 
-## 5. Ticket Domain
+## 6. Ticket Domain
 
 ### 5.1 Ticket Core
 
@@ -210,7 +396,7 @@ Responsibilities:
 - record timestamp
 - record before/after state when needed
 
-## 6. Incident Workflow Service
+## 7. Incident Workflow Service
 
 ### 6.1 Service Responsibilities
 
@@ -295,7 +481,7 @@ Incident Workflow Service phai bao dam:
 - moi ticket event co the trigger notification
 - delivery status duoc ghi nhan boi Notification Service
 
-## 7. Prioritized Delivery Plan
+## 8. Prioritized Delivery Plan
 
 Tai lieu nay danh dau 4 muc sau la uu tien lam truoc:
 
@@ -333,7 +519,7 @@ Nhung muc sau se lam sau:
 - advanced notification orchestration
 - SLA handling
 
-## 8. Suggested Project Structure
+## 9. Suggested Project Structure
 
 De phu hop voi project structure hien tai trong repo, Incident Workflow Service nen di theo clean architecture gan voi backend control-plane pattern.
 
@@ -383,7 +569,7 @@ De phu hop voi project structure hien tai trong repo, Incident Workflow Service 
 - `presentation/` chua controller, DTO, auth guard, response shaping
 - `infrastructure/` wire DI, config, bootstrap
 
-## 9. Service Integration Rules
+## 10. Service Integration Rules
 
 - `Monitoring Service` co the tao handoff sang Incident Workflow Service.
 - `Ticket Domain` khong duoc phu thuoc chac vao monitoring lifecycle khi phase dau chua xong.
@@ -392,7 +578,7 @@ De phu hop voi project structure hien tai trong repo, Incident Workflow Service 
 - `Audit Service` luu trace cua action, khong tham gia quyet dinh nghiep vu.
 - `Control Plane API and BFF` compose read models cho dashboard va WebAR.
 
-## 10. Implementation Phasing
+## 11. Implementation Phasing
 
 ### Phase 1
 
@@ -420,7 +606,7 @@ De phu hop voi project structure hien tai trong repo, Incident Workflow Service 
 - richer triage workflows
 - workflow analytics and reporting
 
-## 11. Success Criteria
+## 12. Success Criteria
 
 Tai lieu nay duoc xem la day du neu:
 

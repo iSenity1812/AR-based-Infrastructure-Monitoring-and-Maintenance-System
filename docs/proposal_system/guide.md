@@ -101,7 +101,7 @@ File nay nen mo ta:
 - cac service trong control plane
 - data plane services
 - database-per-service principle
-- Kafka, TimescaleDB, MongoDB, Redis, Vertex AI, Object Storage
+- Redpanda, ClickHouse, MongoDB, Redis, Vertex AI, Object Storage
 - ranh gioi logical architecture va runtime architecture
 
 De xuat co cau:
@@ -150,7 +150,7 @@ De xuat co cau:
 
 1. End-to-End Data Flow
 2. Telemetry Collection to Ingestion
-3. Ingestion to Kafka
+3. Ingestion to Redpanda
 4. Stream Processing and Derived State
 5. Monitoring and Alert Lifecycle
 6. AR Diagnostics Composition
@@ -237,13 +237,13 @@ Khi trinh bay architecture, nen chia theo lop:
 - Frontend: Web Dashboard, WebAR Client
 - Backend control plane: NestJS API and BFF, Identity, Asset Context, Monitoring, Incident Workflow, Simulation, Notification, Audit
 - Data plane: Telemetry Ingestion, Stream Processing, AI Analytics
-- Storage: MongoDB, TimescaleDB, Redis, Kafka, Object Storage
+- Storage: MongoDB, ClickHouse, Redis, Redpanda, Object Storage
 - AI platform: Vertex AI
 
 De tranh lech kien truc:
 
 - khong coi BFF la noi so huu business truth
-- khong coi Kafka la source of truth
+- khong coi Redpanda la source of truth
 - khong dua Vertex AI vao hot path runtime neu khong co tai lieu moi quy dinh
 
 ## 13. Cach Tich Hop AI Model
@@ -304,3 +304,4 @@ Truoc khi ket thuc, kiem tra:
 ## 17. Ket Luan
 
 Neu muon lam dung dinh huong cua du an nay, hay xem bo tai lieu de xuat la mot lop mo ta kien truc cap cao, dung de truyen dat y tuong he thong va lam co so cho cac phan thiet ke chi tiet o buoc sau.
+

@@ -165,8 +165,8 @@ Primary ownership:
 
 Primary stores consumed or written:
 
-- TimescaleDB
-- Kafka
+- ClickHouse
+- Redpanda
 - Object Storage
 
 Ly do tach:
@@ -192,7 +192,7 @@ Primary ownership:
 Primary stores:
 
 - Redis
-- TimescaleDB
+- ClickHouse
 
 Ly do tach:
 
@@ -233,8 +233,8 @@ Primary ownership:
 
 Supporting platforms:
 
-- TimescaleDB
-- Kafka
+- ClickHouse
+- Redpanda
 - Vertex AI
 - Object Storage
 
@@ -348,8 +348,8 @@ De trien khai thuc te o giai doan hien tai, co the gom logical services thanh 3 
 | --- | --- | --- |
 | `Control Plane Edge` | Control Plane API and BFF | NestJS gateway/BFF, Socket |
 | `Control Plane Core` | Identity, Asset Context, Monitoring, Incident Workflow, Simulation, Notification, Audit | NestJS microservices, MongoDB |
-| `Python Data Plane` | Telemetry Ingestion, Stream Processing, AI Analytics | Python FastAPI/workers, TimescaleDB, Kafka, Redis |
-| `Shared Platform Components` | Kafka, TimescaleDB, MongoDB, Redis, Object Storage | Docker, k3s |
+| `Python Data Plane` | Telemetry Ingestion, Stream Processing, AI Analytics | Python FastAPI/workers, ClickHouse, Redpanda, Redis |
+| `Shared Platform Components` | Redpanda, ClickHouse, MongoDB, Redis, Object Storage | Docker, k3s |
 
 Dieu nay giu duoc:
 
@@ -363,8 +363,8 @@ Dieu nay giu duoc:
 | `Control Plane API and BFF` | No | None | API composition only |
 | `Identity Service` | Yes | MongoDB | auth and access truth |
 | `Asset Context Service` | Yes | MongoDB | topology and marker truth |
-| `Telemetry Ingestion Service` | Yes for ingest path and raw telemetry write | TimescaleDB | owns ingestion contract |
-| `Stream Processing Service` | No, derived only | Redis + TimescaleDB | owns snapshots, aggregates, candidates as derived data |
+| `Telemetry Ingestion Service` | Yes for ingest path and raw telemetry write | ClickHouse | owns ingestion contract |
+| `Stream Processing Service` | No, derived only | Redis + ClickHouse | owns snapshots, aggregates, candidates as derived data |
 | `Monitoring Service` | Yes | MongoDB | owns alert lifecycle and monitoring read models |
 | `AI Analytics Service` | Yes for inference records, no for alert lifecycle | MongoDB + Vertex AI | enrich-only for operations |
 | `Incident Workflow Service` | Yes | MongoDB | owns incident, ticket, inspection workflow |
@@ -382,3 +382,4 @@ Tai lieu nay dat muc tieu neu:
 - `AI` va `AR` khong vo tinh tro thanh source-of-truth domain.
 - `control plane` va `data plane` duoc tach logic ro rang.
 - co the dung tai lieu nay lam input truc tiep cho `service interaction matrix`, `data architecture`, `API architecture`, `deployment architecture`.
+

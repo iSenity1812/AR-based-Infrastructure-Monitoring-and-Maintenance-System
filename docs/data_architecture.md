@@ -7,7 +7,7 @@ Tai lieu nay mo ta `data architecture` cho nen tang AR + AI infrastructure monit
 Muc tieu:
 
 - Tach ro `source of truth`, `derived serving state`, `event backbone`, `training artifacts`.
-- Gan ownership cho `MongoDB`, `TimescaleDB`, `Redis`, `Kafka`, `Object Storage`, `Vertex AI`.
+- Gan ownership cho `MongoDB`, `ClickHouse`, `Redis`, `Redpanda`, `Object Storage`, `Vertex AI`.
 - Dua `database-per-service principle` vao target microservices architecture.
 - Lam ro luong du lieu cho dashboard, alerting, incident-ticket, AR diagnostics va AI lifecycle.
 
@@ -29,10 +29,10 @@ Target architecture tuan theo nguyen tac microservices:
 - khong co service nao duoc query truc tiep bang/collection authoritative cua service khac.
 - chia se du lieu giua services thong qua:
   - `REST` hoac `gRPC` cho synchronous reads/commands
-  - `Kafka` cho async propagation
+  - `Redpanda` cho async propagation
   - read-model duplication neu can cho serving
 - `MongoDB` co the van la mot cum vat ly chung, nhung phai tach `logical databases` hoac it nhat `strict ownership schemas` theo service.
-- `TimescaleDB` la data store authoritative cho telemetry, nhung ownership table/schema van thuoc `Telemetry Ingestion` va `Stream Processing`.
+- `ClickHouse` la data store authoritative cho telemetry, nhung ownership table/schema van thuoc `Telemetry Ingestion` va `Stream Processing`.
 
 ## 4. Data Architecture View
 
@@ -72,9 +72,9 @@ flowchart LR
 
     subgraph Stores["Stores"]
         S1[(MongoDB)]
-        S2[(TimescaleDB)]
+        S2[(ClickHouse)]
         S3[(Redis)]
-        S4[(Kafka)]
+        S4[(Redpanda)]
         S5[(Object Storage)]
         S6[Vertex AI]
     end
@@ -113,9 +113,9 @@ flowchart LR
 | Store | Role in architecture | Authoritative or derived | Data classes |
 | --- | --- | --- | --- |
 | `MongoDB` | Operational system of record, segmented by service boundary | `Authoritative` | identity data, asset context data, monitoring data, incident workflow data, simulation data, notification data, audit data, AI inference records |
-| `TimescaleDB` | Telemetry and historical metric store | `Authoritative` for time-series | raw telemetry, rollups, simulation-tagged telemetry, historical query support |
+| `ClickHouse` | Telemetry and historical metric store | `Authoritative` for time-series | raw telemetry, rollups, simulation-tagged telemetry, historical query support |
 | `Redis` | Serving-state store and hot cache, segmented by service namespace | `Derived` | latest snapshot, current health state, recent dashboard cards, AR diagnostics input cache, short-lived coordination state |
-| `Kafka` | Event log and integration backbone | `Neither` source of truth nor query store | canonical telemetry events, snapshot update events, alert candidate events, AI completion events, inspection and simulation events |
+| `Redpanda` | Event log and integration backbone | `Neither` source of truth nor query store | canonical telemetry events, snapshot update events, alert candidate events, AI completion events, inspection and simulation events |
 | `Object Storage` | Archive and artifact storage | `Authoritative` for archives/artifacts only | invalid payload archives, replay payload archives, attachments, evidence, exported features, model artifacts |
 | `Vertex AI` | Managed training and model lifecycle platform | `Managed system of record` for model lifecycle | experiments, training jobs, model registry entries, optional batch prediction outputs |
 
@@ -130,8 +130,8 @@ flowchart LR
 | `Simulation Service` | `simulation_db` trong MongoDB | scenarios, runs, simulation events metadata |
 | `Notification Service` | `notification_db` trong MongoDB | notification events, delivery attempts |
 | `Audit Service` | `audit_db` trong MongoDB | audit logs |
-| `Telemetry Ingestion Service` | `telemetry_raw` schema/tables trong TimescaleDB | raw telemetry write path |
-| `Stream Processing Service` | `telemetry_serving` schema/tables trong TimescaleDB + `redis namespaces` | aggregates, materialized telemetry views, snapshots |
+| `Telemetry Ingestion Service` | `telemetry_raw` schema/tables trong ClickHouse | raw telemetry write path |
+| `Stream Processing Service` | `telemetry_serving` schema/tables trong ClickHouse + `redis namespaces` | aggregates, materialized telemetry views, snapshots |
 | `AI Analytics Service` | `ai_analytics_db` trong MongoDB + `Vertex AI` registry | inference records in MongoDB, training lifecycle in Vertex AI |
 
 Quy tac:
@@ -147,7 +147,7 @@ Quy tac:
 Nhung du lieu sau phai duoc xem la `authoritative`:
 
 - `Topology`, `markers`, `tickets`, `alerts`, `inspections` trong `MongoDB`.
-- `raw telemetry` va `historical telemetry windows` trong `TimescaleDB`.
+- `raw telemetry` va `historical telemetry windows` trong `ClickHouse`.
 - `model registry` va `training lifecycle` trong `Vertex AI`.
 
 ### 7.2 Derived Serving State
@@ -167,7 +167,7 @@ Neu derived state mat hoac stale:
 
 ### 7.3 Event Backbone
 
-`Kafka` chi luu `integration events` va `processing events`:
+`Redpanda` chi luu `integration events` va `processing events`:
 
 - no khong phai noi luu ticket hay alert authoritative.
 - no khong phai noi query dashboard.
@@ -178,13 +178,13 @@ Neu derived state mat hoac stale:
 | Domain | Primary store | Supporting stores | Notes |
 | --- | --- | --- | --- |
 | `Identity and Access` | `identity_db` | `Redis` | session/cache co the nam o Redis, nhung user/role la authoritative trong identity boundary |
-| `Topology and Asset` | `asset_context_db` | `Redis`, `Kafka` | topology va marker thuoc cung service boundary |
-| `Telemetry Ingestion` | `TimescaleDB` | `Kafka`, `Object Storage` | raw samples vao TSDB, payload archive vao object storage |
-| `Monitoring and Alerting` | `monitoring_db` | `Kafka`, `Redis`, `TimescaleDB` | monitoring service own alerts va monitoring read models |
-| `Incident and Maintenance Workflow` | `incident_workflow_db` | `Kafka`, `Object Storage` | workflow lifecycle va inspection truth |
-| `AR Diagnostics` | `Redis` | `monitoring_db`, `asset_context_db`, `incident_workflow_db`, `TimescaleDB` | diagnostics la composed read model qua BFF, khong co DB authoritative rieng |
-| `AI Analytics` | `ai_analytics_db` | `TimescaleDB`, `Kafka`, `Vertex AI`, `Object Storage` | inference records trong MongoDB boundary rieng, training lifecycle trong Vertex AI |
-| `Simulation` | `simulation_db` | `TimescaleDB`, `Kafka` | run metadata trong MongoDB, telemetry simulation vao TSDB |
+| `Topology and Asset` | `asset_context_db` | `Redis`, `Redpanda` | topology va marker thuoc cung service boundary |
+| `Telemetry Ingestion` | `ClickHouse` | `Redpanda`, `Object Storage` | raw samples vao TSDB, payload archive vao object storage |
+| `Monitoring and Alerting` | `monitoring_db` | `Redpanda`, `Redis`, `ClickHouse` | monitoring service own alerts va monitoring read models |
+| `Incident and Maintenance Workflow` | `incident_workflow_db` | `Redpanda`, `Object Storage` | workflow lifecycle va inspection truth |
+| `AR Diagnostics` | `Redis` | `monitoring_db`, `asset_context_db`, `incident_workflow_db`, `ClickHouse` | diagnostics la composed read model qua BFF, khong co DB authoritative rieng |
+| `AI Analytics` | `ai_analytics_db` | `ClickHouse`, `Redpanda`, `Vertex AI`, `Object Storage` | inference records trong MongoDB boundary rieng, training lifecycle trong Vertex AI |
+| `Simulation` | `simulation_db` | `ClickHouse`, `Redpanda` | run metadata trong MongoDB, telemetry simulation vao TSDB |
 
 ## 9. Data Lifecycle
 
@@ -193,10 +193,10 @@ Neu derived state mat hoac stale:
 `Telemetry Collector` gui batch telemetry:
 
 1. `Ingestion Service` xac thuc va validate payload.
-2. Raw telemetry duoc luu vao `TimescaleDB`.
-3. Canonical events duoc publish len `Kafka`.
+2. Raw telemetry duoc luu vao `ClickHouse`.
+3. Canonical events duoc publish len `Redpanda`.
 4. Snapshot va serving views duoc materialize vao `Redis`.
-5. Aggregate/history views duoc tao trong `TimescaleDB`.
+5. Aggregate/history views duoc tao trong `ClickHouse`.
 6. AI va alerting consume event hoac query recent windows.
 
 ### 9.2 Alert and Workflow Lifecycle
@@ -204,7 +204,7 @@ Neu derived state mat hoac stale:
 1. `Rule` hoac `AI` sinh `alert candidate`.
 2. `Monitoring Service` tao `alert` authoritative trong `monitoring_db`.
 3. `Incident Workflow Service` tao/cap nhat `incident` va `ticket` trong `incident_workflow_db`.
-4. `Notification Service` va `Audit Service` ghi du lieu vao DB boundary rieng cua chung, dong thoi consume event qua `Kafka`.
+4. `Notification Service` va `Audit Service` ghi du lieu vao DB boundary rieng cua chung, dong thoi consume event qua `Redpanda`.
 
 ### 9.3 AR Diagnostics Lifecycle
 
@@ -214,7 +214,7 @@ Neu derived state mat hoac stale:
    - snapshot tu `Redis`
    - active alerts tu `Monitoring Service`
    - ticket context tu `Incident Workflow Service`
-   - historical snippets tu `TimescaleDB` neu can
+   - historical snippets tu `ClickHouse` neu can
    - AI inference tu `AI Analytics Service`
 3. `AR diagnostics bundle` duoc assemble va tra ve client.
 
@@ -241,7 +241,7 @@ Khong nen dung cho:
 - raw telemetry khoi luong lon trong target architecture.
 - mot service query truc tiep collection authoritative cua service khac.
 
-### 10.2 TimescaleDB
+### 10.2 ClickHouse
 
 Dung cho:
 
@@ -266,7 +266,7 @@ Khong nen dung cho:
 
 - authoritative business truth dai han.
 
-### 10.4 Kafka
+### 10.4 Redpanda
 
 Dung cho:
 
@@ -298,9 +298,9 @@ Khong dung cho:
 | Boundary | Primary responsibilities | Primary tech stack | Primary data owned or consumed |
 | --- | --- | --- | --- |
 | `Operational data` | Quan ly user, topology, marker, alert, incident, ticket, AR session, inspection, audit | MongoDB split by service boundary | Authoritative business entities |
-| `Telemetry and time-series data` | Luu raw telemetry, historical windows, rollups, simulation-tagged metrics | TimescaleDB | Raw metric samples, aggregates, history views |
+| `Telemetry and time-series data` | Luu raw telemetry, historical windows, rollups, simulation-tagged metrics | ClickHouse | Raw metric samples, aggregates, history views |
 | `Derived serving state` | Cung cap current health, latest snapshot, hot diagnostics inputs | Redis namespaced per service | Latest metrics, current health, AR/dashboard serving cache |
-| `Event backbone` | Van chuyen event va ho tro replay | Kafka | Canonical telemetry events, snapshot updates, alert/AI/simulation events |
+| `Event backbone` | Van chuyen event va ho tro replay | Redpanda | Canonical telemetry events, snapshot updates, alert/AI/simulation events |
 | `Archive and artifacts` | Luu invalid payload, replay archives, feature exports, attachments, model artifacts | Object Storage | Replay payloads, evidence, datasets, artifacts |
 | `Training and model lifecycle` | Quan ly training, experiment, registry | Vertex AI | Experiments, training jobs, registered models |
 
@@ -309,7 +309,7 @@ Khong dung cho:
 - `AR` khong duoc doc raw telemetry truc tiep.
 - `AI` khong so huu alert lifecycle, chi enrich hoac de xuat.
 - `Redis` khong la source of truth.
-- `Kafka` khong thay the database nghiep vu.
+- `Redpanda` khong thay the database nghiep vu.
 - `Vertex AI` khong chen vao hot path online monitoring trong `v1`.
 - `Docker` va `k3s` la boundary runtime, khong thay doi ownership du lieu logic.
 - `BFF` khong co database authoritative rieng.
@@ -326,3 +326,4 @@ Tai lieu nay dat muc tieu neu:
 - tach ro authoritative data, derived state va event backbone.
 - the hien ro `database-per-service principle`.
 - cho phep suy ra detailed schema va retention strategy o vong tiep theo ma khong phai re-decide ownership.
+

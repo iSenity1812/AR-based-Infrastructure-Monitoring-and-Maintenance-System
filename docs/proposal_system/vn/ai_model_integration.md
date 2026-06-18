@@ -137,7 +137,7 @@ Dùng cho:
 - model artifacts
 - evidence and archives
 
-### 8.3 Kafka
+### 8.3 Redpanda
 
 Dùng cho:
 
@@ -151,3 +151,4 @@ Dùng cho:
 - AI không được query database của service khác trực tiếp
 - AI output phải đi qua service boundary rõ ràng
 - không đưa Vertex AI vào online hot path nếu chưa có quy định mới
+

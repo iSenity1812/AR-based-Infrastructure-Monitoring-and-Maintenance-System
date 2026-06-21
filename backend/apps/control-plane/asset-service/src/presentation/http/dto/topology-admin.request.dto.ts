@@ -239,6 +239,11 @@ export class UpdateNodeRequestDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  positionCode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   notes?: string;
 
   @ApiPropertyOptional()
@@ -252,6 +257,11 @@ export class AssignNodeToRackRequestDto {
   @IsString()
   @IsNotEmpty()
   rackId!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  positionCode!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

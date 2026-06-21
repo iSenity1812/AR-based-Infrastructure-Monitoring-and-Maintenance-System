@@ -10,6 +10,10 @@ export class AssetServiceConfig {
     );
   }
 
+  get redisUrl(): string {
+    return process.env.ASSET_REDIS_URL ?? 'redis://127.0.0.1:6379/0';
+  }
+
   get accessTokenSecret(): string {
     return (
       process.env.JWT_ACCESS_SECRET ??

@@ -16,7 +16,6 @@
     "start": "node dist/control-plane/asset-service/src/main.js",
     "start:dev": "ts-node -r tsconfig-paths/register --transpile-only src/main.ts",
     "start:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register src/main.ts",
-    "prestart:prod": "pnpm build",
     "start:prod": "node dist/control-plane/asset-service/src/main.js",
     "seed": "ts-node -r tsconfig-paths/register src/infrastructure/bootstrap/seed.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",

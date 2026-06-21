@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 
 import { CacheManagerAssetQueryCacheAdapter } from '@adapters/cache/cache-manager-asset-query-cache.adapter';
+import { RedisDiscoveredNodeRepository } from '@adapters/integration/redis/redis-discovered-node.repository';
 import {
   MarkerDocumentModel,
   MarkerSchema,
@@ -23,6 +24,7 @@ import {
 } from '@adapters/persistence/mongoose';
 import {
   ASSET_QUERY_CACHE,
+  DISCOVERED_NODE_REPOSITORY,
   MARKER_REPOSITORY,
   NODE_REPOSITORY,
   NODE_RUNTIME_SNAPSHOT_REPOSITORY,
@@ -43,6 +45,7 @@ import { SeedAssetContextUseCase } from '@use-cases/commands/seed-asset-context.
 import {
   ActivateNodeUseCase,
   ActivateRackUseCase,
+  AssignDiscoveredNodeToRackUseCase,
   AssignNodeToRackUseCase,
   ConfirmRackReadyUseCase,
   CreateRackUseCase,
@@ -62,6 +65,7 @@ import {
   ResolveMarkerUseCase,
   SearchAssetsUseCase,
 } from '@use-cases/queries/topology.queries';
+import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
 import { AssetContextReadService } from '@use-cases/services/asset-context-read.service';
 import { AdminMarkersController } from '@presentation/http/controllers/admin-markers.controller';
 import { AdminTopologyController } from '@presentation/http/controllers/admin-topology.controller';
@@ -110,6 +114,7 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     MongooseMarkerRepository,
     MongooseNodeRuntimeSnapshotRepository,
     CacheManagerAssetQueryCacheAdapter,
+    RedisDiscoveredNodeRepository,
     {
       provide: RACK_REPOSITORY,
       useExisting: MongooseRackRepository,
@@ -127,6 +132,10 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
       useExisting: MongooseNodeRuntimeSnapshotRepository,
     },
     {
+      provide: DISCOVERED_NODE_REPOSITORY,
+      useExisting: RedisDiscoveredNodeRepository,
+    },
+    {
       provide: ASSET_QUERY_CACHE,
       useExisting: CacheManagerAssetQueryCacheAdapter,
     },
@@ -139,6 +148,7 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     NormalizeNodeUseCase,
     UpdateNodeUseCase,
     AssignNodeToRackUseCase,
+    AssignDiscoveredNodeToRackUseCase,
     ActivateNodeUseCase,
     DrainNodeUseCase,
     RetireNodeUseCase,
@@ -155,6 +165,7 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     GetTopologyTreeUseCase,
     GetRackTopologyUseCase,
     GetNodeContextUseCase,
+    ListDiscoveredNodesUseCase,
     GetAssetByCodeUseCase,
     ResolveMarkerUseCase,
     SearchAssetsUseCase,

@@ -6,6 +6,7 @@ export {
   RetireRackUseCase,
   UpdateRackUseCase,
 } from '@use-cases/commands/topology/rack-topology.commands';
+export { AssignDiscoveredNodeToRackUseCase } from '@use-cases/commands/topology/discovered-node.commands';
 export {
   ActivateNodeUseCase,
   AssignNodeToRackUseCase,

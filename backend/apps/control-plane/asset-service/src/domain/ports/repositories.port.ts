@@ -1,5 +1,6 @@
 import { AssetType } from '../constants/asset-type.enum';
 import type {
+  DiscoveredNodeEntity,
   MarkerEntity,
   NodeEntity,
   NodeRuntimeSnapshotEntity,
@@ -25,6 +26,10 @@ export interface NodeRepositoryPort {
   ): Promise<NodeEntity | null>;
   findById(id: string): Promise<NodeEntity | null>;
   findByCode(nodeCode: string): Promise<NodeEntity | null>;
+  findByRackIdAndPositionCode(
+    rackId: string,
+    positionCode: string,
+  ): Promise<NodeEntity | null>;
   listAll(): Promise<NodeEntity[]>;
   listByRackId(rackId: string): Promise<NodeEntity[]>;
 }
@@ -47,6 +52,12 @@ export interface NodeRuntimeSnapshotRepositoryPort {
   ): Promise<NodeRuntimeSnapshotEntity>;
   findByNodeId(nodeId: string): Promise<NodeRuntimeSnapshotEntity | null>;
   listAll(): Promise<NodeRuntimeSnapshotEntity[]>;
+}
+
+export interface DiscoveredNodeRepositoryPort {
+  listAll(): Promise<DiscoveredNodeEntity[]>;
+  findByAgentId(agentId: string): Promise<DiscoveredNodeEntity | null>;
+  save(node: DiscoveredNodeEntity): Promise<DiscoveredNodeEntity>;
 }
 
 export interface AssetSearchResult {

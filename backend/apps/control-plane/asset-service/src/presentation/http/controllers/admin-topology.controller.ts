@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Patch,
   Post,
@@ -13,6 +14,7 @@ import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
 import {
   ActivateNodeUseCase,
   ActivateRackUseCase,
+  AssignDiscoveredNodeToRackUseCase,
   AssignNodeToRackUseCase,
   ConfirmRackReadyUseCase,
   CreateRackUseCase,
@@ -24,6 +26,7 @@ import {
   UpdateNodeUseCase,
   UpdateRackUseCase,
 } from '@use-cases/commands/topology';
+import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
 import {
   AssignNodeToRackRequestDto,
   CreateRackRequestDto,
@@ -61,9 +64,11 @@ export class AdminTopologyController {
     private readonly normalizeNodeUseCase: NormalizeNodeUseCase,
     private readonly updateNodeUseCase: UpdateNodeUseCase,
     private readonly assignNodeToRackUseCase: AssignNodeToRackUseCase,
+    private readonly assignDiscoveredNodeToRackUseCase: AssignDiscoveredNodeToRackUseCase,
     private readonly activateNodeUseCase: ActivateNodeUseCase,
     private readonly drainNodeUseCase: DrainNodeUseCase,
     private readonly retireNodeUseCase: RetireNodeUseCase,
+    private readonly listDiscoveredNodesUseCase: ListDiscoveredNodesUseCase,
   ) {}
 
   @Post('racks')
@@ -162,6 +167,18 @@ export class AdminTopologyController {
     );
   }
 
+  @Get('discovered-nodes')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary: 'List discovered nodes stored in shared Redis state.',
+  })
+  async listDiscoveredNodes(@Req() request: HeaderRequest) {
+    return serializeEnvelope(
+      await this.listDiscoveredNodesUseCase.execute(),
+      responseMeta(request),
+    );
+  }
+
   @Patch('nodes/:nodeId')
   @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
   @ApiOperation({ summary: 'Update node business fields.' })
@@ -188,6 +205,29 @@ export class AdminTopologyController {
       await this.assignNodeToRackUseCase.execute(
         nodeId,
         body.rackId,
+        body.positionCode,
+        body.allowDraining,
+      ),
+      responseMeta(request),
+    );
+  }
+
+  @Post('discovered-nodes/:agentId/assign-rack')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'Normalize a discovered Redis-backed node, assign it to a rack, and activate it.',
+  })
+  async assignDiscoveredNodeToRack(
+    @Param('agentId') agentId: string,
+    @Body() body: AssignNodeToRackRequestDto,
+    @Req() request: HeaderRequest,
+  ) {
+    return serializeEnvelope(
+      await this.assignDiscoveredNodeToRackUseCase.execute(
+        agentId,
+        body.rackId,
+        body.positionCode,
         body.allowDraining,
       ),
       responseMeta(request),

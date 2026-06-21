@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { isValidObjectId } from 'mongoose';
 
 import { AssetType } from '@domain/constants/asset-type.enum';
 import {
@@ -14,9 +15,27 @@ import type {
 import { ErrorCode } from '@shared/errors/ts/error-code.enum';
 import {
   BadRequestUseCaseError,
+  ConflictUseCaseError,
   NotFoundUseCaseError,
 } from '@use-cases/errors/use-case.errors';
 import { AssetContextReadService } from '@use-cases/services/asset-context-read.service';
+
+function isMongoDuplicateKeyError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const { code, message } = error as {
+    code?: unknown;
+    message?: unknown;
+  };
+
+  return (
+    code === 11000 ||
+    (typeof message === 'string' &&
+      message.includes('E11000 duplicate key error'))
+  );
+}
 
 @Injectable()
 export class NormalizeNodeUseCase {
@@ -36,29 +55,41 @@ export class NormalizeNodeUseCase {
     vendor?: string;
     model?: string;
     managementIp?: string;
+    positionCode?: string;
     notes?: string;
     metadata?: Record<string, unknown>;
   }) {
     const existing = await this.nodeRepository.findByCode(input.nodeCode);
     if (existing) {
-      const updated = await this.nodeRepository.update(existing.id, {
-        displayName: input.displayName,
-        hostname: input.hostname,
-        nodeType: input.nodeType,
-        source: input.source,
-        serialNumber: input.serialNumber,
-        vendor: input.vendor,
-        model: input.model,
-        managementIp: input.managementIp,
-        notes: input.notes,
-        metadata: input.metadata ?? existing.metadata,
-        lifecycleState:
-          existing.lifecycleState === NodeLifecycleState.RETIRED
-            ? NodeLifecycleState.RETIRED
-            : NodeLifecycleState.READY,
-      });
+      try {
+        const updated = await this.nodeRepository.update(existing.id, {
+          displayName: input.displayName,
+          hostname: input.hostname,
+          nodeType: input.nodeType,
+          source: input.source,
+          serialNumber: input.serialNumber,
+          vendor: input.vendor,
+          model: input.model,
+          managementIp: input.managementIp,
+          positionCode: input.positionCode,
+          notes: input.notes,
+          metadata: input.metadata ?? existing.metadata,
+          lifecycleState:
+            existing.lifecycleState === NodeLifecycleState.RETIRED
+              ? NodeLifecycleState.RETIRED
+              : NodeLifecycleState.READY,
+        });
 
-      return updated;
+        return updated;
+      } catch (error) {
+        if (isMongoDuplicateKeyError(error)) {
+          throw new ConflictUseCaseError(
+            `Node ${input.nodeCode} conflicts with an existing asset position or code.`,
+          );
+        }
+
+        throw error;
+      }
     }
 
     await this.assetContextReadService.ensureCodeAvailable(input.nodeCode);
@@ -76,6 +107,8 @@ export class UpdateNodeUseCase {
   constructor(
     @Inject(NODE_REPOSITORY)
     private readonly nodeRepository: NodeRepositoryPort,
+    @Inject(RACK_REPOSITORY)
+    private readonly rackRepository: RackRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
   ) {}
 
@@ -91,20 +124,50 @@ export class UpdateNodeUseCase {
       vendor?: string;
       model?: string;
       managementIp?: string;
+      positionCode?: string;
       notes?: string;
       metadata?: Record<string, unknown>;
     },
   ) {
     const node = await this.getRequiredNode(nodeId);
+    const resolvedNodeId = node.id;
     if (input.nodeCode) {
       await this.assetContextReadService.ensureCodeAvailable(input.nodeCode, {
         type: AssetType.NODE,
-        id: nodeId,
+        id: resolvedNodeId,
       });
     }
 
-    const updated = await this.nodeRepository.update(nodeId, input);
-    await this.assetContextReadService.invalidateNodeContext(nodeId);
+    if (input.positionCode && node.rackId) {
+      const rack = await this.getRequiredRack(node.rackId);
+      this.ensurePositionWithinRackCapacity(
+        rack.capacityLimit,
+        input.positionCode,
+      );
+    }
+
+    await this.ensurePositionAvailability(
+      resolvedNodeId,
+      node.rackId,
+      input.positionCode ?? node.positionCode,
+    );
+
+    let updated: Awaited<ReturnType<NodeRepositoryPort['update']>>;
+    try {
+      updated = await this.nodeRepository.update(resolvedNodeId, input);
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new ConflictUseCaseError(
+          node.rackId && (input.positionCode ?? node.positionCode)
+            ? `Rack ${node.rackId} already has a node at position ${input.positionCode ?? node.positionCode}.`
+            : 'Node update conflicts with an existing asset.',
+        );
+      }
+
+      throw error;
+    }
+
+    await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
@@ -115,7 +178,7 @@ export class UpdateNodeUseCase {
   }
 
   private async getRequiredNode(nodeId: string) {
-    const node = await this.nodeRepository.findById(nodeId);
+    const node = await findNodeByIdentifier(this.nodeRepository, nodeId);
     if (!node) {
       throw new NotFoundUseCaseError(
         `Node ${nodeId} was not found.`,
@@ -124,6 +187,73 @@ export class UpdateNodeUseCase {
     }
 
     return node;
+  }
+
+  private async ensurePositionAvailability(
+    nodeId: string,
+    rackId: string | undefined,
+    positionCode: string | undefined,
+  ) {
+    if (!rackId || !positionCode) {
+      return;
+    }
+
+    const occupyingNode = await this.nodeRepository.findByRackIdAndPositionCode(
+      rackId,
+      positionCode,
+    );
+
+    if (occupyingNode && occupyingNode.id !== nodeId) {
+      throw new ConflictUseCaseError(
+        `Rack ${rackId} already has a node at position ${positionCode}.`,
+      );
+    }
+  }
+
+  private async getRequiredRack(rackId: string) {
+    const rack = await this.rackRepository.findById(rackId);
+    if (!rack) {
+      throw new NotFoundUseCaseError(
+        `Rack ${rackId} was not found.`,
+        ErrorCode.ASSET_RACK_NOT_FOUND,
+      );
+    }
+
+    return rack;
+  }
+
+  private ensurePositionWithinRackCapacity(
+    capacityLimit: number | undefined,
+    positionCode: string,
+  ) {
+    if (!capacityLimit) {
+      return;
+    }
+
+    const normalizedPosition = this.parseRackUnitPosition(positionCode);
+    if (normalizedPosition === null) {
+      return;
+    }
+
+    if (normalizedPosition > capacityLimit) {
+      throw new BadRequestUseCaseError(
+        `Rack supports up to U${capacityLimit}, but received ${positionCode}.`,
+      );
+    }
+  }
+
+  private parseRackUnitPosition(positionCode: string | undefined) {
+    if (!positionCode) {
+      return null;
+    }
+
+    const match = positionCode.trim().match(/^U\s*(\d+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    const value = Number.parseInt(match[1], 10);
+    return Number.isNaN(value) ? null : value;
   }
 }
 
@@ -137,8 +267,14 @@ export class AssignNodeToRackUseCase {
     private readonly assetContextReadService: AssetContextReadService,
   ) {}
 
-  async execute(nodeId: string, rackId: string, allowDraining = false) {
+  async execute(
+    nodeId: string,
+    rackId: string,
+    positionCode: string,
+    allowDraining = false,
+  ) {
     const node = await this.getRequiredNode(nodeId);
+    const resolvedNodeId = node.id;
     const rack = await this.getRequiredRack(rackId);
 
     if (node.lifecycleState === NodeLifecycleState.RETIRED) {
@@ -157,6 +293,8 @@ export class AssignNodeToRackUseCase {
       );
     }
 
+    this.ensurePositionWithinRackCapacity(rack.capacityLimit, positionCode);
+
     if (node.rackId === rackId) {
       throw new BadRequestUseCaseError(
         `Node ${nodeId} is already assigned to rack ${rackId}.`,
@@ -164,20 +302,34 @@ export class AssignNodeToRackUseCase {
       );
     }
 
+    await this.ensurePositionAvailability(resolvedNodeId, rackId, positionCode);
+
     const assignmentState = node.rackId
       ? NodeAssignmentState.MOVED
       : NodeAssignmentState.ASSIGNED;
 
-    const updated = await this.nodeRepository.update(nodeId, {
-      rackId,
-      assignmentState,
-      lifecycleState:
-        node.lifecycleState === NodeLifecycleState.DISCOVERED
-          ? NodeLifecycleState.READY
-          : node.lifecycleState,
-    });
+    let updated: Awaited<ReturnType<NodeRepositoryPort['update']>>;
+    try {
+      updated = await this.nodeRepository.update(resolvedNodeId, {
+        rackId,
+        positionCode,
+        assignmentState,
+        lifecycleState:
+          node.lifecycleState === NodeLifecycleState.DISCOVERED
+            ? NodeLifecycleState.READY
+            : node.lifecycleState,
+      });
+    } catch (error) {
+      if (isMongoDuplicateKeyError(error)) {
+        throw new ConflictUseCaseError(
+          `Rack ${rackId} already has a node at position ${positionCode}.`,
+        );
+      }
 
-    await this.assetContextReadService.invalidateNodeContext(nodeId);
+      throw error;
+    }
+
+    await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
@@ -186,7 +338,7 @@ export class AssignNodeToRackUseCase {
   }
 
   private async getRequiredNode(nodeId: string) {
-    const node = await this.nodeRepository.findById(nodeId);
+    const node = await findNodeByIdentifier(this.nodeRepository, nodeId);
     if (!node) {
       throw new NotFoundUseCaseError(
         `Node ${nodeId} was not found.`,
@@ -208,6 +360,61 @@ export class AssignNodeToRackUseCase {
 
     return rack;
   }
+
+  private async ensurePositionAvailability(
+    nodeId: string,
+    rackId: string | undefined,
+    positionCode: string | undefined,
+  ) {
+    if (!rackId || !positionCode) {
+      return;
+    }
+
+    const occupyingNode = await this.nodeRepository.findByRackIdAndPositionCode(
+      rackId,
+      positionCode,
+    );
+
+    if (occupyingNode && occupyingNode.id !== nodeId) {
+      throw new ConflictUseCaseError(
+        `Rack ${rackId} already has a node at position ${positionCode}.`,
+      );
+    }
+  }
+
+  private ensurePositionWithinRackCapacity(
+    capacityLimit: number | undefined,
+    positionCode: string,
+  ) {
+    if (!capacityLimit) {
+      return;
+    }
+
+    const normalizedPosition = this.parseRackUnitPosition(positionCode);
+    if (normalizedPosition === null) {
+      return;
+    }
+
+    if (normalizedPosition > capacityLimit) {
+      throw new BadRequestUseCaseError(
+        `Rack supports up to U${capacityLimit}, but received ${positionCode}.`,
+      );
+    }
+  }
+
+  private parseRackUnitPosition(positionCode: string | undefined) {
+    if (!positionCode) {
+      return null;
+    }
+
+    const match = positionCode.trim().match(/^U\s*(\d+)$/i);
+    if (!match) {
+      return null;
+    }
+
+    const value = Number.parseInt(match[1], 10);
+    return Number.isNaN(value) ? null : value;
+  }
 }
 
 @Injectable()
@@ -220,10 +427,11 @@ export class ActivateNodeUseCase {
 
   async execute(nodeId: string) {
     const node = await this.requireAssignedNode(nodeId);
-    const updated = await this.nodeRepository.update(nodeId, {
+    const resolvedNodeId = node.id;
+    const updated = await this.nodeRepository.update(resolvedNodeId, {
       lifecycleState: NodeLifecycleState.ACTIVE,
     });
-    await this.assetContextReadService.invalidateNodeContext(nodeId);
+    await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
@@ -231,7 +439,7 @@ export class ActivateNodeUseCase {
   }
 
   private async requireAssignedNode(nodeId: string) {
-    const node = await this.nodeRepository.findById(nodeId);
+    const node = await findNodeByIdentifier(this.nodeRepository, nodeId);
     if (!node) {
       throw new NotFoundUseCaseError(
         `Node ${nodeId} was not found.`,
@@ -260,16 +468,17 @@ export class DrainNodeUseCase {
 
   async execute(nodeId: string) {
     const node = await this.getRequiredNode(nodeId);
+    const resolvedNodeId = node.id;
     if (node.lifecycleState !== NodeLifecycleState.ACTIVE) {
       throw new BadRequestUseCaseError(
         'Only active nodes can enter draining state.',
       );
     }
 
-    const updated = await this.nodeRepository.update(nodeId, {
+    const updated = await this.nodeRepository.update(resolvedNodeId, {
       lifecycleState: NodeLifecycleState.DRAINING,
     });
-    await this.assetContextReadService.invalidateNodeContext(nodeId);
+    await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
@@ -277,7 +486,7 @@ export class DrainNodeUseCase {
   }
 
   private async getRequiredNode(nodeId: string) {
-    const node = await this.nodeRepository.findById(nodeId);
+    const node = await findNodeByIdentifier(this.nodeRepository, nodeId);
     if (!node) {
       throw new NotFoundUseCaseError(
         `Node ${nodeId} was not found.`,
@@ -298,12 +507,13 @@ export class RetireNodeUseCase {
 
   async execute(nodeId: string) {
     const node = await this.getRequiredNode(nodeId);
-    const updated = await this.nodeRepository.update(nodeId, {
+    const resolvedNodeId = node.id;
+    const updated = await this.nodeRepository.update(resolvedNodeId, {
       lifecycleState: NodeLifecycleState.RETIRED,
       rackId: undefined,
       assignmentState: NodeAssignmentState.UNASSIGNED,
     });
-    await this.assetContextReadService.invalidateNodeContext(nodeId);
+    await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
@@ -311,7 +521,7 @@ export class RetireNodeUseCase {
   }
 
   private async getRequiredNode(nodeId: string) {
-    const node = await this.nodeRepository.findById(nodeId);
+    const node = await findNodeByIdentifier(this.nodeRepository, nodeId);
     if (!node) {
       throw new NotFoundUseCaseError(
         `Node ${nodeId} was not found.`,
@@ -320,4 +530,22 @@ export class RetireNodeUseCase {
     }
     return node;
   }
+}
+
+async function findNodeByIdentifier(
+  nodeRepository: NodeRepositoryPort,
+  nodeIdentifier: string,
+) {
+  try {
+    const nodeById = await nodeRepository.findById(nodeIdentifier);
+    if (nodeById) {
+      return nodeById;
+    }
+  } catch (error) {
+    if (isValidObjectId(nodeIdentifier)) {
+      throw error;
+    }
+  }
+
+  return nodeRepository.findByCode(nodeIdentifier);
 }

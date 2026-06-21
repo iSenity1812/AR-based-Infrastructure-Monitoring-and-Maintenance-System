@@ -16,6 +16,7 @@ function mapNode(
     displayName: document.displayName,
     hostname: document.hostname,
     rackId: document.rackId,
+    positionCode: document.positionCode,
     nodeType: document.nodeType,
     source: document.source,
     lifecycleState: document.lifecycleState,
@@ -57,6 +58,14 @@ export class MongooseNodeRepository implements NodeRepositoryPort {
 
   async findByCode(nodeCode: string): Promise<NodeEntity | null> {
     const document = await this.nodeModel.findOne({ nodeCode });
+    return document ? mapNode(document) : null;
+  }
+
+  async findByRackIdAndPositionCode(
+    rackId: string,
+    positionCode: string,
+  ): Promise<NodeEntity | null> {
+    const document = await this.nodeModel.findOne({ rackId, positionCode });
     return document ? mapNode(document) : null;
   }
 

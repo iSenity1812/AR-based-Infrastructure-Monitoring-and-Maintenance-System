@@ -38,22 +38,44 @@ export class IncidentWorkflowServiceConfig {
     return this.configService.get<string>('R2_ACCOUNT_ID')?.trim() ?? '';
   }
 
+  get r2EndpointOverride(): string {
+    const rawValue = this.configService.get<string>('R2_ENDPOINT')?.trim();
+
+    if (!rawValue) {
+      return '';
+    }
+
+    return rawValue.replace(/\/+$/, '');
+  }
+
   get r2AccessKeyId(): string {
-    return this.configService.get<string>('R2_ACCESS_KEY_ID')?.trim() ?? '';
+    return (
+      this.configService.get<string>('R2_ACCESS_KEY_ID')?.trim() ??
+      this.configService.get<string>('ACCESS_KEY_ID')?.trim() ??
+      ''
+    );
   }
 
   get r2SecretAccessKey(): string {
-    return this.configService.get<string>('R2_SECRET_ACCESS_KEY')?.trim() ?? '';
+    return (
+      this.configService.get<string>('R2_SECRET_ACCESS_KEY')?.trim() ??
+      this.configService.get<string>('SECRET_ACCESS_KEY')?.trim() ??
+      ''
+    );
   }
 
   get r2BucketName(): string {
-    return this.configService.get<string>('R2_BUCKET_NAME')?.trim() ?? '';
+    return (
+      this.configService.get<string>('R2_BUCKET_NAME')?.trim() ??
+      this.configService.get<string>('R2_BUCKET')?.trim() ??
+      ''
+    );
   }
 
   get r2PublicBaseUrl(): string | undefined {
-    const rawValue = this.configService
-      .get<string>('R2_PUBLIC_BASE_URL')
-      ?.trim();
+    const rawValue =
+      this.configService.get<string>('R2_PUBLIC_BASE_URL')?.trim() ??
+      this.configService.get<string>('R2_PUBLIC_URL')?.trim();
 
     if (!rawValue) {
       return undefined;
@@ -87,12 +109,16 @@ export class IncidentWorkflowServiceConfig {
   }
 
   get r2Endpoint(): string {
+    if (this.r2EndpointOverride) {
+      return this.r2EndpointOverride;
+    }
+
     return `https://${this.r2AccountId}.r2.cloudflarestorage.com`;
   }
 
   get r2Configured(): boolean {
     return Boolean(
-      this.r2AccountId &&
+      this.r2Endpoint &&
       this.r2AccessKeyId &&
       this.r2SecretAccessKey &&
       this.r2BucketName,

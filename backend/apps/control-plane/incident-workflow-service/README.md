@@ -43,7 +43,8 @@ Default API prefix: `api/v1`
 - `API_PREFIX`
 - `SWAGGER_ENABLED`
 - `JWT_ACCESS_SECRET` (must match identity-service)
-- `R2_ACCOUNT_ID`
+- `R2_ENDPOINT` (preferred; direct S3-compatible Cloudflare R2 endpoint)
+- `R2_ACCOUNT_ID` (optional fallback when `R2_ENDPOINT` is omitted)
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET_NAME`
@@ -69,6 +70,13 @@ reference after the client uploads the file.
 `POST /api/v1/tickets/:id/evidence/upload-url` requires
 `tickets.evidence.attach` and returns a presigned `PUT` upload target for
 Cloudflare R2.
+
+For environment compatibility, the service also accepts these aliases:
+
+- `ACCESS_KEY_ID` -> `R2_ACCESS_KEY_ID`
+- `SECRET_ACCESS_KEY` -> `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET` -> `R2_BUCKET_NAME`
+- `R2_PUBLIC_URL` -> `R2_PUBLIC_BASE_URL`
 
 Suggested client flow:
 

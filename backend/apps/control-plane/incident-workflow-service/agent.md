@@ -262,6 +262,7 @@ Khong luu binary image truc tiep trong MongoDB. Nen luu metadata va object-stora
   - tao `storageKey` theo prefix `tickets/<ticketId>/<type>/<uuid>-<fileName>`;
   - tra ve `uploadUrl`, `method`, `headers`, `expiresAt`, `storageKey`, va `objectUrl` neu co `R2_PUBLIC_BASE_URL`.
 - Da them env config:
+  - `R2_ENDPOINT` (preferred)
   - `R2_ACCOUNT_ID`
   - `R2_ACCESS_KEY_ID`
   - `R2_SECRET_ACCESS_KEY`
@@ -269,6 +270,11 @@ Khong luu binary image truc tiep trong MongoDB. Nen luu metadata va object-stora
   - `R2_PUBLIC_BASE_URL` (optional)
   - `R2_EVIDENCE_PREFIX`
   - `R2_PRESIGN_EXPIRES_SECONDS`
+- Service hien ho tro ca alias env de giam cong doi config:
+  - `ACCESS_KEY_ID`
+  - `SECRET_ACCESS_KEY`
+  - `R2_BUCKET`
+  - `R2_PUBLIC_URL`
 - Luong client duoc khuyen nghi:
   1. Goi `POST /tickets/:id/evidence/upload-url`
   2. Upload file truc tiep len R2 bang `PUT`

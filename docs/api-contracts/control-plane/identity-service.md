@@ -23,9 +23,9 @@ It is derived from the current NestJS controllers, DTOs, and bootstrap configura
 
 ## Response Behavior
 
-`identity-service` currently returns raw JSON objects from controller methods rather than the preferred `{ data, meta }` envelope described in [CONTRACTS.md](/D:/Study/FPTU/WDP301/projects/AR-based-Infrastructure-Monitoring-and-Maintenance-System/CONTRACTS.md).
+`identity-service` registers `ApiResponseInterceptor`, so successful controller return values are wrapped in the repository-wide `{ data, meta }` envelope described in `CONTRACTS.md`.
 
-Frontend consumers should therefore expect raw payloads for current endpoints in this service.
+The response examples below document the payload returned by the use case or controller. Frontend consumers should expect that payload under `data` unless a route explicitly bypasses the interceptor.
 
 ## Domain Enums Used By Current API
 
@@ -49,6 +49,25 @@ Frontend consumers should therefore expect raw payloads for current endpoints in
 ### `UserSortField`
 
 Current code exposes `UserSortField` as an enum in the list users query DTO. Frontend should treat it as a backend-defined enum and sync values from Swagger or backend source when generating typed clients.
+
+### Ticket and Incident Permission Codes
+
+These permission codes are currently seeded through system roles to support the first Incident Workflow / Ticket Domain implementation phase:
+
+- `incidents.read`
+- `incidents.create`
+- `tickets.read`
+- `tickets.create`
+- `tickets.dispatch`
+- `tickets.assign`
+- `tickets.status.update`
+- `tickets.comment`
+- `tickets.evidence.attach`
+- `tickets.acknowledge`
+- `tickets.work.start`
+- `tickets.resolve`
+- `tickets.close`
+- `tickets.cancel`
 
 ## Shared Shapes
 
@@ -415,5 +434,5 @@ Likely error cases for current identity flows:
 ## Frontend Notes
 
 - Treat `/roles` as publicly readable in the current implementation, but isolate that assumption in one frontend service in case guards are added later.
-- Treat `identity-service` responses as raw payloads, not `{ data, meta }` envelopes.
+- Treat `identity-service` success responses as `{ data, meta }` envelopes.
 - Always store `sessionId` together with `refreshToken` because refresh requires both values.

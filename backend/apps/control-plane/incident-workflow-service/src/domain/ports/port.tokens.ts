@@ -1,0 +1,3 @@
+export const TICKET_REPOSITORY = Symbol('TICKET_REPOSITORY');
+export const INCIDENT_REPOSITORY = Symbol('INCIDENT_REPOSITORY');
+export const OBJECT_STORAGE = Symbol('OBJECT_STORAGE');

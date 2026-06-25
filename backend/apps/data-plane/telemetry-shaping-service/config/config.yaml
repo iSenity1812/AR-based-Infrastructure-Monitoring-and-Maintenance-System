@@ -1,0 +1,24 @@
+kafka:
+  brokers:
+    - localhost:19092
+  topic: telemetry.normalized.received
+  dlq_topic: telemetry.normalized.received.dlq
+  consumer_group: telemetry-shaping-service
+  poll_timeout: 5s
+  max_in_flight: 8
+  metrics_log_interval: 30s
+redis:
+  addr: localhost:6379
+  password: ""
+  db: 0
+  context_key_prefix: context
+  context_ttl: 24h
+  dashboard_key_prefix: dashboard
+  dashboard_ttl: 24h
+  snapshot_key_prefix: snapshot
+  snapshot_ttl: 24h
+  window_key_prefix: window
+  window_ttl: 24h
+  connect_timeout: 5s
+  read_timeout: 5s
+  write_timeout: 5s

@@ -1,0 +1,113 @@
+flowchart LR
+    subgraph Sources["Telemetry Sources"]
+        A1["Alloy / OTEL"]
+        A2["windows_exporter"]
+        A3["LibreHardwareMonitor"]
+        A4["Docker / container metrics"]
+        A5["Future collectors"]
+    end
+
+    subgraph Backbone["Event Backbone"]
+        B1["telemetry.ingested-raw"]
+        B2["Replay / retry topic"]
+    end
+
+    subgraph Service["Go Telemetry Shaping Service"]
+        C1["Ingress Reader
+        - consume partition/offset
+        - trace context
+        - idempotency seed"]
+
+        C2["Decoder + Normalizer
+        - source-specific decode
+        - normalize to internal metric record
+        - target shape follows vector_normalized.json"]
+
+        C3["Classifier
+        - source + metricKey + tags
+        - cardinality check
+        - lane decision"]
+
+        C4["Context Processor
+        - hostname
+        - hardware fingerprint
+        - service inventory"]
+
+        C5["Snapshot Processor
+        - latest node/service/container state
+        - dashboard fast path"]
+
+        C6["Window Processor
+        - keep 20 recent batches
+        - ring buffer per metric entity key"]
+
+        C7["Detail Processor
+        - per-core
+        - per-drive
+        - per-gpu
+        - high-cardinality metrics"]
+
+        C8["Feature Builder
+        - avg_5 / avg_20
+        - min / max
+        - delta / slope
+        - volatility / breach count"]
+
+        C9["DLQ / Replay Handler
+        - malformed payload
+        - bad value
+        - poison message"]
+    end
+
+    subgraph Redis["Redis Derived State"]
+        D1["Context Cache"]
+        D2["Snapshot Store"]
+        D3["Window Store"]
+        D4["Feature Cache"]
+    end
+
+    subgraph Outputs["Output Topics / Consumers"]
+        E1["telemetry.enriched"]
+        E2["snapshot.updated"]
+        E3["feature.window.ready"]
+        E4["telemetry.detail"]
+        E5["telemetry.dlq"]
+        E6["Dashboard / AR"]
+        E7["AI / analytics / prediction"]
+        E8["Drill-down / RCA"]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    A4 --> B1
+    A5 --> B1
+
+    B1 --> C1
+    C1 --> C2
+    C2 --> C3
+
+    C3 --> C4
+    C3 --> C5
+    C3 --> C6
+    C3 --> C7
+    C3 --> C9
+
+    C4 --> D1
+    C5 --> D2
+    C6 --> D3
+    C6 --> C8
+    C8 --> D4
+
+    C5 --> E2
+    D2 --> E6
+
+    C8 --> E3
+    D4 --> E7
+
+    C7 --> E4
+    E4 --> E8
+
+    C2 --> E1
+    C9 --> E5
+    E5 --> B2

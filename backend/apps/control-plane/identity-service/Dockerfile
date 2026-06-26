@@ -25,6 +25,7 @@ WORKDIR /app
 
 COPY control-plane/identity-service/tsconfig.json \
   control-plane/identity-service/nest-cli.json \
+  control-plane/identity-service/tsconfig.build.json \
   control-plane/identity-service/eslint.config.js \
   control-plane/identity-service/jest.config.ts \
   control-plane/identity-service/
@@ -44,7 +45,7 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=4001
 
 RUN corepack enable
 
@@ -68,8 +69,10 @@ COPY --from=build \
   /app/control-plane/identity-service/dist \
   ./control-plane/identity-service/dist
 
+COPY control-plane/identity-service/.env.example \
+  ./control-plane/identity-service/.env.example
 
-EXPOSE 3001
+EXPOSE 4001
 
 
 CMD ["pnpm", "--filter", "@ar-imms/identity-service", "start"]

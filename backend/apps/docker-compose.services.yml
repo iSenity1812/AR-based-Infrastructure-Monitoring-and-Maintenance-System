@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+
+services:
+  identity-service:
+    container_name: identity-service
+    build:
+      context: .
+      dockerfile: control-plane/identity-service/Dockerfile
+    env_file:
+      - control-plane/identity-service/.env.example
+    environment:
+      IDENTITY_MONGODB_URI: mongodb://host.docker.internal:27017/identity_db
+      IDENTITY_REDIS_URL: redis://host.docker.internal:6379/0
+    expose:
+      - "4001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - traefik.http.routers.identity-service.rule=Host(`localhost`) && PathPrefix(`/identity`)
+      - traefik.http.routers.identity-service.middlewares=identity-strip
+      - traefik.http.middlewares.identity-strip.stripprefix.prefixes=/identity
+      - traefik.http.services.identity-service.loadbalancer.server.port=4001
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "4001"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  asset-service:
+    container_name: asset-service
+    build:
+      context: .
+      dockerfile: control-plane/asset-service/Dockerfile
+    env_file:
+      - control-plane/asset-service/.env.example
+    environment:
+      ASSET_MONGODB_URI: mongodb://host.docker.internal:27017/asset_db
+      ASSET_REDIS_URL: redis://host.docker.internal:6379/0
+    expose:
+      - "4002"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - traefik.http.routers.asset-service.rule=Host(`localhost`) && PathPrefix(`/asset`)
+      - traefik.http.routers.asset-service.middlewares=asset-strip
+      - traefik.http.middlewares.asset-strip.stripprefix.prefixes=/asset
+      - traefik.http.services.asset-service.loadbalancer.server.port=4002
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "4002"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  monitoring-service:
+    container_name: monitoring-service
+    build:
+      context: .
+      dockerfile: control-plane/monitoring-service/Dockerfile
+    env_file:
+      - control-plane/monitoring-service/.env.example
+    environment:
+      MONITORING_MONGODB_URI: mongodb://host.docker.internal:27017/monitoring_context_db
+      REDIS_URL: redis://host.docker.internal:6379/0
+    expose:
+      - "4003"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - traefik.http.routers.monitoring-service.rule=Host(`localhost`) && PathPrefix(`/monitoring`)
+      - traefik.http.routers.monitoring-service.middlewares=monitoring-strip
+      - traefik.http.middlewares.monitoring-strip.stripprefix.prefixes=/monitoring
+      - traefik.http.services.monitoring-service.loadbalancer.server.port=4003
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "4003"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  edge:
+    name: edge

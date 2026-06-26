@@ -1,5 +1,5 @@
 {
-  "name": "@ar-monitoring/identity-service",
+  "name": "@ar-imms/identity-service",
   "version": "0.1.0",
   "private": true,
   "scripts": {

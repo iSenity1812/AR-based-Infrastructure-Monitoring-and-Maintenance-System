@@ -1,20 +1,44 @@
+# =========================
+# Stage 1: Install deps
+# =========================
 FROM node:22-alpine AS deps
 
 WORKDIR /app
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+COPY control-plane/identity-service/package.json \
+  control-plane/identity-service/package.json
 
 RUN pnpm install --frozen-lockfile
 
+
+# =========================
+# Stage 2: Build identity-service
+# =========================
 FROM deps AS build
 
-COPY tsconfig.json nest-cli.json eslint.config.js jest.config.ts ./
-COPY src ./src
+WORKDIR /app
 
-RUN pnpm build
 
+COPY control-plane/identity-service/tsconfig.json \
+  control-plane/identity-service/nest-cli.json \
+  control-plane/identity-service/eslint.config.js \
+  control-plane/identity-service/jest.config.ts \
+  control-plane/identity-service/
+
+COPY control-plane/identity-service/src \
+  control-plane/identity-service/src
+
+
+RUN pnpm --filter @ar-imms/identity-service build
+
+
+# =========================
+# Stage 3: Runtime
+# =========================
 FROM node:22-alpine AS runtime
 
 WORKDIR /app
@@ -24,12 +48,28 @@ ENV PORT=3001
 
 RUN corepack enable
 
-COPY package.json pnpm-lock.yaml ./
 
-RUN pnpm install --prod --frozen-lockfile
+# copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
 
-COPY --from=build /app/dist ./dist
+# copy workspace metadata
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+
+
+# copy package identity
+COPY --from=deps \
+  /app/control-plane/identity-service/package.json \
+  ./control-plane/identity-service/package.json
+
+
+# copy build result
+COPY --from=build \
+  /app/control-plane/identity-service/dist \
+  ./control-plane/identity-service/dist
+
 
 EXPOSE 3001
 
-CMD ["pnpm", "start"]
+
+CMD ["pnpm", "--filter", "@ar-imms/identity-service", "start"]

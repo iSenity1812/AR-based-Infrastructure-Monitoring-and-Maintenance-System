@@ -28,6 +28,7 @@ describe('CreateTicketEvidenceUploadUrlUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
     const objectStorage = {
       isConfigured: jest.fn().mockReturnValue(true),
@@ -83,6 +84,7 @@ describe('CreateTicketEvidenceUploadUrlUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
     const objectStorage = {
       isConfigured: jest.fn().mockReturnValue(true),
@@ -112,6 +114,7 @@ describe('CreateTicketEvidenceUploadUrlUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
     const objectStorage = {
       isConfigured: jest.fn().mockReturnValue(false),

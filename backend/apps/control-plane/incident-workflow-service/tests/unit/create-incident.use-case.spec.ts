@@ -47,6 +47,7 @@ describe('CreateIncidentUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn().mockResolvedValue(ticketOne),
+      delete: jest.fn(),
     };
     const incidentRepository = {
       create: jest.fn().mockResolvedValue(incident),
@@ -54,6 +55,7 @@ describe('CreateIncidentUseCase', () => {
       findByCode: jest.fn().mockResolvedValue(null),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     const useCase = new CreateIncidentUseCase(

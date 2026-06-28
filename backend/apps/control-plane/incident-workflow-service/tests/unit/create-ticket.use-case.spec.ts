@@ -39,6 +39,7 @@ describe('CreateTicketUseCase', () => {
       findByCode: jest.fn().mockResolvedValue(null),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
     const incidentRepository = {
       create: jest.fn(),
@@ -97,6 +98,7 @@ describe('CreateTicketUseCase', () => {
       ),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
     const incidentRepository = {
       create: jest.fn(),
@@ -104,6 +106,7 @@ describe('CreateTicketUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     const useCase = new CreateTicketUseCase(
@@ -127,6 +130,7 @@ describe('CreateTicketUseCase', () => {
       findByCode: jest.fn().mockResolvedValue(null),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
     const incidentRepository = {
       create: jest.fn(),
@@ -134,6 +138,7 @@ describe('CreateTicketUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     const useCase = new CreateTicketUseCase(

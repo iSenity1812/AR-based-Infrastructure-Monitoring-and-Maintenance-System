@@ -7,9 +7,32 @@ import { randomUUID } from 'node:crypto';
 import { AppModule } from './app.module';
 import { IncidentWorkflowServiceConfig } from '@infrastructure/config/incident-workflow-service-config';
 
+function getCorsOrigins(): string[] {
+  const rawOrigins =
+    process.env.CORS_ORIGIN ??
+    'http://localhost:8083,http://127.0.0.1:8083,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006';
+
+  return rawOrigins
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const config = app.get(IncidentWorkflowServiceConfig);
+
+  app.enableCors({
+    origin: getCorsOrigins(),
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-request-id',
+      'x-correlation-id',
+    ],
+  });
 
   app.use((request: Request, response: Response, next: NextFunction) => {
     const requestId =

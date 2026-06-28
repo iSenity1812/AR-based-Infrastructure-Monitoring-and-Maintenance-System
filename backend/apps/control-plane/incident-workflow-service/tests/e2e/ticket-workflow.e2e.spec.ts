@@ -26,6 +26,7 @@ import {
   ATTACH_TICKET_EVIDENCE_USE_CASE,
   CREATE_TICKET_EVIDENCE_UPLOAD_URL_USE_CASE,
   CREATE_TICKET_USE_CASE,
+  DELETE_TICKET_USE_CASE,
   GET_TICKET_USE_CASE,
   LIST_TICKET_EVIDENCE_USE_CASE,
   LIST_TICKETS_USE_CASE,
@@ -43,6 +44,7 @@ import {
   AttachTicketEvidenceUseCase,
   CreateTicketEvidenceUploadUrlUseCase,
   CreateTicketUseCase,
+  DeleteTicketUseCase,
   GetTicketUseCase,
   ListTicketEvidenceUseCase,
   ListTicketsUseCase,
@@ -98,6 +100,12 @@ class InMemoryTicketRepository implements TicketRepositoryPort {
     });
     this.tickets.set(ticketId, updated);
     return updated;
+  }
+
+  async delete(ticketId: string): Promise<TicketEntity | null> {
+    const ticket = this.tickets.get(ticketId) ?? null;
+    this.tickets.delete(ticketId);
+    return ticket;
   }
 }
 
@@ -161,6 +169,10 @@ describe('Ticket workflow HTTP e2e', () => {
           useValue: new GetTicketUseCase(tickets),
         },
         {
+          provide: DELETE_TICKET_USE_CASE,
+          useValue: new DeleteTicketUseCase(tickets, incidents),
+        },
+        {
           provide: TRANSITION_TICKET_STATUS_USE_CASE,
           useValue: new TransitionTicketStatusUseCase(tickets),
         },
@@ -217,7 +229,7 @@ describe('Ticket workflow HTTP e2e', () => {
 
   afterAll(async () => app.close());
 
-  it('creates, assigns, acknowledges, comments, attaches evidence and starts work', async () => {
+  it('creates, assigns, acknowledges, resolves, closes and keeps workflow evidence', async () => {
     const created = await request(app.getHttpServer())
       .post('/api/v1/tickets')
       .set('x-user-id', 'operator-1')
@@ -262,15 +274,18 @@ describe('Ticket workflow HTTP e2e', () => {
       })
       .expect(201);
     await request(app.getHttpServer())
-      .patch(`/api/v1/tickets/${ticketId}/status`)
+      .post(`/api/v1/tickets/${ticketId}/resolve`)
+      .set('x-user-id', 'technician-1')
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/tickets/${ticketId}/close`)
       .set('x-user-id', 'operator-1')
-      .send({ status: TicketStatus.IN_PROGRESS })
-      .expect(200);
+      .expect(201);
 
     const result = await request(app.getHttpServer())
       .get(`/api/v1/tickets/${ticketId}`)
       .expect(200);
-    expect(result.body.data.props.status).toBe(TicketStatus.IN_PROGRESS);
+    expect(result.body.data.props.status).toBe(TicketStatus.CLOSED);
     expect(result.body.data.props.acknowledgedAt).toBeTruthy();
     expect(result.body.data.props.evidence).toHaveLength(1);
     expect(

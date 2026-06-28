@@ -32,6 +32,7 @@ describe('AttachTicketEvidenceUseCase', () => {
           async (_id, update) =>
             new TicketEntity({ ...current.props, ...update }),
         ),
+      delete: jest.fn(),
     };
 
     const evidence = await new AttachTicketEvidenceUseCase(repository).execute(
@@ -74,6 +75,7 @@ describe('AttachTicketEvidenceUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     await expect(
@@ -92,6 +94,7 @@ describe('AttachTicketEvidenceUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     await expect(

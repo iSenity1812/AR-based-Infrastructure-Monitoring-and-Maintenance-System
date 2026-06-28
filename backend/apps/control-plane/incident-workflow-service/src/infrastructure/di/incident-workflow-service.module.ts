@@ -43,6 +43,7 @@ import {
   AttachTicketEvidenceUseCase,
   CreateTicketEvidenceUploadUrlUseCase,
   CreateTicketUseCase,
+  DeleteTicketUseCase,
   GetTicketUseCase,
   ListTicketEvidenceUseCase,
   ListTicketsUseCase,
@@ -58,6 +59,7 @@ import {
   CREATE_TICKET_EVIDENCE_UPLOAD_URL_USE_CASE,
   CREATE_INCIDENT_USE_CASE,
   CREATE_TICKET_USE_CASE,
+  DELETE_TICKET_USE_CASE,
   GET_INCIDENT_USE_CASE,
   GET_TICKET_USE_CASE,
   LIST_INCIDENTS_USE_CASE,
@@ -118,6 +120,14 @@ import {
       inject: [TICKET_REPOSITORY],
       useFactory: (ticketRepository: TicketRepositoryPort) =>
         new GetTicketUseCase(ticketRepository),
+    },
+    {
+      provide: DELETE_TICKET_USE_CASE,
+      inject: [TICKET_REPOSITORY, INCIDENT_REPOSITORY],
+      useFactory: (
+        ticketRepository: TicketRepositoryPort,
+        incidentRepository: IncidentRepositoryPort,
+      ) => new DeleteTicketUseCase(ticketRepository, incidentRepository),
     },
     {
       provide: TRANSITION_TICKET_STATUS_USE_CASE,

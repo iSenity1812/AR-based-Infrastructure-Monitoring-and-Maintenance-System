@@ -139,4 +139,9 @@ export class MongooseTicketRepository implements TicketRepositoryPort {
 
     return document ? mapTicket(document) : null;
   }
+
+  async delete(ticketId: string): Promise<TicketEntity | null> {
+    const document = await this.ticketModel.findByIdAndDelete(ticketId);
+    return document ? mapTicket(document) : null;
+  }
 }

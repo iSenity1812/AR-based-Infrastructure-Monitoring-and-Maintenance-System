@@ -28,6 +28,7 @@ describe('AddTicketCommentUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn().mockResolvedValue(updatedTicket),
+      delete: jest.fn(),
     };
 
     const useCase = new AddTicketCommentUseCase(ticketRepository);
@@ -65,6 +66,7 @@ describe('AddTicketCommentUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     const useCase = new AddTicketCommentUseCase(ticketRepository);

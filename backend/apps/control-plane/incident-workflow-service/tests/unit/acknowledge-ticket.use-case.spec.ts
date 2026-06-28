@@ -23,6 +23,7 @@ describe('AcknowledgeTicketUseCase', () => {
 
     const updatedTicket = new TicketEntity({
       ...ticket.props,
+      status: TicketStatus.IN_PROGRESS,
       acknowledgedAt: new Date('2026-06-20T00:15:00.000Z'),
       updatedAt: new Date('2026-06-20T00:15:00.000Z'),
     });
@@ -33,6 +34,7 @@ describe('AcknowledgeTicketUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn().mockResolvedValue(updatedTicket),
+      delete: jest.fn(),
     };
 
     const useCase = new AcknowledgeTicketUseCase(ticketRepository);
@@ -41,14 +43,21 @@ describe('AcknowledgeTicketUseCase', () => {
     });
 
     expect(result.props.acknowledgedAt).toEqual(expect.any(Date));
+    expect(result.props.status).toBe(TicketStatus.IN_PROGRESS);
     expect(ticketRepository.update).toHaveBeenCalledWith('ticket-1', {
       acknowledgedAt: expect.any(Date),
+      status: TicketStatus.IN_PROGRESS,
       activities: [
         expect.objectContaining({
           type: TicketActivityType.ACKNOWLEDGED,
           actorUserId: 'tech-1',
           fromUserId: 'tech-1',
           toUserId: 'tech-1',
+        }),
+        expect.objectContaining({
+          type: TicketActivityType.STATUS_CHANGED,
+          actorUserId: 'tech-1',
+          message: 'ASSIGNED -> IN_PROGRESS',
         }),
       ],
     });
@@ -71,6 +80,7 @@ describe('AcknowledgeTicketUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     const useCase = new AcknowledgeTicketUseCase(ticketRepository);
@@ -100,6 +110,7 @@ describe('AcknowledgeTicketUseCase', () => {
       findByCode: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
     };
 
     const useCase = new AcknowledgeTicketUseCase(ticketRepository);

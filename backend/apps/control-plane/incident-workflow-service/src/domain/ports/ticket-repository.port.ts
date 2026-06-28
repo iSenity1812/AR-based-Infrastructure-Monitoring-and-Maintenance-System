@@ -70,4 +70,5 @@ export interface TicketRepositoryPort {
     ticketId: string,
     input: TicketUpdateRecord,
   ): Promise<TicketEntity | null>;
+  delete(ticketId: string): Promise<TicketEntity | null>;
 }

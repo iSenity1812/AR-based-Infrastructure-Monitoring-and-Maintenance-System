@@ -318,3 +318,116 @@ Khong luu binary image truc tiep trong MongoDB. Nen luu metadata va object-stora
 - Link incident-ticket hien chua co Mongo transaction, van co nguy co partial update.
 - JWT moi verify signature/expiry; chua check session revoke truc tiep voi identity-service.
 - Chua co migration/seed rieng cho service.
+
+## 15. Web frontend kickoff plan cho chat moi
+
+Muc tieu chat moi: xay dung web frontend cho ticket va incident workflow voi UI mau san co cua team, giu logic tu mobile va backend hien tai.
+
+### Pham vi nghiep vu can co tren web
+
+- Auth/login bang `identity-service`.
+- Role-aware UI:
+  - Operator/admin: tao ticket, assign technician, comment, attach evidence, delete ticket, final confirm/close ticket.
+  - Technician: xem ticket duoc assign, acknowledge, comment, attach evidence, mark work completed/resolve.
+- Ticket list:
+  - dung real data hoan toan, khong demo data;
+  - filter theo priority: `ALL`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`;
+  - an ticket `CLOSED` khoi active list;
+  - ticket `RESOLVED` van hien cho operator final confirmation;
+  - card nen dung mot status badge chinh, metadata line gom technician, priority, updated time.
+- Ticket detail:
+  - assignment dropdown load technicians tu `identity-service`;
+  - neu technician da co active tickets thi van cho assign nhung hien confirm;
+  - comment hien "By [name] - [time]" trong khung ro rang;
+  - evidence hien nguoi gui, thoi gian gui, anh preview neu la image;
+  - action theo lifecycle: acknowledge -> in progress -> resolve -> close.
+- Create ticket:
+  - operator/admin duoc tao;
+  - technician khong co quyen tao;
+  - co dropdown technician, priority selector, title/description.
+- Auto-refresh:
+  - refetch sau mutation;
+  - refetch khi quay lai list/detail;
+  - nen can nhac polling nhe cho ticket list neu dashboard web can gan real-time.
+
+### Backend/API da co de web su dung
+
+- Identity service:
+  - login endpoint hien co;
+  - endpoint technicians da them de lay danh sach technician cho dropdown;
+  - seed hien tao nhieu operator va technician test.
+- Incident workflow service:
+  - `GET /tickets`
+  - `POST /tickets`
+  - `GET /tickets/:id`
+  - `DELETE /tickets/:id`
+  - `PATCH /tickets/:id/assignment`
+  - `POST /tickets/:id/acknowledge`
+  - `POST /tickets/:id/resolve`
+  - `POST /tickets/:id/close`
+  - `POST /tickets/:id/comments`
+  - `POST /tickets/:id/evidence/upload-url`
+  - `POST /tickets/:id/evidence`
+  - `GET /tickets/:id/evidence`
+
+### De xuat cau truc web frontend
+
+Tim folder web/app hien co truoc khi tao moi. Neu da co app web cua team thi uu tien reuse design system, token, auth client, API client, route guard hien co.
+
+Neu can tao module moi, de xuat:
+
+```text
+src/
+|- app/
+|  |- login/
+|  |- tickets/
+|  |  |- page.tsx
+|  |  |- new/page.tsx
+|  |  `- [id]/page.tsx
+|  `- incidents/
+|- features/
+|  |- auth/
+|  `- tickets/
+|     |- api/
+|     |- components/
+|     |- hooks/
+|     `- types/
+|- shared/
+|  |- api/
+|  |- auth/
+|  |- ui/
+|  `- config/
+```
+
+### UI/UX huong dan
+
+- Bam sat UI mau command-center cua team: dark operational shell, cyan/blue accent, compact cards, dense information nhung de scan.
+- Khong dung demo placeholders khi API co real data.
+- Khong lap lai hai badge cung noi dung, vi du `ASSIGNED` + `assigned`.
+- Dung icon cho action delete/assign/upload/close neu design system co icon set.
+- Operator can nhin ro ticket nao dang `RESOLVED` de final confirm.
+- Technician can nhin ro viec tiep theo cua minh: `Acknowledge`, `Mark work completed`, hoac khong co action neu da resolved.
+
+### Viec can lam dau tien trong chat moi
+
+1. Chay `git status --short` va doc folder web hien co.
+2. Doc UI mau/design token cua web app team neu co.
+3. Kiem tra env web can cac bien:
+   - identity API base URL;
+   - incident workflow API base URL.
+4. Tao API client dung response envelope `{ data, meta }`.
+5. Lam login + session storage + role permission helper.
+6. Lam ticket list tu real API.
+7. Lam ticket detail/action lifecycle.
+8. Lam create ticket.
+9. Lam evidence upload bang R2 presigned flow.
+10. Test voi operator va technician seeded accounts.
+
+### Tieu chi xong cho web phase dau
+
+- Operator tao/assign/comment/delete/close ticket duoc.
+- Technician acknowledge/comment/upload evidence/resolve ticket duoc.
+- Ticket `CLOSED` khong hien o active list.
+- UI tu refetch sau action, khong can refresh tay.
+- Khong co demo data trong ticket/incident workflow.
+- Build/typecheck/lint web pass.

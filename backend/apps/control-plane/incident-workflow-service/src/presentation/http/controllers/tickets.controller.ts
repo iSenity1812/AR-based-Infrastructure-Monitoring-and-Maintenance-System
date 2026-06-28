@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Inject,
   Param,
@@ -20,6 +21,7 @@ import {
   ASSIGN_TICKET_USE_CASE,
   CREATE_TICKET_EVIDENCE_UPLOAD_URL_USE_CASE,
   CREATE_TICKET_USE_CASE,
+  DELETE_TICKET_USE_CASE,
   GET_TICKET_USE_CASE,
   LIST_TICKETS_USE_CASE,
   LIST_TICKET_EVIDENCE_USE_CASE,
@@ -32,6 +34,7 @@ import {
   AttachTicketEvidenceUseCase,
   CreateTicketEvidenceUploadUrlUseCase,
   CreateTicketUseCase,
+  DeleteTicketUseCase,
   GetTicketUseCase,
   ListTicketEvidenceUseCase,
   ListTicketsUseCase,
@@ -61,6 +64,8 @@ export class TicketsController {
     private readonly listTicketsUseCase: ListTicketsUseCase,
     @Inject(GET_TICKET_USE_CASE)
     private readonly getTicketUseCase: GetTicketUseCase,
+    @Inject(DELETE_TICKET_USE_CASE)
+    private readonly deleteTicketUseCase: DeleteTicketUseCase,
     @Inject(TRANSITION_TICKET_STATUS_USE_CASE)
     private readonly transitionTicketStatusUseCase: TransitionTicketStatusUseCase,
     @Inject(ASSIGN_TICKET_USE_CASE)
@@ -115,6 +120,13 @@ export class TicketsController {
     return this.getTicketUseCase.execute(ticketId);
   }
 
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a ticket by id.' })
+  @RequirePermissions(PERMISSION_CODES.TICKETS_CANCEL)
+  async delete(@Param('id') ticketId: string) {
+    return this.deleteTicketUseCase.execute(ticketId);
+  }
+
   @Patch(':id/status')
   @ApiOperation({ summary: 'Transition ticket status.' })
   @RequirePermissions(PERMISSION_CODES.TICKETS_STATUS_UPDATE)
@@ -125,6 +137,38 @@ export class TicketsController {
     return this.transitionTicketStatusUseCase.execute(
       ticketId,
       requestDto.status,
+    );
+  }
+
+  @Post(':id/resolve')
+  @ApiOperation({ summary: 'Mark a ticket as resolved by technician.' })
+  @RequirePermissions(PERMISSION_CODES.TICKETS_RESOLVE)
+  async resolve(
+    @Param('id') ticketId: string,
+    @CurrentAuthContext() authContext: CurrentAuthContextDto,
+  ) {
+    return this.transitionTicketStatusUseCase.execute(
+      ticketId,
+      TicketStatus.RESOLVED,
+      {
+        actorUserId: authContext.userId,
+      },
+    );
+  }
+
+  @Post(':id/close')
+  @ApiOperation({ summary: 'Close a resolved ticket with final operator confirmation.' })
+  @RequirePermissions(PERMISSION_CODES.TICKETS_CLOSE)
+  async close(
+    @Param('id') ticketId: string,
+    @CurrentAuthContext() authContext: CurrentAuthContextDto,
+  ) {
+    return this.transitionTicketStatusUseCase.execute(
+      ticketId,
+      TicketStatus.CLOSED,
+      {
+        actorUserId: authContext.userId,
+      },
     );
   }
 

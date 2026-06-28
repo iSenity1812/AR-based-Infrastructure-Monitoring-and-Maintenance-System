@@ -42,6 +42,7 @@ import type { UserRepositoryPort } from "../../domain/ports/user-repository.port
 import { IdentityServiceConfig } from "../config/identity-service-config";
 import { AuthController } from "../../presentation/http/controllers/auth.controller";
 import { AdminUsersController } from "../../presentation/http/controllers/admin-users.controller";
+import { TechniciansController } from "../../presentation/http/controllers/technicians.controller";
 import { RolesController } from "../../presentation/http/controllers/roles.controller";
 import { HealthController } from "../../presentation/http/controllers/health.controller";
 import { ApiResponseInterceptor } from "../../presentation/http/interceptors/api-response.interceptor";
@@ -92,6 +93,7 @@ import { GetByUsernameUseCase } from "@use-cases/queries/search-by-username.use-
   controllers: [
     AuthController,
     AdminUsersController,
+    TechniciansController,
     RolesController,
     HealthController,
   ],

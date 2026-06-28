@@ -52,6 +52,10 @@ export interface AcknowledgeTicketCommand {
   message?: string;
 }
 
+export interface TransitionTicketStatusCommand {
+  actorUserId: string;
+}
+
 export interface AddTicketCommentCommand {
   actorUserId: string;
   comment: string;
@@ -145,16 +149,26 @@ export class CreateTicketUseCase {
       title: command.title,
       description: command.description,
       priority: command.priority,
-      status: TicketStatus.OPEN,
+      status: command.assigneeUserId ? TicketStatus.ASSIGNED : TicketStatus.OPEN,
       incidentId: command.incidentId,
       ownerUserId: command.ownerUserId,
       assigneeUserId: command.assigneeUserId,
+      assignedAt: command.assigneeUserId ? new Date() : null,
       activities: [
         createActivity({
           type: TicketActivityType.CREATED,
           actorUserId: command.ownerUserId ?? 'system',
           toUserId: command.assigneeUserId,
         }),
+        ...(command.assigneeUserId
+          ? [
+              createActivity({
+                type: TicketActivityType.ASSIGNED,
+                actorUserId: command.ownerUserId ?? 'system',
+                toUserId: command.assigneeUserId,
+              }),
+            ]
+          : []),
       ],
       metadata: command.metadata ?? {},
     });
@@ -192,25 +206,89 @@ export class GetTicketUseCase {
   }
 }
 
+export class DeleteTicketUseCase {
+  constructor(
+    private readonly ticketRepository: TicketRepositoryPort,
+    private readonly incidentRepository: IncidentRepositoryPort,
+  ) {}
+
+  async execute(ticketId: string): Promise<TicketEntity> {
+    const deleted = await this.ticketRepository.delete(ticketId);
+    if (!deleted) {
+      throw new NotFoundUseCaseError(`Ticket ${ticketId} was not found.`);
+    }
+
+    if (deleted.props.incidentId) {
+      const incident = await this.incidentRepository.findById(
+        deleted.props.incidentId,
+      );
+
+      if (incident) {
+        await this.incidentRepository.update(incident.props.id, {
+          ticketIds: incident.props.ticketIds.filter((id) => id !== ticketId),
+        });
+      }
+    }
+
+    return deleted;
+  }
+}
+
 export class TransitionTicketStatusUseCase {
   constructor(private readonly ticketRepository: TicketRepositoryPort) {}
 
   async execute(
     ticketId: string,
     nextStatus: TicketStatus,
+    command?: TransitionTicketStatusCommand,
   ): Promise<TicketEntity> {
     const ticket = await this.ticketRepository.findById(ticketId);
     if (!ticket) {
       throw new NotFoundUseCaseError(`Ticket ${ticketId} was not found.`);
     }
 
-    if (!canTransitionTicketStatus(ticket.props.status, nextStatus)) {
+    const isLegacyAcknowledgedResolve =
+      nextStatus === TicketStatus.RESOLVED &&
+      ticket.props.status === TicketStatus.OPEN &&
+      Boolean(ticket.props.assigneeUserId) &&
+      Boolean(ticket.props.acknowledgedAt);
+
+    if (
+      !isLegacyAcknowledgedResolve &&
+      !canTransitionTicketStatus(ticket.props.status, nextStatus)
+    ) {
       throw new BadRequestUseCaseError(
         `Ticket status cannot transition from ${ticket.props.status} to ${nextStatus}.`,
         {
           allowedTransitions: getAllowedTicketTransitions(ticket.props.status),
         },
       );
+    }
+
+    if (nextStatus === TicketStatus.RESOLVED) {
+      if (!ticket.props.assigneeUserId) {
+        throw new BadRequestUseCaseError(
+          'Ticket must be assigned before it can be resolved.',
+        );
+      }
+
+      if (!command?.actorUserId) {
+        throw new ForbiddenUseCaseError(
+          'Only the assigned technician can resolve this ticket.',
+        );
+      }
+
+      if (ticket.props.assigneeUserId !== command.actorUserId) {
+        throw new ForbiddenUseCaseError(
+          'Only the assigned technician can resolve this ticket.',
+        );
+      }
+
+      if (!ticket.props.acknowledgedAt) {
+        throw new BadRequestUseCaseError(
+          'Ticket must be acknowledged before it can be resolved.',
+        );
+      }
     }
 
     const updated = await this.ticketRepository.update(ticketId, {
@@ -220,9 +298,15 @@ export class TransitionTicketStatusUseCase {
         createActivity({
           type: TicketActivityType.STATUS_CHANGED,
           actorUserId:
-            ticket.props.assigneeUserId ?? ticket.props.ownerUserId ?? 'system',
+            command?.actorUserId ??
+            ticket.props.assigneeUserId ??
+            ticket.props.ownerUserId ??
+            'system',
           fromUserId:
-            ticket.props.assigneeUserId ?? ticket.props.ownerUserId ?? null,
+            command?.actorUserId ??
+            ticket.props.assigneeUserId ??
+            ticket.props.ownerUserId ??
+            null,
           message: `${ticket.props.status} -> ${nextStatus}`,
         }),
       ],
@@ -321,18 +405,37 @@ export class AcknowledgeTicketUseCase {
       return ticket;
     }
 
-    const updated = await this.ticketRepository.update(ticketId, {
-      acknowledgedAt: new Date(),
-      activities: [
-        ...(ticket.props.activities ?? []),
+    const shouldMoveIntoWork =
+      ticket.props.status === TicketStatus.OPEN ||
+      ticket.props.status === TicketStatus.ASSIGNED;
+
+    const nextActivities = [
+      ...(ticket.props.activities ?? []),
+      createActivity({
+        type: TicketActivityType.ACKNOWLEDGED,
+        actorUserId: command.actorUserId,
+        fromUserId: ticket.props.assigneeUserId,
+        toUserId: ticket.props.assigneeUserId,
+        message: command.message,
+      }),
+    ];
+
+    if (shouldMoveIntoWork) {
+      nextActivities.push(
         createActivity({
-          type: TicketActivityType.ACKNOWLEDGED,
+          type: TicketActivityType.STATUS_CHANGED,
           actorUserId: command.actorUserId,
           fromUserId: ticket.props.assigneeUserId,
           toUserId: ticket.props.assigneeUserId,
-          message: command.message,
+          message: `${ticket.props.status} -> ${TicketStatus.IN_PROGRESS}`,
         }),
-      ],
+      );
+    }
+
+    const updated = await this.ticketRepository.update(ticketId, {
+      acknowledgedAt: new Date(),
+      status: shouldMoveIntoWork ? TicketStatus.IN_PROGRESS : ticket.props.status,
+      activities: nextActivities,
     });
 
     if (!updated) {

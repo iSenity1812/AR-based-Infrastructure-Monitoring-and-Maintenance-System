@@ -11,6 +11,7 @@ type PKIPort interface {
 
 type NodeRepositoryPort interface {
 	SaveNode(ctx context.Context, node *domain.Node) error
+	FindNodeByAgentID(ctx context.Context, agentID string) (*domain.Node, error)
 }
 
 type RegistrationUseCasePort interface {

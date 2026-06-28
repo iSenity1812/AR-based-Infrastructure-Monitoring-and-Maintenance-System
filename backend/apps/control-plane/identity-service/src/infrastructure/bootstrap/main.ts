@@ -32,6 +32,7 @@ async function bootstrap(): Promise<void> {
       .setDescription("Authentication, user access, role, and session APIs.")
       .setVersion("1.0.0")
       .addBearerAuth()
+      .addServer("/identity/")
       .build();
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
 

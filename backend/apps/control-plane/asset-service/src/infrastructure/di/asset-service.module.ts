@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 
 import { CacheManagerAssetQueryCacheAdapter } from '@adapters/cache/cache-manager-asset-query-cache.adapter';
+import { KafkaNodeMappingPublisher } from '@adapters/messaging/kafka-node-mapping.publisher';
 import { RedisDiscoveredNodeRepository } from '@adapters/integration/redis/redis-discovered-node.repository';
 import {
   MarkerDocumentModel,
@@ -28,6 +29,7 @@ import {
   MARKER_REPOSITORY,
   NODE_REPOSITORY,
   NODE_RUNTIME_SNAPSHOT_REPOSITORY,
+  NODE_MAPPING_EVENT_PUBLISHER,
   RACK_REPOSITORY,
 } from '@domain/ports/port.tokens';
 import {
@@ -114,6 +116,7 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     MongooseMarkerRepository,
     MongooseNodeRuntimeSnapshotRepository,
     CacheManagerAssetQueryCacheAdapter,
+    KafkaNodeMappingPublisher,
     RedisDiscoveredNodeRepository,
     {
       provide: RACK_REPOSITORY,
@@ -138,6 +141,10 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     {
       provide: ASSET_QUERY_CACHE,
       useExisting: CacheManagerAssetQueryCacheAdapter,
+    },
+    {
+      provide: NODE_MAPPING_EVENT_PUBLISHER,
+      useExisting: KafkaNodeMappingPublisher,
     },
     CreateRackUseCase,
     UpdateRackUseCase,

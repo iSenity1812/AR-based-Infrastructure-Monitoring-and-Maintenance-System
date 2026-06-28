@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { isValidObjectId } from 'mongoose';
 
 import { AssetType } from '@domain/constants/asset-type.enum';
@@ -7,7 +7,12 @@ import {
   NodeLifecycleState,
   RackLifecycleState,
 } from '@domain/entities/asset-context.entities';
-import { NODE_REPOSITORY, RACK_REPOSITORY } from '@domain/ports/port.tokens';
+import {
+  NODE_MAPPING_EVENT_PUBLISHER,
+  NODE_REPOSITORY,
+  RACK_REPOSITORY,
+} from '@domain/ports/port.tokens';
+import type { NodeMappingEventPublisherPort } from '@domain/ports/node-mapping-event.publisher.port';
 import type {
   NodeRepositoryPort,
   RackRepositoryPort,
@@ -43,6 +48,9 @@ export class NormalizeNodeUseCase {
     @Inject(NODE_REPOSITORY)
     private readonly nodeRepository: NodeRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(NODE_MAPPING_EVENT_PUBLISHER)
+    @Optional()
+    private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
   async execute(input: {
@@ -93,12 +101,22 @@ export class NormalizeNodeUseCase {
     }
 
     await this.assetContextReadService.ensureCodeAvailable(input.nodeCode);
-    return this.nodeRepository.create({
+    const created = await this.nodeRepository.create({
       ...input,
       lifecycleState: NodeLifecycleState.READY,
       assignmentState: NodeAssignmentState.UNASSIGNED,
       metadata: input.metadata ?? {},
     });
+    await this.publishNodeMapping(created.nodeCode, created.rackId ?? null);
+    return created;
+  }
+
+  private async publishNodeMapping(nodeCode: string, rackId: string | null) {
+    if (!this.nodeMappingEventPublisher) {
+      return;
+    }
+
+    await this.nodeMappingEventPublisher.publishNodeMapping(nodeCode, rackId);
   }
 }
 
@@ -265,6 +283,9 @@ export class AssignNodeToRackUseCase {
     @Inject(RACK_REPOSITORY)
     private readonly rackRepository: RackRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(NODE_MAPPING_EVENT_PUBLISHER)
+    @Optional()
+    private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
   async execute(
@@ -334,6 +355,7 @@ export class AssignNodeToRackUseCase {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
     await this.assetContextReadService.invalidateRackTopology(rackId);
+    await this.publishNodeMapping(node.nodeCode, updated?.rackId ?? rackId);
     return updated;
   }
 
@@ -400,6 +422,14 @@ export class AssignNodeToRackUseCase {
         `Rack supports up to U${capacityLimit}, but received ${positionCode}.`,
       );
     }
+  }
+
+  private async publishNodeMapping(nodeCode: string, rackId: string | null) {
+    if (!this.nodeMappingEventPublisher) {
+      return;
+    }
+
+    await this.nodeMappingEventPublisher.publishNodeMapping(nodeCode, rackId);
   }
 
   private parseRackUnitPosition(positionCode: string | undefined) {
@@ -503,6 +533,9 @@ export class RetireNodeUseCase {
     @Inject(NODE_REPOSITORY)
     private readonly nodeRepository: NodeRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(NODE_MAPPING_EVENT_PUBLISHER)
+    @Optional()
+    private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
   async execute(nodeId: string) {
@@ -517,6 +550,7 @@ export class RetireNodeUseCase {
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
+    await this.publishNodeMapping(node.nodeCode, null);
     return updated;
   }
 
@@ -529,6 +563,14 @@ export class RetireNodeUseCase {
       );
     }
     return node;
+  }
+
+  private async publishNodeMapping(nodeCode: string, rackId: string | null) {
+    if (!this.nodeMappingEventPublisher) {
+      return;
+    }
+
+    await this.nodeMappingEventPublisher.publishNodeMapping(nodeCode, rackId);
   }
 }
 

@@ -51,6 +51,7 @@ export async function bootstrap() {
       )
       .setVersion('1.0.0')
       .addBearerAuth()
+      .addServer('/asset')
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api/v1/docs', app, document);

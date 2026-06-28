@@ -14,6 +14,18 @@ export class AssetServiceConfig {
     return process.env.ASSET_REDIS_URL ?? 'redis://127.0.0.1:6379/0';
   }
 
+  get kafkaBrokers(): string[] {
+    return this.parseList(process.env.ASSET_KAFKA_BROKERS, ['redpanda:9092']);
+  }
+
+  get kafkaClientId(): string {
+    return process.env.ASSET_KAFKA_CLIENT_ID ?? 'asset-service';
+  }
+
+  get assetNodeMappingTopic(): string {
+    return process.env.ASSET_NODE_MAPPING_TOPIC ?? 'asset.node.mapping';
+  }
+
   get accessTokenSecret(): string {
     return (
       process.env.JWT_ACCESS_SECRET ??
@@ -54,5 +66,18 @@ export class AssetServiceConfig {
   private parseNumber(value: string | undefined, fallback: number): number {
     const parsed = Number.parseInt(value ?? '', 10);
     return Number.isNaN(parsed) ? fallback : parsed;
+  }
+
+  private parseList(value: string | undefined, fallback: string[]): string[] {
+    if (!value) {
+      return fallback;
+    }
+
+    const parsed = value
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    return parsed.length > 0 ? parsed : fallback;
   }
 }

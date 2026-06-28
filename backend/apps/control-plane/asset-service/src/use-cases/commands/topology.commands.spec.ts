@@ -15,10 +15,20 @@ import {
   AssignNodeToRackUseCase,
   ConfirmRackReadyUseCase,
   CreateRackUseCase,
+  NormalizeNodeUseCase,
+  RetireNodeUseCase,
   UpdateNodeUseCase,
 } from './topology';
 
 describe('asset lifecycle commands', () => {
+  const nodeMappingPublisher = {
+    publishNodeMapping: jest.fn().mockResolvedValue(undefined),
+  };
+
+  beforeEach(() => {
+    nodeMappingPublisher.publishNodeMapping.mockClear();
+  });
+
   it('creates a rack in CREATED state with AVAILABLE capacity by default', async () => {
     const createdRack = {
       id: 'rack-1',
@@ -430,6 +440,151 @@ describe('asset lifecycle commands', () => {
       assignmentState: NodeAssignmentState.ASSIGNED,
       metadata: {},
     });
+  });
+
+  it('publishes a null mapping when normalizing a new node', async () => {
+    const nodeRepository: NodeRepositoryPort = {
+      create: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.READY,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        metadata: {},
+      }),
+      update: jest.fn(),
+      findById: jest.fn(),
+      findByCode: jest.fn().mockResolvedValue(null),
+      findByRackIdAndPositionCode: jest.fn(),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+    };
+
+    const useCase = new NormalizeNodeUseCase(
+      nodeRepository,
+      {
+        ensureCodeAvailable: jest.fn().mockResolvedValue(undefined),
+      } as never,
+      nodeMappingPublisher as never,
+    );
+
+    await useCase.execute({
+      nodeCode: 'NODE-1',
+      displayName: 'Node 1',
+      source: 'collector',
+    });
+
+    expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
+      'NODE-1',
+      null,
+    );
+  });
+
+  it('publishes the target rack mapping when assigning a node to a rack', async () => {
+    const nodeRepository: NodeRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        positionCode: 'U01',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.READY,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findById: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.READY,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      findByRackIdAndPositionCode: jest.fn().mockResolvedValue(null),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+    };
+    const rackRepository: RackRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn(),
+      findById: jest.fn().mockResolvedValue({
+        id: 'rack-1',
+        rackCode: 'RACK-A1',
+        displayName: 'Rack A1',
+        lifecycleState: RackLifecycleState.READY,
+        capacityState: RackCapacityState.AVAILABLE,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      listAll: jest.fn(),
+    };
+
+    const useCase = new AssignNodeToRackUseCase(
+      nodeRepository,
+      rackRepository,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+      nodeMappingPublisher as never,
+    );
+
+    await useCase.execute('node-1', 'rack-1', 'U01');
+
+    expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
+      'NODE-1',
+      'rack-1',
+    );
+  });
+
+  it('publishes a null mapping when retiring a node', async () => {
+    const nodeRepository: NodeRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.RETIRED,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        metadata: {},
+      }),
+      findById: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      findByRackIdAndPositionCode: jest.fn(),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+    };
+
+    const useCase = new RetireNodeUseCase(
+      nodeRepository,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+      nodeMappingPublisher as never,
+    );
+
+    await useCase.execute('node-1');
+
+    expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
+      'NODE-1',
+      null,
+    );
   });
 
   it('does not allow marker activation before validation', async () => {

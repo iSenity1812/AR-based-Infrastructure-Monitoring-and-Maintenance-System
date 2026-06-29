@@ -69,8 +69,8 @@ export interface NodeEntity {
   nodeCode: string;
   displayName: string;
   hostname?: string;
-  rackId?: string;
-  positionCode?: string;
+  rackId?: string | null;
+  positionCode?: string | null;
   nodeType?: string;
   source: string;
   lifecycleState: NodeLifecycleState;
@@ -101,7 +101,7 @@ export interface DiscoveredNodeEntity {
   source?: string;
   lifecycleState: NodeLifecycleState;
   assignmentState: NodeAssignmentState;
-  logicalRackId?: string;
+  logicalRackId?: string | null;
   siteCode?: string;
   hardware: DiscoveredNodeHardwareEntity;
   createdAt: string;

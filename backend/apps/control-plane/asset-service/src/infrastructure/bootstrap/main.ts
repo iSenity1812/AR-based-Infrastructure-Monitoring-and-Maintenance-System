@@ -30,6 +30,21 @@ export async function bootstrap() {
     next();
   });
 
+  if (config.corsEnabled) {
+    app.enableCors({
+      origin: (origin, callback) => {
+        if (!origin || config.corsOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`Origin ${origin} not allowed by CORS`));
+        }
+      },
+      methods: config.corsMethods,
+      credentials: true,
+      preflightContinue: false,
+    });
+  }
+
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(
     new ValidationPipe({

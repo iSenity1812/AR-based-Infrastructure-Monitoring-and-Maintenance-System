@@ -8,12 +8,14 @@ import {
   RackLifecycleState,
 } from '@domain/entities/asset-context.entities';
 import {
+  DISCOVERED_NODE_REPOSITORY,
   NODE_MAPPING_EVENT_PUBLISHER,
   NODE_REPOSITORY,
   RACK_REPOSITORY,
 } from '@domain/ports/port.tokens';
 import type { NodeMappingEventPublisherPort } from '@domain/ports/node-mapping-event.publisher.port';
 import type {
+  DiscoveredNodeRepositoryPort,
   NodeRepositoryPort,
   RackRepositoryPort,
 } from '@domain/ports/repositories.port';
@@ -209,8 +211,8 @@ export class UpdateNodeUseCase {
 
   private async ensurePositionAvailability(
     nodeId: string,
-    rackId: string | undefined,
-    positionCode: string | undefined,
+    rackId: string | null | undefined,
+    positionCode: string | null | undefined,
   ) {
     if (!rackId || !positionCode) {
       return;
@@ -532,6 +534,8 @@ export class RetireNodeUseCase {
   constructor(
     @Inject(NODE_REPOSITORY)
     private readonly nodeRepository: NodeRepositoryPort,
+    @Inject(DISCOVERED_NODE_REPOSITORY)
+    private readonly discoveredNodeRepository: DiscoveredNodeRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
     @Inject(NODE_MAPPING_EVENT_PUBLISHER)
     @Optional()
@@ -543,9 +547,25 @@ export class RetireNodeUseCase {
     const resolvedNodeId = node.id;
     const updated = await this.nodeRepository.update(resolvedNodeId, {
       lifecycleState: NodeLifecycleState.RETIRED,
-      rackId: undefined,
+      rackId: null,
+      positionCode: null,
       assignmentState: NodeAssignmentState.UNASSIGNED,
     });
+
+    const discoveredNode = await this.discoveredNodeRepository.findByAgentId(
+      node.nodeCode,
+    );
+    if (discoveredNode) {
+      await this.discoveredNodeRepository.save({
+        ...discoveredNode,
+        lifecycleState: NodeLifecycleState.RETIRED,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        logicalRackId: null,
+        siteCode: undefined,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);

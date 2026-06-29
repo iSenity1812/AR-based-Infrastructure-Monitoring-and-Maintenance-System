@@ -63,6 +63,29 @@ export class AssetServiceConfig {
     return this.parseNumber(process.env.MONGODB_RETRY_DELAY_MS, 1000);
   }
 
+  get corsOrigin(): string {
+    return process.env.CORS_ORIGIN ?? 'http://localhost:3000';
+  }
+
+  get corsOrigins(): string[] {
+    return this.parseList(process.env.CORS_ORIGIN, ['http://localhost:3000']);
+  }
+
+  get corsEnabled(): boolean {
+    return (process.env.CORS_ENABLED ?? 'true').toLowerCase() !== 'false';
+  }
+
+  get corsMethods(): string[] {
+    return this.parseList(process.env.CORS_METHODS, [
+      'GET',
+      'POST',
+      'PUT',
+      'PATCH',
+      'DELETE',
+      'OPTIONS',
+    ]);
+  }
+
   private parseNumber(value: string | undefined, fallback: number): number {
     const parsed = Number.parseInt(value ?? '', 10);
     return Number.isNaN(parsed) ? fallback : parsed;

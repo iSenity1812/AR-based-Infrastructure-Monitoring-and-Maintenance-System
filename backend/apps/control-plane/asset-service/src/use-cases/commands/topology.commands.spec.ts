@@ -569,9 +569,25 @@ describe('asset lifecycle commands', () => {
       listAll: jest.fn(),
       listByRackId: jest.fn(),
     };
+    const discoveredNodeRepository = {
+      findByAgentId: jest.fn().mockResolvedValue({
+        agentId: 'NODE-1',
+        hostname: 'Node 1',
+        deviceType: 'SERVER',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        logicalRackId: 'rack-1',
+        hardware: {},
+        createdAt: '2026-06-17T08:00:00.000Z',
+        updatedAt: '2026-06-17T08:00:00.000Z',
+      }),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
 
     const useCase = new RetireNodeUseCase(
       nodeRepository,
+      discoveredNodeRepository as never,
       {
         invalidateNodeContext: jest.fn(),
         invalidateRackTopology: jest.fn(),
@@ -581,6 +597,20 @@ describe('asset lifecycle commands', () => {
 
     await useCase.execute('node-1');
 
+    expect(nodeRepository.update).toHaveBeenCalledWith('node-1', {
+      lifecycleState: NodeLifecycleState.RETIRED,
+      rackId: null,
+      positionCode: null,
+      assignmentState: NodeAssignmentState.UNASSIGNED,
+    });
+    expect(discoveredNodeRepository.findByAgentId).toHaveBeenCalledWith('NODE-1');
+    expect(discoveredNodeRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lifecycleState: NodeLifecycleState.RETIRED,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        logicalRackId: null,
+      }),
+    );
     expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
       'NODE-1',
       null,

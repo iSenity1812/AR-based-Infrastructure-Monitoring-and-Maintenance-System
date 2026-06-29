@@ -38,7 +38,7 @@ export class MongooseNodeRepository implements NodeRepositoryPort {
   ) {}
 
   async create(input: Omit<NodeEntity, 'id'>): Promise<NodeEntity> {
-    return mapNode(await this.nodeModel.create(input));
+    return mapNode(await this.nodeModel.create(input as never));
   }
 
   async update(

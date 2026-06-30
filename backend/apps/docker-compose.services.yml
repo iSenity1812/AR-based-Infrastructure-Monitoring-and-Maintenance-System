@@ -36,10 +36,13 @@ services:
       context: .
       dockerfile: control-plane/asset-service/Dockerfile
     env_file:
-      - control-plane/asset-service/.env.example
+      - control-plane/asset-service/.env.local
     environment:
       ASSET_MONGODB_URI: mongodb://host.docker.internal:27017/asset_db
       ASSET_REDIS_URL: redis://host.docker.internal:6379/0
+      ASSET_KAFKA_BROKERS: redpanda:9092
+      API_PREFIX: api/v1
+      PUBLIC_API_BASE_PATH: /asset
     expose:
       - "4002"
     extra_hosts:
@@ -53,6 +56,7 @@ services:
       - traefik.http.services.asset-service.loadbalancer.server.port=4002
     networks:
       - edge
+      - redpanda-network
     healthcheck:
       test: ["CMD", "nc", "-z", "127.0.0.1", "4002"]
       interval: 10s
@@ -90,3 +94,7 @@ services:
 networks:
   edge:
     name: edge
+
+  redpanda-network:
+    external: true
+    name: apps_redpanda-network

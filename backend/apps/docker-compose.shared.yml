@@ -12,6 +12,8 @@ services:
       - "6379:6379"
     volumes:
       - backend-shared-redis-data:/data
+    networks:
+      - redpanda-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -73,6 +75,51 @@ services:
     depends_on:
       - redpanda
 
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    container_name: backend-shared-clickhouse
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+    environment:
+      - CLICKHOUSE_DB=telemetry_db
+      - CLICKHOUSE_USER=root
+      - CLICKHOUSE_PASSWORD=password
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - redpanda-network
+    volumes:
+      - backend-shared-clickhouse-data:/var/lib/clickhouse
+      - ./clickhouse-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user=root", "--password=password", "--query=SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redpanda-connect:
+    image: redpandadata/connect
+    container_name: backend-shared-redpanda-connect
+    restart: unless-stopped
+    networks:
+      - redpanda-network
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    volumes:
+      - ./connect.yaml:/connect.yaml
+    entrypoint: [ "/redpanda-connect", "run", "/connect.yaml" ]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   vector:
     image: timberio/vector:0.56.0-alpine
     container_name: backend-shared-vector
@@ -94,6 +141,7 @@ services:
       - redpanda
     networks:
       - redpanda-network
+
   ingestion-worker:
     build:
       context: ./ingestion-worker
@@ -145,7 +193,96 @@ services:
       timeout: 5s
       retries: 10
 
+  # risingwave:
+  #   image: risingwavelabs/risingwave:v2.3.0
+  #   container_name: backend-shared-risingwave
+  #   restart: unless-stopped
+  #   command: single_node
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 8G
+  #   ports:
+  #     - "4566:4566"
+  #     - "5690:5690"
+  #     - "5691:5691"
+  #   environment:
+  #     # - RW_STATE_STORE=hummock+fs://risingwave
+  #     # - RW_DATA_DIRECTORY=risingwave_data
+  #     - RW_STATE_STORE=hummock+minio://admin:password123@minio:9000/risingwave
+  #     - RW_DATA_DIRECTORY=risingwave_data
+  #   volumes:
+  #     - backend-shared-risingwave-data:/risingwave_data
+  #   networks:
+  #     - redpanda-network
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #     mongo:
+  #       condition: service_healthy
+  #     redpanda:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:5691/"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: backend-shared-minio
+    command: server /data --console-address ":19001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    ports:
+      - "19000:9000"
+      - "19001:19001"
+    volumes:
+      - backend-shared-minio-data:/data
+    networks:
+      - redpanda-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # risingwave-console-db:
+  #   image: postgres:15-alpine
+  #   container_name: risingwave-console-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=rcu
+  #     - POSTGRES_PASSWORD=123456
+  #     - POSTGRES_DB=rconsole
+  #   volumes:
+  #     - risingwave-console-db-data:/var/lib/postgresql/data
+  #   networks:
+  #     - redpanda-network
+  # risingwave-console:
+  #   image: risingwavelabs/risingwave-console:v0.5.1
+  #   container_name: risingwave-console
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8020:8020"
+  #   environment:
+  #     - RCONSOLE_ROOT_PASSWORD=123456
+  #     - RCONSOLE_SERVER_PG_DSN=postgres://rcu:123456@risingwave-console-db:5432/rconsole
+  #   networks:
+  #     - redpanda-network
+  #   depends_on:
+  #     - risingwave
+  #     - risingwave-console-db
+
 volumes:
   backend-shared-redis-data:
   backend-shared-mongo-data:
   backend-shared-vector-data:
+  backend-shared-clickhouse-data:
+  # risingwave-console-db-data:
+  backend-shared-minio-data:
+  # backend-shared-risingwave-data:

@@ -68,6 +68,7 @@ import {
   SearchAssetsUseCase,
 } from '@use-cases/queries/topology.queries';
 import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
+import { ListUnassignedNodesUseCase } from '@use-cases/queries/unassigned-node.queries';
 import { AssetContextReadService } from '@use-cases/services/asset-context-read.service';
 import { AdminMarkersController } from '@presentation/http/controllers/admin-markers.controller';
 import { AdminTopologyController } from '@presentation/http/controllers/admin-topology.controller';
@@ -79,6 +80,7 @@ import { JwtAuthGuard } from '@presentation/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@presentation/http/guards/permissions.guard';
 import { JwtStrategy } from '@presentation/http/strategies/jwt.strategy';
 import { AssetServiceConfig } from '@infrastructure/config/asset-service-config';
+import { LoggingInterceptor } from '@presentation/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -103,6 +105,7 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
   ],
   providers: [
     AssetServiceConfig,
+    LoggingInterceptor,
     JwtStrategy,
     JwtAuthGuard,
     PermissionsGuard,
@@ -173,6 +176,7 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     GetRackTopologyUseCase,
     GetNodeContextUseCase,
     ListDiscoveredNodesUseCase,
+    ListUnassignedNodesUseCase,
     GetAssetByCodeUseCase,
     ResolveMarkerUseCase,
     SearchAssetsUseCase,

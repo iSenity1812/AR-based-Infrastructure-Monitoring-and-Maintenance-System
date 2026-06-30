@@ -15,7 +15,7 @@ export class AssetServiceConfig {
   }
 
   get kafkaBrokers(): string[] {
-    return this.parseList(process.env.ASSET_KAFKA_BROKERS, ['redpanda:9092']);
+    return this.parseList(process.env.ASSET_KAFKA_BROKERS, ['localhost:19092']);
   }
 
   get kafkaClientId(): string {
@@ -64,11 +64,14 @@ export class AssetServiceConfig {
   }
 
   get corsOrigin(): string {
-    return process.env.CORS_ORIGIN ?? 'http://localhost:3000';
+    return this.corsOrigins[0] ?? 'http://localhost:3000';
   }
 
   get corsOrigins(): string[] {
-    return this.parseList(process.env.CORS_ORIGIN, ['http://localhost:3000']);
+    return this.parseList(process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN, [
+      'http://localhost:4002',
+      'http://localhost:3000',
+    ]);
   }
 
   get corsEnabled(): boolean {
@@ -84,6 +87,14 @@ export class AssetServiceConfig {
       'DELETE',
       'OPTIONS',
     ]);
+  }
+
+  get publicApiBasePath(): string {
+    return process.env.PUBLIC_API_BASE_PATH ?? '';
+  }
+
+  get apiPrefix(): string {
+    return process.env.API_PREFIX ?? 'api/v1';
   }
 
   private parseNumber(value: string | undefined, fallback: number): number {

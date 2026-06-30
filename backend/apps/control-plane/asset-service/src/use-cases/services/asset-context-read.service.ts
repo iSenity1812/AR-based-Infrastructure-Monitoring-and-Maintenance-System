@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { AssetType } from '@domain/constants/asset-type.enum';
 import { MarkerTargetType } from '@domain/constants/marker-target-type.enum';
@@ -38,6 +38,8 @@ import {
 
 @Injectable()
 export class AssetContextReadService {
+  private readonly logger = new Logger(AssetContextReadService.name);
+
   constructor(
     @Inject(RACK_REPOSITORY)
     private readonly rackRepository: RackRepositoryPort,
@@ -95,6 +97,7 @@ export class AssetContextReadService {
 
     const rack = await this.rackRepository.findById(rackId);
     if (!rack) {
+      this.logger.warn(`getRackTopology(${rackId}) could not find rack`);
       throw new NotFoundUseCaseError(
         `Rack ${rackId} was not found.`,
         ErrorCode.ASSET_RACK_NOT_FOUND,
@@ -115,13 +118,23 @@ export class AssetContextReadService {
       ),
     };
 
+    this.logger.log(
+      `getRackTopology(${rackId}) loaded rack=${rack.rackCode} nodes=${nodes.length} snapshots=${topology.nodeRuntimeSnapshots.length}`,
+    );
     await this.cache.set(cacheKey, topology, 60_000);
     return topology;
   }
 
   async getTopologyTree(): Promise<RackTopologyResult[]> {
     const racks = await this.rackRepository.listAll();
-    return Promise.all(racks.map((rack) => this.getRackTopology(rack.id)));
+    this.logger.log(`getTopologyTree() found ${racks.length} rack(s)`);
+    const topology = await Promise.all(
+      racks.map((rack) => this.getRackTopology(rack.id)),
+    );
+    this.logger.log(
+      `getTopologyTree() returning ${topology.length} rack topology item(s)`,
+    );
+    return topology;
   }
 
   async resolveMarker(markerCode: string): Promise<MarkerResolutionResult> {

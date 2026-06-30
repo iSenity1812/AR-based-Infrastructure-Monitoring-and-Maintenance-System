@@ -3,7 +3,6 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
-
 import { AppModule } from '@infrastructure/bootstrap/app.module';
 import { AssetServiceConfig } from '@infrastructure/config/asset-service-config';
 import { createValidationProblem } from '@presentation/http/problem-details/problem-details.util';
@@ -13,11 +12,20 @@ export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(AssetServiceConfig);
 
+  const apiPrefix = normalizePath(config.apiPrefix);
+  const publicApiBasePath = normalizePath(config.publicApiBasePath);
+
+  Logger.log(
+    `Asset config loaded: mongoUri=${config.mongoUri}, redisUrl=${config.redisUrl}, kafkaBrokers=${config.kafkaBrokers.join(',')}, corsOrigins=${config.corsOrigins.join(',')}, apiPrefix=${apiPrefix}, publicApiBasePath=${publicApiBasePath}, env=${config.nodeEnv}`,
+    'Bootstrap',
+  );
+
   app.use((request: Request, response: Response, next: NextFunction) => {
     const requestId =
       typeof request.headers['x-request-id'] === 'string'
         ? request.headers['x-request-id']
         : randomUUID();
+
     const correlationId =
       typeof request.headers['x-correlation-id'] === 'string'
         ? request.headers['x-correlation-id']
@@ -32,7 +40,10 @@ export async function bootstrap() {
 
   if (config.corsEnabled) {
     app.enableCors({
-      origin: (origin, callback) => {
+      origin: (
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void,
+      ) => {
         if (!origin || config.corsOrigins.includes(origin)) {
           callback(null, true);
         } else {
@@ -45,7 +56,10 @@ export async function bootstrap() {
     });
   }
 
-  app.setGlobalPrefix('api/v1');
+  if (apiPrefix) {
+    app.setGlobalPrefix(apiPrefix);
+  }
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -55,10 +69,11 @@ export async function bootstrap() {
     }),
   );
 
-  // interceptors
-  app.useGlobalInterceptors(new LoggingInterceptor());
+  app.useGlobalInterceptors(app.get(LoggingInterceptor));
 
   if (config.swaggerEnabled) {
+    const publicServerPath = publicApiBasePath ? `/${publicApiBasePath}` : '/';
+
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Asset Context Service')
       .setDescription(
@@ -66,15 +81,24 @@ export async function bootstrap() {
       )
       .setVersion('1.0.0')
       .addBearerAuth()
-      .addServer('/asset')
+      .addServer(publicServerPath)
       .build();
+
     const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api/v1/docs', app, document);
+
+    const docsPath = apiPrefix ? `${apiPrefix}/docs` : 'docs';
+    SwaggerModule.setup(docsPath, app, document);
   }
 
   await app.listen(config.port);
+
+  const localPath = apiPrefix ? `/${apiPrefix}` : '';
   Logger.log(
-    `Asset service listening on http://localhost:${config.port}/api/v1`,
+    `Asset service listening on http://localhost:${config.port}${localPath}`,
     'Bootstrap',
   );
+}
+
+function normalizePath(value: string): string {
+  return value.replace(/^\/+|\/+$/g, '');
 }

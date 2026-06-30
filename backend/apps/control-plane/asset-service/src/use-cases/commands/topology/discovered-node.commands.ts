@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import {
   NodeAssignmentState,
@@ -23,6 +23,10 @@ import {
 
 @Injectable()
 export class AssignDiscoveredNodeToRackUseCase {
+  private readonly logger = new Logger(
+    AssignDiscoveredNodeToRackUseCase.name,
+  );
+
   constructor(
     @Inject(DISCOVERED_NODE_REPOSITORY)
     private readonly discoveredNodeRepository: DiscoveredNodeRepositoryPort,
@@ -39,6 +43,9 @@ export class AssignDiscoveredNodeToRackUseCase {
     positionCode: string,
     allowDraining = false,
   ) {
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}, rackId=${rackId}, positionCode=${positionCode}, allowDraining=${allowDraining}) started`,
+    );
     const discoveredNode =
       await this.discoveredNodeRepository.findByAgentId(agentId);
     if (!discoveredNode) {
@@ -47,6 +54,9 @@ export class AssignDiscoveredNodeToRackUseCase {
         ErrorCode.ASSET_NODE_NOT_FOUND,
       );
     }
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}) discovered node loaded: hostname=${discoveredNode.hostname}, deviceType=${discoveredNode.deviceType}, source=${discoveredNode.source}`,
+    );
 
     const normalizedNode = await this.normalizeNodeUseCase.execute({
       nodeCode: discoveredNode.agentId,
@@ -74,6 +84,9 @@ export class AssignDiscoveredNodeToRackUseCase {
         ErrorCode.ASSET_NODE_NOT_FOUND,
       );
     }
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}) normalized node id=${normalizedNode.id}, code=${normalizedNode.nodeCode}`,
+    );
 
     await this.assignNodeToRackUseCase.execute(
       normalizedNode.id,
@@ -81,8 +94,14 @@ export class AssignDiscoveredNodeToRackUseCase {
       positionCode,
       allowDraining,
     );
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}) assigned node ${normalizedNode.id} to rack ${rackId} at ${positionCode}`,
+    );
     const activeNode = await this.activateNodeUseCase.execute(
       normalizedNode.id,
+    );
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}) activated node ${normalizedNode.id}`,
     );
     const rack = await this.rackRepository.findById(rackId);
 
@@ -96,6 +115,9 @@ export class AssignDiscoveredNodeToRackUseCase {
     };
 
     await this.discoveredNodeRepository.save(updatedDiscoveredNode);
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}) persisted discovered node mapping to rack ${rackId}`,
+    );
 
     return {
       node: activeNode,

@@ -144,9 +144,9 @@ describe('asset lifecycle commands', () => {
       } as never,
     );
 
-    await expect(useCase.execute('node-1', 'rack-1', 'U01')).rejects.toBeInstanceOf(
-      BadRequestUseCaseError,
-    );
+    await expect(
+      useCase.execute('node-1', 'rack-1', 'U01'),
+    ).rejects.toBeInstanceOf(BadRequestUseCaseError);
   });
 
   it('blocks assigning two nodes to the same rack position', async () => {
@@ -295,14 +295,10 @@ describe('asset lifecycle commands', () => {
       listAll: jest.fn(),
     };
 
-    const useCase = new UpdateNodeUseCase(
-      nodeRepository,
-      rackRepository,
-      {
-        invalidateNodeContext: jest.fn(),
-        invalidateRackTopology: jest.fn(),
-      } as never,
-    );
+    const useCase = new UpdateNodeUseCase(nodeRepository, rackRepository, {
+      invalidateNodeContext: jest.fn(),
+      invalidateRackTopology: jest.fn(),
+    } as never);
 
     await expect(
       useCase.execute('node-1', {
@@ -315,7 +311,8 @@ describe('asset lifecycle commands', () => {
   it('maps duplicate key errors during node update to a conflict', async () => {
     const nodeUpdate = jest.fn().mockRejectedValue({
       code: 11000,
-      message: 'E11000 duplicate key error collection: nodes index: rackId_1_positionCode_1 dup key',
+      message:
+        'E11000 duplicate key error collection: nodes index: rackId_1_positionCode_1 dup key',
     });
     const nodeRepository: NodeRepositoryPort = {
       create: jest.fn(),
@@ -352,14 +349,10 @@ describe('asset lifecycle commands', () => {
       listAll: jest.fn(),
     };
 
-    const useCase = new UpdateNodeUseCase(
-      nodeRepository,
-      rackRepository,
-      {
-        invalidateNodeContext: jest.fn(),
-        invalidateRackTopology: jest.fn(),
-      } as never,
-    );
+    const useCase = new UpdateNodeUseCase(nodeRepository, rackRepository, {
+      invalidateNodeContext: jest.fn(),
+      invalidateRackTopology: jest.fn(),
+    } as never);
 
     await expect(
       useCase.execute('node-1', {
@@ -413,14 +406,10 @@ describe('asset lifecycle commands', () => {
       listAll: jest.fn(),
     };
 
-    const useCase = new UpdateNodeUseCase(
-      nodeRepository,
-      rackRepository,
-      {
-        invalidateNodeContext: jest.fn(),
-        invalidateRackTopology: jest.fn(),
-      } as never,
-    );
+    const useCase = new UpdateNodeUseCase(nodeRepository, rackRepository, {
+      invalidateNodeContext: jest.fn(),
+      invalidateRackTopology: jest.fn(),
+    } as never);
 
     const result = await useCase.execute('node-msi-8ef8d6a7', {
       displayName: 'Updated Node',
@@ -466,7 +455,7 @@ describe('asset lifecycle commands', () => {
       {
         ensureCodeAvailable: jest.fn().mockResolvedValue(undefined),
       } as never,
-      nodeMappingPublisher as never,
+      nodeMappingPublisher,
     );
 
     await useCase.execute({
@@ -479,6 +468,48 @@ describe('asset lifecycle commands', () => {
       'NODE-1',
       null,
     );
+  });
+
+  it('does not fail node normalization when mapping publish fails', async () => {
+    const nodeRepository: NodeRepositoryPort = {
+      create: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.READY,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        metadata: {},
+      }),
+      update: jest.fn(),
+      findById: jest.fn(),
+      findByCode: jest.fn().mockResolvedValue(null),
+      findByRackIdAndPositionCode: jest.fn(),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+    };
+    nodeMappingPublisher.publishNodeMapping.mockRejectedValueOnce(
+      new Error('kafka unavailable'),
+    );
+
+    const useCase = new NormalizeNodeUseCase(
+      nodeRepository,
+      {
+        ensureCodeAvailable: jest.fn().mockResolvedValue(undefined),
+      } as never,
+      nodeMappingPublisher,
+    );
+
+    await expect(
+      useCase.execute({
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+      }),
+    ).resolves.toMatchObject({
+      nodeCode: 'NODE-1',
+      displayName: 'Node 1',
+    });
   });
 
   it('publishes the target rack mapping when assigning a node to a rack', async () => {
@@ -531,7 +562,7 @@ describe('asset lifecycle commands', () => {
         invalidateNodeContext: jest.fn(),
         invalidateRackTopology: jest.fn(),
       } as never,
-      nodeMappingPublisher as never,
+      nodeMappingPublisher,
     );
 
     await useCase.execute('node-1', 'rack-1', 'U01');
@@ -592,7 +623,7 @@ describe('asset lifecycle commands', () => {
         invalidateNodeContext: jest.fn(),
         invalidateRackTopology: jest.fn(),
       } as never,
-      nodeMappingPublisher as never,
+      nodeMappingPublisher,
     );
 
     await useCase.execute('node-1');
@@ -603,7 +634,9 @@ describe('asset lifecycle commands', () => {
       positionCode: null,
       assignmentState: NodeAssignmentState.UNASSIGNED,
     });
-    expect(discoveredNodeRepository.findByAgentId).toHaveBeenCalledWith('NODE-1');
+    expect(discoveredNodeRepository.findByAgentId).toHaveBeenCalledWith(
+      'NODE-1',
+    );
     expect(discoveredNodeRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
         lifecycleState: NodeLifecycleState.RETIRED,

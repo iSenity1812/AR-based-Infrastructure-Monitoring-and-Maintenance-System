@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { isValidObjectId } from 'mongoose';
 
 import { AssetType } from '@domain/constants/asset-type.enum';
@@ -42,6 +42,28 @@ function isMongoDuplicateKeyError(error: unknown) {
     (typeof message === 'string' &&
       message.includes('E11000 duplicate key error'))
   );
+}
+
+async function publishNodeMappingBestEffort(
+  publisher: NodeMappingEventPublisherPort | undefined,
+  nodeCode: string,
+  rackId: string | null,
+  context: string,
+) {
+  if (!publisher) {
+    return;
+  }
+
+  try {
+    await publisher.publishNodeMapping(nodeCode, rackId);
+  } catch (error) {
+    const reason =
+      error instanceof Error ? error.message : 'Unknown publish failure';
+    Logger.warn(
+      `${context} mapping publish failed for node ${nodeCode}: ${reason}`,
+      'AssetTopology',
+    );
+  }
 }
 
 @Injectable()
@@ -109,16 +131,13 @@ export class NormalizeNodeUseCase {
       assignmentState: NodeAssignmentState.UNASSIGNED,
       metadata: input.metadata ?? {},
     });
-    await this.publishNodeMapping(created.nodeCode, created.rackId ?? null);
+    await publishNodeMappingBestEffort(
+      this.nodeMappingEventPublisher,
+      created.nodeCode,
+      created.rackId ?? null,
+      'normalize node',
+    );
     return created;
-  }
-
-  private async publishNodeMapping(nodeCode: string, rackId: string | null) {
-    if (!this.nodeMappingEventPublisher) {
-      return;
-    }
-
-    await this.nodeMappingEventPublisher.publishNodeMapping(nodeCode, rackId);
   }
 }
 
@@ -357,7 +376,12 @@ export class AssignNodeToRackUseCase {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
     await this.assetContextReadService.invalidateRackTopology(rackId);
-    await this.publishNodeMapping(node.nodeCode, updated?.rackId ?? rackId);
+    await publishNodeMappingBestEffort(
+      this.nodeMappingEventPublisher,
+      node.nodeCode,
+      updated?.rackId ?? rackId,
+      'assign node',
+    );
     return updated;
   }
 
@@ -424,14 +448,6 @@ export class AssignNodeToRackUseCase {
         `Rack supports up to U${capacityLimit}, but received ${positionCode}.`,
       );
     }
-  }
-
-  private async publishNodeMapping(nodeCode: string, rackId: string | null) {
-    if (!this.nodeMappingEventPublisher) {
-      return;
-    }
-
-    await this.nodeMappingEventPublisher.publishNodeMapping(nodeCode, rackId);
   }
 
   private parseRackUnitPosition(positionCode: string | undefined) {
@@ -570,7 +586,12 @@ export class RetireNodeUseCase {
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
-    await this.publishNodeMapping(node.nodeCode, null);
+    await publishNodeMappingBestEffort(
+      this.nodeMappingEventPublisher,
+      node.nodeCode,
+      null,
+      'retire node',
+    );
     return updated;
   }
 
@@ -585,13 +606,6 @@ export class RetireNodeUseCase {
     return node;
   }
 
-  private async publishNodeMapping(nodeCode: string, rackId: string | null) {
-    if (!this.nodeMappingEventPublisher) {
-      return;
-    }
-
-    await this.nodeMappingEventPublisher.publishNodeMapping(nodeCode, rackId);
-  }
 }
 
 async function findNodeByIdentifier(

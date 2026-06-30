@@ -105,7 +105,11 @@ export class NodeDocumentModel {
 
 export type NodeDocument = HydratedDocument<NodeDocumentModel>;
 export const NodeSchema = SchemaFactory.createForClass(NodeDocumentModel);
-NodeSchema.index({ rackId: 1, positionCode: 1 }, { unique: true, sparse: true });
+NodeSchema.index(
+  { rackId: 1, positionCode: 1 },
+  { unique: true, sparse: true },
+);
+NodeSchema.index({ assignmentState: 1 });
 
 @Schema({ collection: 'markers', timestamps: true, versionKey: false })
 export class MarkerDocumentModel {

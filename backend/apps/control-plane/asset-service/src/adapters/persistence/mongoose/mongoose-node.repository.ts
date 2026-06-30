@@ -4,7 +4,11 @@ import { Model } from 'mongoose';
 
 import { NodeDocumentModel } from '@adapters/persistence/mongoose/asset-context.models';
 import { getDocumentId } from '@adapters/persistence/mongoose/mongoose-document.mapper';
-import type { NodeEntity } from '@domain/entities/asset-context.entities';
+import { NodeAssignmentState } from '@domain/entities/asset-context.entities';
+import type {
+  NodeEntity,
+  NodeLifecycleState,
+} from '@domain/entities/asset-context.entities';
 import type { NodeRepositoryPort } from '@domain/ports/repositories.port';
 
 function mapNode(
@@ -80,6 +84,22 @@ export class MongooseNodeRepository implements NodeRepositoryPort {
     const documents = await this.nodeModel
       .find({ rackId })
       .sort({ nodeCode: 1 });
+    return documents.map((document) =>
+      mapNode(document as NodeDocumentModel & { _id: { toString(): string } }),
+    );
+  }
+
+  async listUnassigned(filter?: {
+    lifecycleState?: NodeLifecycleState;
+  }): Promise<NodeEntity[]> {
+    const query: Record<string, unknown> = {
+      assignmentState: NodeAssignmentState.UNASSIGNED,
+    };
+    if (filter?.lifecycleState) {
+      query.lifecycleState = filter.lifecycleState;
+    }
+
+    const documents = await this.nodeModel.find(query).sort({ nodeCode: 1 });
     return documents.map((document) =>
       mapNode(document as NodeDocumentModel & { _id: { toString(): string } }),
     );

@@ -27,6 +27,7 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 
 	counter := newBatchCounter()
 	collectedAt := time.Date(2026, 5, 28, 4, 0, 0, 0, time.UTC)
+	expectedCollectedAt := collectedAt.In(vietnamLocation).Format(time.RFC3339)
 	records := []queueRecord{{
 		metric: domain.Metric{
 			Name:         "node.hostname",
@@ -79,6 +80,12 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 	if payload.Context.HardwareFingerprint.MotherboardModel != "MSI MS-158L" || payload.Context.HardwareFingerprint.SSDModelPrimary != "KINGSTON SNV2S1000G" {
 		t.Fatalf("expected lhm fingerprint enrichments to merge into shared context, got %#v", payload.Context.HardwareFingerprint)
 	}
+	if payload.Batch.CollectedAt != expectedCollectedAt {
+		t.Fatalf("expected collectedAt to be formatted in Vietnam time, got %s", payload.Batch.CollectedAt)
+	}
+	if payload.Metrics[0].Timestamp != expectedCollectedAt {
+		t.Fatalf("expected metric timestamp to be formatted in Vietnam time, got %s", payload.Metrics[0].Timestamp)
+	}
 }
 
 func TestBuildPayloadUsesLatestCollectedAtForBatch(t *testing.T) {
@@ -105,10 +112,10 @@ func TestBuildPayloadUsesLatestCollectedAtForBatch(t *testing.T) {
 		},
 	}, 0, counter, sentAt, sender.PayloadContext{})
 
-	if got := payload.Batch.CollectedAt; got != newer.UTC().Format("2006-01-02T15:04:05") {
+	if got := payload.Batch.CollectedAt; got != newer.In(vietnamLocation).Format(time.RFC3339) {
 		t.Fatalf("expected batch collectedAt to use latest record timestamp, got %s", got)
 	}
-	if got := payload.Batch.SentAt; got != sentAt.UTC().Format("2006-01-02T15:04:05") {
+	if got := payload.Batch.SentAt; got != sentAt.In(vietnamLocation).Format(time.RFC3339) {
 		t.Fatalf("expected batch sentAt to use send timestamp, got %s", got)
 	}
 }

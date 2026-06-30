@@ -165,22 +165,22 @@ func (s *runtimeStats) snapshot(queueLength, bufferedBatchCount, retryFailures i
 		sourceSnapshots[name] = sourceStatsSnapshot{
 			ScrapeSuccessCount: stats.successCount,
 			ScrapeFailureCount: stats.failureCount,
-			LastScrapeAt:       formatTime(stats.lastScrapeAt),
+			LastScrapeAt:       formatCollectorTime(stats.lastScrapeAt),
 			LastError:          stats.lastError,
 		}
 	}
 
 	return statsSnapshot{
-		StartedAt:                s.startedAt.Format("2006-01-02T15:04:05"),
+		StartedAt:                formatCollectorTime(s.startedAt),
 		ScrapeSuccessCount:       s.scrapeSuccessCount,
 		ScrapeFailureCount:       s.scrapeFailureCount,
 		SendSuccessCount:         s.sendSuccessCount,
 		SendFailureCount:         s.sendFailureCount,
 		ReplaySuccessCount:       s.replaySuccessCount,
 		BufferWriteFailureCount:  s.bufferWriteFailureCount,
-		LastScrapeAt:             formatTime(s.lastScrapeAt),
-		LastSendAt:               formatTime(s.lastSendAt),
-		LastReplayAt:             formatTime(s.lastReplayAt),
+		LastScrapeAt:             formatCollectorTime(s.lastScrapeAt),
+		LastSendAt:               formatCollectorTime(s.lastSendAt),
+		LastReplayAt:             formatCollectorTime(s.lastReplayAt),
 		LastError:                s.lastError,
 		LastSendBatchID:          s.lastSendBatchID,
 		LastFailedBatchID:        s.lastFailedBatchID,
@@ -190,15 +190,8 @@ func (s *runtimeStats) snapshot(queueLength, bufferedBatchCount, retryFailures i
 		QueueLength:              queueLength,
 		BufferedBatchCount:       bufferedBatchCount,
 		RetryConsecutiveFailures: retryFailures,
-		NextRetryAt:              formatTime(nextRetryAt),
+		NextRetryAt:              formatCollectorTime(nextRetryAt),
 		Status:                   status,
 		Sources:                  sourceSnapshots,
 	}
-}
-
-func formatTime(value time.Time) string {
-	if value.IsZero() {
-		return ""
-	}
-	return value.UTC().Format("2006-01-02T15:04:05")
 }

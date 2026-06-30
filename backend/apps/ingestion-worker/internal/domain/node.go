@@ -9,6 +9,7 @@ type NodeAssignment string
 const (
 	// DISCOVERED: Node just discovered via token, waiting for authority
 	// ACTIVE: Admin approved, node is active and can be used for processing
+	// RETIRED: Node has been retired and must not send telemetry anymore
 	// UNASSIGNED: Waiting in queue, not yet assigned to any rack
 	// ASSIGNED: Assigned to a rack
 
@@ -19,6 +20,7 @@ const (
 
 	StateDiscovered      NodeLifecycle  = "DISCOVERED"
 	StateActive          NodeLifecycle  = "ACTIVE"
+	StateRetired         NodeLifecycle  = "RETIRED"
 	AssignmentUnassigned NodeAssignment = "UNASSIGNED"
 	AssignmentAssigned   NodeAssignment = "ASSIGNED"
 )

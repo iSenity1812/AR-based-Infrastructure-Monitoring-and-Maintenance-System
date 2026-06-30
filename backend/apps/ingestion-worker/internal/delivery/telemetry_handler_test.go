@@ -35,7 +35,7 @@ func TestTelemetryHandlerSupportsProtoGRPCIngestBatch(t *testing.T) {
 		resp: &domain.IngestBatchResponse{
 			Accepted:   true,
 			EnvelopeID: "env-123",
-			ReceivedAt: "2026-06-16T03:00:00Z",
+			ReceivedAt: "2026-06-16T10:00:00+07:00",
 		},
 	}
 
@@ -75,13 +75,13 @@ func TestTelemetryHandlerSupportsProtoGRPCIngestBatch(t *testing.T) {
 			SourceType:   "windows_exporter",
 			AgentVersion: "0.1.0",
 			Hostname:     "node-msi",
-			StartedAt:    "2026-06-16T02:39:37Z",
+			StartedAt:    "2026-06-16T09:39:37+07:00",
 		},
 		Batch: &telemetrypb.BatchMeta{
 			BatchId:      "node-msi-42d8ae94-14",
 			Sequence:     14,
-			CollectedAt:  "2026-06-16T02:39:37Z",
-			SentAt:       "2026-06-16T02:39:38Z",
+			CollectedAt:  "2026-06-16T09:39:37+07:00",
+			SentAt:       "2026-06-16T09:39:38+07:00",
 			RecordCount:  99,
 			DroppedCount: 0,
 		},
@@ -100,7 +100,7 @@ func TestTelemetryHandlerSupportsProtoGRPCIngestBatch(t *testing.T) {
 				ScopeId:      "node-msi-1",
 				Value:        value,
 				Unit:         "percent",
-				Timestamp:    "2026-06-16T02:39:37Z",
+				Timestamp:    "2026-06-16T09:39:37+07:00",
 				Source:       "windows_exporter",
 				SourceMetric: "windows_cpu_time_total",
 				Tags:         map[string]string{"cpu": "_total"},

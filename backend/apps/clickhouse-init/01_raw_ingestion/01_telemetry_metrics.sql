@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS telemetry_db.telemetry_metrics (
     scope_type LowCardinality(String),
     scope_id String,
 
-    metric_timestamp DateTime,
+    metric_timestamp DateTime('Asia/Ho_Chi_Minh'),
 
     metric_value_numeric Float64,
     metric_value_text String,

@@ -79,11 +79,7 @@ CREATE DICTIONARY IF NOT EXISTS dict_metric_profile (
     metric_key String,
     metric_label String,
     description String,
-    value_kind Enum8 (
-        'numeric' = 1,
-        'text' = 2,
-        'state' = 3
-    ),
+    value_kind String,
     semantic_class String,
     directionality String,
     is_enabled UInt8,
@@ -112,7 +108,39 @@ CREATE DICTIONARY IF NOT EXISTS dict_metric_profile (
 metric_key SOURCE (
     CLICKHOUSE (
         HOST 'localhost' PORT 9000 USER 'root' PASSWORD 'password' DB 'telemetry_db'
-        TABLE 'metric_profile'
+        QUERY '
+            SELECT
+                scope_type,
+                metric_key,
+                metric_label,
+                description,
+                toString(value_kind) AS value_kind,
+                semantic_class,
+                directionality,
+                is_enabled,
+                is_operational_metric,
+                is_ranking_metric,
+                override_on_critical,
+                freshness_profile,
+                fresh_after_sec,
+                stale_after_sec,
+                warning_operator,
+                warning_threshold_numeric,
+                critical_operator,
+                critical_threshold_numeric,
+                warning_text_values,
+                critical_text_values,
+                preferred_spatial_agg,
+                preferred_temporal_agg_1m,
+                preferred_temporal_agg_5m,
+                preferred_summary_agg,
+                preferred_numeric_field,
+                preferred_text_field,
+                notes,
+                policy_version,
+                updated_at
+            FROM telemetry_db.metric_profile
+        '
     )
 ) LAYOUT (COMPLEX_KEY_HASHED ()) LIFETIME (MIN 1 MAX 60);
 

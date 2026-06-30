@@ -36,7 +36,7 @@ WITH
         scope_id,
         metric_key,
         toJSONString(tags)
-    ) AS series_key,
+    ) AS series_key_cfg,
 
     dictGetStringOrDefault(
         'dict_metric_profile',
@@ -59,10 +59,12 @@ WITH
         ''
     ) AS warning_operator_cfg,
 
-    dictGetFloat64OrDefault(
-        'dict_metric_profile',
-        'warning_threshold_numeric',
-        tuple(scope_type, metric_key),
+    ifNull(
+        dictGetOrNull(
+            'dict_metric_profile',
+            'warning_threshold_numeric',
+            tuple(scope_type, metric_key)
+        ),
         nan
     ) AS warning_threshold_numeric_cfg,
 
@@ -73,10 +75,12 @@ WITH
         ''
     ) AS critical_operator_cfg,
 
-    dictGetFloat64OrDefault(
-        'dict_metric_profile',
-        'critical_threshold_numeric',
-        tuple(scope_type, metric_key),
+    ifNull(
+        dictGetOrNull(
+            'dict_metric_profile',
+            'critical_threshold_numeric',
+            tuple(scope_type, metric_key)
+        ),
         nan
     ) AS critical_threshold_numeric_cfg,
 
@@ -96,7 +100,7 @@ WITH
 
     lower(metric_value_text) AS metric_value_text_normalized,
 
-    if(preferred_numeric_field_cfg != '', 1, 0) AS is_numeric_metric,
+    if(preferred_numeric_field_cfg != '', 1, 0) AS is_numeric_metric_cfg,
 
     multiIf(
         warning_operator_cfg = '>'  AND isFinite(warning_threshold_numeric_cfg), metric_value_numeric >  warning_threshold_numeric_cfg,
@@ -135,10 +139,10 @@ SELECT
     scope_type,
     scope_id,
     metric_key,
-    toUInt64(series_key) AS series_key,
+    toUInt64(series_key_cfg) AS series_key,
     tags_json,
     semantic_class,
-    toUInt8(is_numeric_metric) AS is_numeric_metric,
+    toUInt8(is_numeric_metric_cfg) AS is_numeric_metric,
 
     countState() AS sample_count_state,
     minState(metric_timestamp) AS first_ts_state,
@@ -165,7 +169,7 @@ GROUP BY
     scope_type,
     scope_id,
     metric_key,
-    series_key,
+    series_key_cfg,
     tags_json,
     semantic_class,
-    is_numeric_metric;
+    is_numeric_metric_cfg;

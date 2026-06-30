@@ -32,12 +32,12 @@ CREATE TABLE IF NOT EXISTS telemetry_db.latest_state_by_scope (
     source LowCardinality(String),
     source_metric String,
 
-    latest_ts_state AggregateFunction(max, DateTime),
-    latest_numeric_state AggregateFunction(argMax, Float64, Tuple(DateTime, Int32, String)),
-    latest_text_state AggregateFunction(argMax, String, Tuple(DateTime, Int32, String)),
-    latest_unit_state AggregateFunction(argMax, String, Tuple(DateTime, Int32, String)),
-    latest_source_state AggregateFunction(argMax, String, Tuple(DateTime, Int32, String)),
-    latest_source_metric_state AggregateFunction(argMax, String, Tuple(DateTime, Int32, String)),
+    latest_ts_state AggregateFunction(max, DateTime('Asia/Ho_Chi_Minh')),
+    latest_numeric_state AggregateFunction(argMax, Float64, Tuple(DateTime('Asia/Ho_Chi_Minh'), Int32, String)),
+    latest_text_state AggregateFunction(argMax, String, Tuple(DateTime('Asia/Ho_Chi_Minh'), Int32, String)),
+    latest_unit_state AggregateFunction(argMax, String, Tuple(DateTime('Asia/Ho_Chi_Minh'), Int32, String)),
+    latest_source_state AggregateFunction(argMax, String, Tuple(DateTime('Asia/Ho_Chi_Minh'), Int32, String)),
+    latest_source_metric_state AggregateFunction(argMax, String, Tuple(DateTime('Asia/Ho_Chi_Minh'), Int32, String)),
     sample_count_state AggregateFunction(count, UInt8)
 )
 ENGINE = AggregatingMergeTree()

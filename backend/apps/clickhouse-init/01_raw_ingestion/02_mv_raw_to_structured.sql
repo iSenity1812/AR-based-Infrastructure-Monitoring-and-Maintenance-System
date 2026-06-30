@@ -32,7 +32,10 @@ SELECT
     JSONExtractString(metric, 'scopeType') AS scope_type,
     JSONExtractString(metric, 'scopeId') AS scope_id,
 
-    parseDateTimeBestEffort(JSONExtractString(metric, 'timestamp')) AS metric_timestamp,
+    toTimeZone(
+        parseDateTimeBestEffort(JSONExtractString(metric, 'timestamp')),
+        'Asia/Ho_Chi_Minh'
+    ) AS metric_timestamp,
 
     JSONExtractFloat(metric, 'value') AS metric_value_numeric,
     JSONExtractString(metric, 'value') AS metric_value_text,

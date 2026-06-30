@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS telemetry_db.agg_1m_by_scope_metric;
 
 CREATE TABLE IF NOT EXISTS telemetry_db.agg_1m_by_scope_metric
 (
-    bucket_start DateTime,
+    bucket_start DateTime('Asia/Ho_Chi_Minh'),
 
     scope_type LowCardinality(String),
     scope_id String,
@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS telemetry_db.agg_1m_by_scope_metric
     is_numeric_metric UInt8,
 
     sample_count_state AggregateFunction(count, UInt8),
-    first_ts_state AggregateFunction(min, DateTime),
-    last_ts_state AggregateFunction(max, DateTime),
+    first_ts_state AggregateFunction(min, DateTime('Asia/Ho_Chi_Minh')),
+    last_ts_state AggregateFunction(max, DateTime('Asia/Ho_Chi_Minh')),
 
     value_min_state AggregateFunction(min, Float64),
     value_max_state AggregateFunction(max, Float64),
@@ -45,9 +45,9 @@ CREATE TABLE IF NOT EXISTS telemetry_db.agg_1m_by_scope_metric
     value_sum_state AggregateFunction(sum, Float64),
     value_p95_state AggregateFunction(quantileTDigest(0.95), Float64),
     value_p99_state AggregateFunction(quantileTDigest(0.99), Float64),
-    value_last_state AggregateFunction(argMax, Float64, DateTime),
+    value_last_state AggregateFunction(argMax, Float64, DateTime('Asia/Ho_Chi_Minh')),
 
-    text_last_state AggregateFunction(argMax, String, DateTime),
+    text_last_state AggregateFunction(argMax, String, DateTime('Asia/Ho_Chi_Minh')),
 
     warning_sample_count_state AggregateFunction(sum, UInt64),
     critical_sample_count_state AggregateFunction(sum, UInt64),

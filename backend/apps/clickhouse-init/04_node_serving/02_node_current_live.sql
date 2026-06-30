@@ -49,10 +49,12 @@ WITH
         ''
     ) AS warning_operator_cfg,
 
-    dictGetFloat64OrDefault(
-        'dict_metric_profile',
-        'warning_threshold_numeric',
-        tuple('node', metric_key),
+    ifNull(
+        dictGetOrNull(
+            'dict_metric_profile',
+            'warning_threshold_numeric',
+            tuple('node', metric_key)
+        ),
         nan
     ) AS warning_threshold_numeric_cfg,
 
@@ -63,10 +65,12 @@ WITH
         ''
     ) AS critical_operator_cfg,
 
-    dictGetFloat64OrDefault(
-        'dict_metric_profile',
-        'critical_threshold_numeric',
-        tuple('node', metric_key),
+    ifNull(
+        dictGetOrNull(
+            'dict_metric_profile',
+            'critical_threshold_numeric',
+            tuple('node', metric_key)
+        ),
         nan
     ) AS critical_threshold_numeric_cfg,
 

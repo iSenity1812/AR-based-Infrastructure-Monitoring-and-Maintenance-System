@@ -12,8 +12,8 @@ export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(AssetServiceConfig);
 
-  const apiPrefix = normalizePath(config.apiPrefix);
-  const publicApiBasePath = normalizePath(config.publicApiBasePath);
+  const apiPrefix = config.apiPrefix;
+  const publicApiBasePath = config.publicApiBasePath;
 
   Logger.log(
     `Asset config loaded: mongoUri=${config.mongoUri}, redisUrl=${config.redisUrl}, kafkaBrokers=${config.kafkaBrokers.join(',')}, corsOrigins=${config.corsOrigins.join(',')}, apiPrefix=${apiPrefix}, publicApiBasePath=${publicApiBasePath}, env=${config.nodeEnv}`,
@@ -72,8 +72,6 @@ export async function bootstrap() {
   app.useGlobalInterceptors(app.get(LoggingInterceptor));
 
   if (config.swaggerEnabled) {
-    const publicServerPath = publicApiBasePath ? `/${publicApiBasePath}` : '/';
-
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Asset Context Service')
       .setDescription(
@@ -81,7 +79,7 @@ export async function bootstrap() {
       )
       .setVersion('1.0.0')
       .addBearerAuth()
-      .addServer(publicServerPath)
+      .addServer(publicApiBasePath)
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -97,8 +95,4 @@ export async function bootstrap() {
     `Asset service listening on http://localhost:${config.port}${localPath}`,
     'Bootstrap',
   );
-}
-
-function normalizePath(value: string): string {
-  return value.replace(/^\/+|\/+$/g, '');
 }

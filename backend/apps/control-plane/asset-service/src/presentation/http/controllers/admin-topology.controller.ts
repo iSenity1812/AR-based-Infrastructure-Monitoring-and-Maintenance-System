@@ -261,9 +261,7 @@ export class AdminTopologyController {
     request: HeaderRequest,
   ) {
     return serializeEnvelope(
-      {
-        items: await this.listUnassignedNodesUseCase.execute(query),
-      },
+      await this.listUnassignedNodesUseCase.execute(query),
       responseMeta(request),
     );
   }

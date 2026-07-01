@@ -97,7 +97,64 @@ SOURCE './05_window_aggregates/05_mv_telemetry_metrics_to_agg_5m_by_scope_metric
 SOURCE './05_window_aggregates/06_v_agg_5m_by_scope_metric.sql';
 
 -- =========================================================
--- 06. REVIEW NOTES
+-- 06. RACK SERVING
+-- Muc dich:
+--   Dinh nghia current summary, trend views va historical read model
+--   cho Rack duoc roll-up tu Node.
+-- =========================================================
+
+SOURCE './06_rack_serving/01_rack_current_summary.sql';
+
+SOURCE './06_rack_serving/02_rack_summary_trend_1m.sql';
+
+SOURCE './06_rack_serving/03_rack_summary_trend_5m.sql';
+
+SOURCE './06_rack_serving/04_rack_summary_history.sql';
+
+SOURCE './06_rack_serving/05_mv_agg_1m_to_rack_summary_history.sql';
+
+SOURCE './06_rack_serving/06_mv_agg_5m_to_rack_summary_history.sql';
+
+SOURCE './06_rack_serving/07_v_rack_summary_history.sql';
+
+-- =========================================================
+-- 07. CONTAINER / SERVICE SERVING
+-- Muc dich:
+--   Dinh nghia cac lop serving dau tien cho scope container.
+--   Giai doan hien tai moi dua vao latest-state va current-live
+--   de phuc vu implementation tang dan theo spec.
+-- =========================================================
+
+SOURCE './07_container_service_serving/01_container_latest_state.sql';
+
+SOURCE './07_container_service_serving/02_container_current_live.sql';
+
+SOURCE './07_container_service_serving/03_container_current_summary.sql';
+
+SOURCE './07_container_service_serving/04_service_latest_state.sql';
+
+SOURCE './07_container_service_serving/05_service_current_live.sql';
+
+SOURCE './07_container_service_serving/06_service_current_summary.sql';
+
+SOURCE './07_container_service_serving/07_container_summary_trend_1m.sql';
+
+SOURCE './07_container_service_serving/08_container_summary_trend_5m.sql';
+
+SOURCE './07_container_service_serving/09_service_summary_trend_1m.sql';
+
+SOURCE './07_container_service_serving/10_service_summary_trend_5m.sql';
+
+SOURCE './07_container_service_serving/11_service_summary_history.sql';
+
+SOURCE './07_container_service_serving/12_mv_agg_1m_to_service_summary_history.sql';
+
+SOURCE './07_container_service_serving/13_mv_agg_5m_to_service_summary_history.sql';
+
+SOURCE './07_container_service_serving/14_v_service_summary_history.sql';
+
+-- =========================================================
+-- 08. REVIEW NOTES
 -- Muc dich:
 --   Nhung diem can review truoc khi coi init_new.sql la execution path chinh.
 -- =========================================================
@@ -114,4 +171,5 @@ SOURCE './05_window_aggregates/06_v_agg_5m_by_scope_metric.sql';
 --      latest/aggregate tables dang dung UInt64
 --    Hien tai cac MV dang ep toUInt64(series_key) de giong source-of-truth.
 -- 4. Xac nhan policy seed da phu metric can dung cho node/current/1m/5m.
--- 5. Chua dua rack summary/rack ranking vao init_new.sql.
+-- 5. Xac nhan dict_node_topology da co rack_id truoc khi ky vong rack-serving co du lieu.
+-- 6. Xac nhan rack_summary_history duoc backfill neu can lich su truoc thoi diem tao MV.

@@ -77,6 +77,8 @@ export class AssignDiscoveredNodeToRackUseCase {
           registeredAt: discoveredNode.createdAt,
         },
       },
+    }, {
+      publishNodeMapping: false,
     });
     if (!normalizedNode) {
       throw new NotFoundUseCaseError(

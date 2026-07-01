@@ -90,7 +90,8 @@ export class NormalizeNodeUseCase {
     positionCode?: string;
     notes?: string;
     metadata?: Record<string, unknown>;
-  }) {
+  }, options?: { publishNodeMapping?: boolean }) {
+    const shouldPublishNodeMapping = options?.publishNodeMapping ?? true;
     const existing = await this.nodeRepository.findByCode(input.nodeCode);
     if (existing) {
       try {
@@ -131,12 +132,14 @@ export class NormalizeNodeUseCase {
       assignmentState: NodeAssignmentState.UNASSIGNED,
       metadata: input.metadata ?? {},
     });
-    await publishNodeMappingBestEffort(
-      this.nodeMappingEventPublisher,
-      created.nodeCode,
-      created.rackId ?? null,
-      'normalize node',
-    );
+    if (shouldPublishNodeMapping) {
+      await publishNodeMappingBestEffort(
+        this.nodeMappingEventPublisher,
+        created.nodeCode,
+        created.rackId ?? null,
+        'normalize node',
+      );
+    }
     return created;
   }
 }

@@ -512,6 +512,47 @@ describe('asset lifecycle commands', () => {
     });
   });
 
+  it('skips mapping publish when normalization is called without publish enabled', async () => {
+    const nodeRepository: NodeRepositoryPort = {
+      create: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.READY,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        metadata: {},
+      }),
+      update: jest.fn(),
+      findById: jest.fn(),
+      findByCode: jest.fn().mockResolvedValue(null),
+      findByRackIdAndPositionCode: jest.fn(),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+    };
+
+    const useCase = new NormalizeNodeUseCase(
+      nodeRepository,
+      {
+        ensureCodeAvailable: jest.fn().mockResolvedValue(undefined),
+      } as never,
+      nodeMappingPublisher,
+    );
+
+    await useCase.execute(
+      {
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+      },
+      {
+        publishNodeMapping: false,
+      },
+    );
+
+    expect(nodeMappingPublisher.publishNodeMapping).not.toHaveBeenCalled();
+  });
+
   it('publishes the target rack mapping when assigning a node to a rack', async () => {
     const nodeRepository: NodeRepositoryPort = {
       create: jest.fn(),

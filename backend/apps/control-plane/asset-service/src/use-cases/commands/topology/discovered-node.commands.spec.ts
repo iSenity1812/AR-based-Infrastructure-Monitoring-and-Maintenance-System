@@ -85,6 +85,9 @@ describe('AssignDiscoveredNodeToRackUseCase', () => {
           }),
         }),
       }),
+      {
+        publishNodeMapping: false,
+      },
     );
     expect(discoveredNodeRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({

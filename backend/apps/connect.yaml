@@ -1,29 +1,61 @@
 input:
-  kafka:
-    addresses:
-      - redpanda:9092
-    topics:
-      - telemetry.normalized.received
-    consumer_group: redpanda-connect-group
+  broker:
+    inputs:
+      - kafka:
+          addresses:
+            - redpanda:9092
+          topics:
+            - asset.node.mapping
+          consumer_group: redpanda-connect-topology-group
+
+      - kafka:
+          addresses:
+            - redpanda:9092
+          topics:
+            - telemetry.normalized.received
+          consumer_group: redpanda-connect-telemetry-group
 
 pipeline:
   processors:
     - log:
         level: INFO
-        message: "received message: ${!content()}"
+        message: "received topic=${!meta(\"kafka_topic\")} key=${!meta(\"kafka_key\")} body=${!content()}"
 
 output:
-  sql_insert:
-    driver: "clickhouse"
-    # Chuỗi kết nối tới ClickHouse sử dụng giao thức Native Port (8123)
-    dsn: "clickhouse://root:password@clickhouse:9000/telemetry_db"
-    table: "normalized_telemetry_queue"
-    columns:
-      - "payload"
-    # Đưa toàn bộ nội dung tin nhắn dạng String vào cột payload
-    args_mapping: |
-      root = [ this.string() ]
-    max_in_flight: 64
-    batching:
-      count: 1000 # Gom tối đa 1000 tin nhắn
-      period: "1s" # Hoặc đẩy sau mỗi 1 giây
+  switch:
+    cases:
+      - check: meta("kafka_topic") == "asset.node.mapping"
+        output:
+          sql_insert:
+            driver: clickhouse
+            dsn: clickhouse://root:password@clickhouse:9000/telemetry_db
+            table: node_topology_base
+            columns:
+              - node_id
+              - rack_id
+            args_mapping: |
+              root = [
+                meta("kafka_key").string(),
+                this.rackId.string()
+              ]
+            max_in_flight: 32
+            batching:
+              count: 100
+              period: 500ms
+
+      - check: meta("kafka_topic") == "telemetry.normalized.received"
+        output:
+          sql_insert:
+            driver: clickhouse
+            dsn: clickhouse://root:password@clickhouse:9000/telemetry_db
+            table: normalized_telemetry_queue
+            columns:
+              - payload
+            args_mapping: |
+              root = [
+                this.string()
+              ]
+            max_in_flight: 64
+            batching:
+              count: 1000
+              period: 1s

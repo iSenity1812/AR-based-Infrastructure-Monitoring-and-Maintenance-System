@@ -1,7 +1,9 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { Transport, type MicroserviceOptions } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
+import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { AppModule } from '@infrastructure/bootstrap/app.module';
 import { AssetServiceConfig } from '@infrastructure/config/asset-service-config';
@@ -14,9 +16,17 @@ export async function bootstrap() {
 
   const apiPrefix = config.apiPrefix;
   const publicApiBasePath = config.publicApiBasePath;
+  const grpcProtoPath = join(
+    process.cwd(),
+    'src',
+    'infrastructure',
+    'grpc',
+    'proto',
+    'rack-context.proto',
+  );
 
   Logger.log(
-    `Asset config loaded: mongoUri=${config.mongoUri}, redisUrl=${config.redisUrl}, kafkaBrokers=${config.kafkaBrokers.join(',')}, corsOrigins=${config.corsOrigins.join(',')}, apiPrefix=${apiPrefix}, publicApiBasePath=${publicApiBasePath}, env=${config.nodeEnv}`,
+    `Asset config loaded: mongoUri=${config.mongoUri}, redisUrl=${config.redisUrl}, kafkaBrokers=${config.kafkaBrokers.join(',')}, corsOrigins=${config.corsOrigins.join(',')}, apiPrefix=${apiPrefix}, publicApiBasePath=${publicApiBasePath}, grpcUrl=${config.grpcUrl}, env=${config.nodeEnv}`,
     'Bootstrap',
   );
 
@@ -71,6 +81,15 @@ export async function bootstrap() {
 
   app.useGlobalInterceptors(app.get(LoggingInterceptor));
 
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.GRPC,
+    options: {
+      url: config.grpcUrl,
+      package: 'asset_context.v1',
+      protoPath: grpcProtoPath,
+    },
+  });
+
   if (config.swaggerEnabled) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Asset Context Service')
@@ -88,11 +107,12 @@ export async function bootstrap() {
     SwaggerModule.setup(docsPath, app, document);
   }
 
+  await app.startAllMicroservices();
   await app.listen(config.port);
 
   const localPath = apiPrefix ? `/${apiPrefix}` : '';
   Logger.log(
-    `Asset service listening on http://localhost:${config.port}${localPath}`,
+    `Asset service listening on http://localhost:${config.port}${localPath} and grpc://${config.grpcUrl}`,
     'Bootstrap',
   );
 }

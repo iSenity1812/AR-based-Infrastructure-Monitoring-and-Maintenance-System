@@ -44,6 +44,20 @@ export class AssetServiceConfig {
     return Number.isNaN(port) ? 4002 : port;
   }
 
+  get grpcHost(): string {
+    return process.env.ASSET_GRPC_HOST ?? '0.0.0.0';
+  }
+
+  get grpcPort(): number {
+    const rawPort = process.env.ASSET_GRPC_PORT ?? '50052';
+    const port = Number.parseInt(rawPort, 10);
+    return Number.isNaN(port) ? 50052 : port;
+  }
+
+  get grpcUrl(): string {
+    return `${this.grpcHost}:${this.grpcPort}`;
+  }
+
   get swaggerEnabled(): boolean {
     return (process.env.SWAGGER_ENABLED ?? 'true').toLowerCase() !== 'false';
   }

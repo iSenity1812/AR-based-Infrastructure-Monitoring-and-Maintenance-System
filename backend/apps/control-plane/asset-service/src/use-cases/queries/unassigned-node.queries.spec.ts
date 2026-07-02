@@ -21,9 +21,7 @@ describe('ListUnassignedNodesUseCase', () => {
       },
     ];
     const listUnassigned = jest.fn().mockResolvedValue(nodes);
-    const useCase = new ListUnassignedNodesUseCase(
-      buildPort(listUnassigned),
-    );
+    const useCase = new ListUnassignedNodesUseCase(buildPort(listUnassigned));
 
     const result = await useCase.execute();
 
@@ -33,9 +31,7 @@ describe('ListUnassignedNodesUseCase', () => {
 
   it('forwards an optional lifecycleState filter to the repository', async () => {
     const listUnassigned = jest.fn().mockResolvedValue([]);
-    const useCase = new ListUnassignedNodesUseCase(
-      buildPort(listUnassigned),
-    );
+    const useCase = new ListUnassignedNodesUseCase(buildPort(listUnassigned));
 
     await useCase.execute({ lifecycleState: NodeLifecycleState.DISCOVERED });
 

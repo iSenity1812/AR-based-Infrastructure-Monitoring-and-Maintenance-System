@@ -5,17 +5,19 @@ import { NodeDocumentModel } from './asset-context.models';
 import { MongooseNodeRepository } from './mongoose-node.repository';
 
 describe('MongooseNodeRepository.listUnassigned', () => {
-  function buildRepository(findImpl: jest.Mock) {
-    const sort = jest.fn().mockReturnValue({ exec: () => findImpl() });
-    const find = jest.fn().mockReturnValue({ sort });
-    const nodeModel = { find } as unknown as Model<NodeDocumentModel>;
+  function buildRepository(findImpl: () => Promise<never[]>) {
+    const sort = jest.fn(() => ({ exec: () => findImpl() }));
+    const find = jest.fn(() => ({ sort }));
+    const nodeModel = {
+      find,
+    } as unknown as Model<NodeDocumentModel>;
     return { repository: new MongooseNodeRepository(nodeModel), find, sort };
   }
 
   it('filters by assignmentState UNASSIGNED without a lifecycle filter', async () => {
     const rows: never[] = [];
-    const { repository, find, sort } = buildRepository(
-      jest.fn().mockResolvedValue(rows),
+    const { repository, find, sort } = buildRepository(() =>
+      Promise.resolve(rows),
     );
 
     const result = await repository.listUnassigned();
@@ -28,9 +30,7 @@ describe('MongooseNodeRepository.listUnassigned', () => {
   });
 
   it('adds lifecycleState to the query when provided', async () => {
-    const { repository, find } = buildRepository(
-      jest.fn().mockResolvedValue([]),
-    );
+    const { repository, find } = buildRepository(() => Promise.resolve([]));
 
     await repository.listUnassigned({ lifecycleState: 'READY' });
 

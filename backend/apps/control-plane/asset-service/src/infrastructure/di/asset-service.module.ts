@@ -63,7 +63,11 @@ import {
   GetAssetByCodeUseCase,
   GetNodeContextUseCase,
   GetRackTopologyUseCase,
+  GetRackSummaryByCodeUseCase,
+  GetRackSummaryUseCase,
   GetTopologyTreeUseCase,
+  BatchGetRackSummariesUseCase,
+  ListRackSummariesUseCase,
   ResolveMarkerUseCase,
   SearchAssetsUseCase,
 } from '@use-cases/queries/topology.queries';
@@ -75,6 +79,7 @@ import { AdminTopologyController } from '@presentation/http/controllers/admin-to
 import { AssetQueryController } from '@presentation/http/controllers/asset-query.controller';
 import { HealthController } from '@presentation/http/controllers/health.controller';
 import { InternalInventoryController } from '@presentation/http/controllers/internal-inventory.controller';
+import { RackQueryGrpcController } from '@presentation/grpc/controllers/rack-query.grpc.controller';
 import { ProblemDetailsExceptionFilter } from '@presentation/http/filters/problem-details-exception.filter';
 import { JwtAuthGuard } from '@presentation/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@presentation/http/guards/permissions.guard';
@@ -102,6 +107,7 @@ import { LoggingInterceptor } from '@presentation/interceptors/logging.intercept
     InternalInventoryController,
     AssetQueryController,
     HealthController,
+    RackQueryGrpcController,
   ],
   providers: [
     AssetServiceConfig,
@@ -174,6 +180,10 @@ import { LoggingInterceptor } from '@presentation/interceptors/logging.intercept
     SeedAssetContextUseCase,
     GetTopologyTreeUseCase,
     GetRackTopologyUseCase,
+    GetRackSummaryUseCase,
+    GetRackSummaryByCodeUseCase,
+    ListRackSummariesUseCase,
+    BatchGetRackSummariesUseCase,
     GetNodeContextUseCase,
     ListDiscoveredNodesUseCase,
     ListUnassignedNodesUseCase,

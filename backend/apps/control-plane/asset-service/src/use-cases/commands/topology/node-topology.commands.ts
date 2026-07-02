@@ -77,20 +77,23 @@ export class NormalizeNodeUseCase {
     private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
-  async execute(input: {
-    nodeCode: string;
-    displayName: string;
-    hostname?: string;
-    nodeType?: string;
-    source: string;
-    serialNumber?: string;
-    vendor?: string;
-    model?: string;
-    managementIp?: string;
-    positionCode?: string;
-    notes?: string;
-    metadata?: Record<string, unknown>;
-  }, options?: { publishNodeMapping?: boolean }) {
+  async execute(
+    input: {
+      nodeCode: string;
+      displayName: string;
+      hostname?: string;
+      nodeType?: string;
+      source: string;
+      serialNumber?: string;
+      vendor?: string;
+      model?: string;
+      managementIp?: string;
+      positionCode?: string;
+      notes?: string;
+      metadata?: Record<string, unknown>;
+    },
+    options?: { publishNodeMapping?: boolean },
+  ) {
     const shouldPublishNodeMapping = options?.publishNodeMapping ?? true;
     const existing = await this.nodeRepository.findByCode(input.nodeCode);
     if (existing) {
@@ -608,7 +611,6 @@ export class RetireNodeUseCase {
     }
     return node;
   }
-
 }
 
 async function findNodeByIdentifier(

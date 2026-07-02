@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package asset_context.v1;
+
+import "google/protobuf/struct.proto";
+
+service RackQueryService {
+  rpc GetRack(GetRackRequest) returns (RackSummary);
+  rpc GetRackByCode(GetRackByCodeRequest) returns (RackSummary);
+  rpc ListRacks(ListRacksRequest) returns (ListRacksResponse);
+  rpc BatchGetRacks(BatchGetRacksRequest) returns (BatchGetRacksResponse);
+}
+
+message GetRackRequest {
+  string rack_id = 1;
+}
+
+message GetRackByCodeRequest {
+  string rack_code = 1;
+}
+
+message ListRacksRequest {}
+
+message BatchGetRacksRequest {
+  repeated string rack_ids = 1;
+}
+
+message RackSummary {
+  string id = 1;
+  string rack_code = 2;
+  string display_name = 3;
+  string lifecycle_state = 4;
+  string capacity_state = 5;
+  optional string site_code = 6;
+  optional string room_code = 7;
+  optional string zone_code = 8;
+  optional string row_code = 9;
+  optional string position_code = 10;
+  optional int32 capacity_limit = 11;
+  optional string notes = 12;
+  optional string vendor = 13;
+  google.protobuf.Struct metadata = 14;
+}
+
+message ListRacksResponse {
+  repeated RackSummary racks = 1;
+}
+
+message BatchGetRacksResponse {
+  repeated RackSummary racks = 1;
+}

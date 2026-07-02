@@ -28,6 +28,8 @@
   "dependencies": {
     "@golevelup/nestjs-discovery": "^7.0.3",
     "@golevelup/nestjs-modules": "^2.0.1",
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "@liaoliaots/nestjs-redis": "^10.0.0",
     "@nestjs/cache-manager": "^3.1.2",
     "@nestjs/common": "^11.0.1",

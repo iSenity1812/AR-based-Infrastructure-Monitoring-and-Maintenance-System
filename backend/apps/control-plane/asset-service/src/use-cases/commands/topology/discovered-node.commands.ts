@@ -23,9 +23,7 @@ import {
 
 @Injectable()
 export class AssignDiscoveredNodeToRackUseCase {
-  private readonly logger = new Logger(
-    AssignDiscoveredNodeToRackUseCase.name,
-  );
+  private readonly logger = new Logger(AssignDiscoveredNodeToRackUseCase.name);
 
   constructor(
     @Inject(DISCOVERED_NODE_REPOSITORY)
@@ -58,28 +56,31 @@ export class AssignDiscoveredNodeToRackUseCase {
       `assignDiscoveredNodeToRack(agentId=${agentId}) discovered node loaded: hostname=${discoveredNode.hostname}, deviceType=${discoveredNode.deviceType}, source=${discoveredNode.source}`,
     );
 
-    const normalizedNode = await this.normalizeNodeUseCase.execute({
-      nodeCode: discoveredNode.agentId,
-      displayName: discoveredNode.hostname || discoveredNode.agentId,
-      hostname: discoveredNode.hostname,
-      nodeType: discoveredNode.deviceType,
-      source: discoveredNode.source ?? 'unknown',
-      serialNumber: discoveredNode.hardware.hardwareSerial,
-      vendor: discoveredNode.hardware.vendor,
-      model: discoveredNode.hardware.model,
-      managementIp: discoveredNode.hardware.primaryIpv4,
-      notes: `Node discovered through ${discoveredNode.source ?? 'unknown'} registration.`,
-      metadata: {
-        discoveredNode: {
-          agentId: discoveredNode.agentId,
-          source: discoveredNode.source,
-          hardware: discoveredNode.hardware,
-          registeredAt: discoveredNode.createdAt,
+    const normalizedNode = await this.normalizeNodeUseCase.execute(
+      {
+        nodeCode: discoveredNode.agentId,
+        displayName: discoveredNode.hostname || discoveredNode.agentId,
+        hostname: discoveredNode.hostname,
+        nodeType: discoveredNode.deviceType,
+        source: discoveredNode.source ?? 'unknown',
+        serialNumber: discoveredNode.hardware.hardwareSerial,
+        vendor: discoveredNode.hardware.vendor,
+        model: discoveredNode.hardware.model,
+        managementIp: discoveredNode.hardware.primaryIpv4,
+        notes: `Node discovered through ${discoveredNode.source ?? 'unknown'} registration.`,
+        metadata: {
+          discoveredNode: {
+            agentId: discoveredNode.agentId,
+            source: discoveredNode.source,
+            hardware: discoveredNode.hardware,
+            registeredAt: discoveredNode.createdAt,
+          },
         },
       },
-    }, {
-      publishNodeMapping: false,
-    });
+      {
+        publishNodeMapping: false,
+      },
+    );
     if (!normalizedNode) {
       throw new NotFoundUseCaseError(
         `Discovered node ${agentId} could not be normalized.`,

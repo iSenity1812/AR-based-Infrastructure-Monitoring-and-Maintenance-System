@@ -28,6 +28,50 @@ export class GetRackTopologyUseCase {
 }
 
 @Injectable()
+export class GetRackSummaryUseCase {
+  constructor(
+    private readonly assetContextReadService: AssetContextReadService,
+  ) {}
+
+  execute(rackId: string) {
+    return this.assetContextReadService.getRackSummary(rackId);
+  }
+}
+
+@Injectable()
+export class GetRackSummaryByCodeUseCase {
+  constructor(
+    private readonly assetContextReadService: AssetContextReadService,
+  ) {}
+
+  execute(rackCode: string) {
+    return this.assetContextReadService.getRackSummaryByCode(rackCode);
+  }
+}
+
+@Injectable()
+export class ListRackSummariesUseCase {
+  constructor(
+    private readonly assetContextReadService: AssetContextReadService,
+  ) {}
+
+  execute() {
+    return this.assetContextReadService.listRackSummaries();
+  }
+}
+
+@Injectable()
+export class BatchGetRackSummariesUseCase {
+  constructor(
+    private readonly assetContextReadService: AssetContextReadService,
+  ) {}
+
+  execute(rackIds: string[]) {
+    return this.assetContextReadService.batchGetRackSummaries(rackIds);
+  }
+}
+
+@Injectable()
 export class GetNodeContextUseCase {
   constructor(
     private readonly assetContextReadService: AssetContextReadService,

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -30,6 +30,8 @@ function mapRack(
 
 @Injectable()
 export class MongooseRackRepository implements RackRepositoryPort {
+  private readonly logger = new Logger(MongooseRackRepository.name);
+
   constructor(
     @InjectModel(RackDocumentModel.name)
     private readonly rackModel: Model<RackDocumentModel>,
@@ -60,7 +62,9 @@ export class MongooseRackRepository implements RackRepositoryPort {
   }
 
   async listAll(): Promise<RackEntity[]> {
+    this.logger.log('listAll() querying racks collection');
     const documents = await this.rackModel.find().sort({ rackCode: 1 });
+    this.logger.log(`listAll() found ${documents.length} rack document(s)`);
     return documents.map((document) =>
       mapRack(document as RackDocumentModel & { _id: { toString(): string } }),
     );

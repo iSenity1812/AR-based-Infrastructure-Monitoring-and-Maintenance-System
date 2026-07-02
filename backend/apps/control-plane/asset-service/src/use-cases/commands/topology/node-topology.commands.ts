@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { isValidObjectId } from 'mongoose';
 
 import { AssetType } from '@domain/constants/asset-type.enum';
@@ -7,8 +7,15 @@ import {
   NodeLifecycleState,
   RackLifecycleState,
 } from '@domain/entities/asset-context.entities';
-import { NODE_REPOSITORY, RACK_REPOSITORY } from '@domain/ports/port.tokens';
+import {
+  DISCOVERED_NODE_REPOSITORY,
+  NODE_MAPPING_EVENT_PUBLISHER,
+  NODE_REPOSITORY,
+  RACK_REPOSITORY,
+} from '@domain/ports/port.tokens';
+import type { NodeMappingEventPublisherPort } from '@domain/ports/node-mapping-event.publisher.port';
 import type {
+  DiscoveredNodeRepositoryPort,
   NodeRepositoryPort,
   RackRepositoryPort,
 } from '@domain/ports/repositories.port';
@@ -37,28 +44,57 @@ function isMongoDuplicateKeyError(error: unknown) {
   );
 }
 
+async function publishNodeMappingBestEffort(
+  publisher: NodeMappingEventPublisherPort | undefined,
+  nodeCode: string,
+  rackId: string | null,
+  context: string,
+) {
+  if (!publisher) {
+    return;
+  }
+
+  try {
+    await publisher.publishNodeMapping(nodeCode, rackId);
+  } catch (error) {
+    const reason =
+      error instanceof Error ? error.message : 'Unknown publish failure';
+    Logger.warn(
+      `${context} mapping publish failed for node ${nodeCode}: ${reason}`,
+      'AssetTopology',
+    );
+  }
+}
+
 @Injectable()
 export class NormalizeNodeUseCase {
   constructor(
     @Inject(NODE_REPOSITORY)
     private readonly nodeRepository: NodeRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(NODE_MAPPING_EVENT_PUBLISHER)
+    @Optional()
+    private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
-  async execute(input: {
-    nodeCode: string;
-    displayName: string;
-    hostname?: string;
-    nodeType?: string;
-    source: string;
-    serialNumber?: string;
-    vendor?: string;
-    model?: string;
-    managementIp?: string;
-    positionCode?: string;
-    notes?: string;
-    metadata?: Record<string, unknown>;
-  }) {
+  async execute(
+    input: {
+      nodeCode: string;
+      displayName: string;
+      hostname?: string;
+      nodeType?: string;
+      source: string;
+      serialNumber?: string;
+      vendor?: string;
+      model?: string;
+      managementIp?: string;
+      positionCode?: string;
+      notes?: string;
+      metadata?: Record<string, unknown>;
+    },
+    options?: { publishNodeMapping?: boolean },
+  ) {
+    const shouldPublishNodeMapping = options?.publishNodeMapping ?? true;
     const existing = await this.nodeRepository.findByCode(input.nodeCode);
     if (existing) {
       try {
@@ -93,12 +129,21 @@ export class NormalizeNodeUseCase {
     }
 
     await this.assetContextReadService.ensureCodeAvailable(input.nodeCode);
-    return this.nodeRepository.create({
+    const created = await this.nodeRepository.create({
       ...input,
       lifecycleState: NodeLifecycleState.READY,
       assignmentState: NodeAssignmentState.UNASSIGNED,
       metadata: input.metadata ?? {},
     });
+    if (shouldPublishNodeMapping) {
+      await publishNodeMappingBestEffort(
+        this.nodeMappingEventPublisher,
+        created.nodeCode,
+        created.rackId ?? null,
+        'normalize node',
+      );
+    }
+    return created;
   }
 }
 
@@ -191,8 +236,8 @@ export class UpdateNodeUseCase {
 
   private async ensurePositionAvailability(
     nodeId: string,
-    rackId: string | undefined,
-    positionCode: string | undefined,
+    rackId: string | null | undefined,
+    positionCode: string | null | undefined,
   ) {
     if (!rackId || !positionCode) {
       return;
@@ -265,6 +310,9 @@ export class AssignNodeToRackUseCase {
     @Inject(RACK_REPOSITORY)
     private readonly rackRepository: RackRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(NODE_MAPPING_EVENT_PUBLISHER)
+    @Optional()
+    private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
   async execute(
@@ -334,6 +382,12 @@ export class AssignNodeToRackUseCase {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
     await this.assetContextReadService.invalidateRackTopology(rackId);
+    await publishNodeMappingBestEffort(
+      this.nodeMappingEventPublisher,
+      node.nodeCode,
+      updated?.rackId ?? rackId,
+      'assign node',
+    );
     return updated;
   }
 
@@ -502,7 +556,12 @@ export class RetireNodeUseCase {
   constructor(
     @Inject(NODE_REPOSITORY)
     private readonly nodeRepository: NodeRepositoryPort,
+    @Inject(DISCOVERED_NODE_REPOSITORY)
+    private readonly discoveredNodeRepository: DiscoveredNodeRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(NODE_MAPPING_EVENT_PUBLISHER)
+    @Optional()
+    private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
   async execute(nodeId: string) {
@@ -510,13 +569,35 @@ export class RetireNodeUseCase {
     const resolvedNodeId = node.id;
     const updated = await this.nodeRepository.update(resolvedNodeId, {
       lifecycleState: NodeLifecycleState.RETIRED,
-      rackId: undefined,
+      rackId: null,
+      positionCode: null,
       assignmentState: NodeAssignmentState.UNASSIGNED,
     });
+
+    const discoveredNode = await this.discoveredNodeRepository.findByAgentId(
+      node.nodeCode,
+    );
+    if (discoveredNode) {
+      await this.discoveredNodeRepository.save({
+        ...discoveredNode,
+        lifecycleState: NodeLifecycleState.RETIRED,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        logicalRackId: null,
+        siteCode: undefined,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
+    await publishNodeMappingBestEffort(
+      this.nodeMappingEventPublisher,
+      node.nodeCode,
+      null,
+      'retire node',
+    );
     return updated;
   }
 

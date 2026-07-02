@@ -5,15 +5,13 @@ import { RoleRepositoryPort } from '../../domain/ports/role-repository.port';
 import { UserRepositoryPort } from '../../domain/ports/user-repository.port';
 
 export interface SeedIdentityCommand {
-  adminUsername: string;
-  adminEmail: string;
-  adminPassword: string;
-  operatorUsername: string;
-  operatorEmail: string;
-  operatorPassword: string;
-  technicianUsername: string;
-  technicianEmail: string;
-  technicianPassword: string;
+  users: Array<{
+    username: string;
+    email: string;
+    password: string;
+    roleCodes: RoleCode[];
+    fullName: string;
+  }>;
 }
 
 type SeedUserInput = {
@@ -34,66 +32,7 @@ export class SeedIdentityUseCase {
   async execute(command: SeedIdentityCommand): Promise<void> {
     await this.roleRepository.upsertSystemRoles(buildSystemRoles());
 
-    const users: SeedUserInput[] = [
-      {
-        username: command.adminUsername,
-        email: command.adminEmail,
-        password: command.adminPassword,
-        roleCodes: [RoleCode.IT_ADMINISTRATOR],
-        fullName: 'System Administrator',
-      },
-      {
-        username: command.operatorUsername,
-        email: command.operatorEmail,
-        password: command.operatorPassword,
-        roleCodes: [RoleCode.SYSTEM_MONITORING_OPERATOR],
-        fullName: 'Monitoring Operator',
-      },
-      {
-        username: 'operator02',
-        email: 'operator02@example.com',
-        password: 'Operator@123456',
-        roleCodes: [RoleCode.SYSTEM_MONITORING_OPERATOR],
-        fullName: 'Monitoring Operator 02',
-      },
-      {
-        username: 'operator03',
-        email: 'operator03@example.com',
-        password: 'Operator@123456',
-        roleCodes: [RoleCode.SYSTEM_MONITORING_OPERATOR],
-        fullName: 'Monitoring Operator 03',
-      },
-      {
-        username: command.technicianUsername,
-        email: command.technicianEmail,
-        password: command.technicianPassword,
-        roleCodes: [RoleCode.MAINTENANCE_TECHNICIAN],
-        fullName: 'Maintenance Technician',
-      },
-      {
-        username: 'technician02',
-        email: 'technician02@example.com',
-        password: 'Technician@123456',
-        roleCodes: [RoleCode.MAINTENANCE_TECHNICIAN],
-        fullName: 'Maintenance Technician 02',
-      },
-      {
-        username: 'technician03',
-        email: 'technician03@example.com',
-        password: 'Technician@123456',
-        roleCodes: [RoleCode.MAINTENANCE_TECHNICIAN],
-        fullName: 'Maintenance Technician 03',
-      },
-      {
-        username: 'technician04',
-        email: 'technician04@example.com',
-        password: 'Technician@123456',
-        roleCodes: [RoleCode.MAINTENANCE_TECHNICIAN],
-        fullName: 'Maintenance Technician 04',
-      },
-    ];
-
-    for (const user of users) {
+    for (const user of command.users) {
       await this.seedUser(user);
     }
   }

@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 
 import { CacheManagerAssetQueryCacheAdapter } from '@adapters/cache/cache-manager-asset-query-cache.adapter';
+import { KafkaNodeMappingPublisher } from '@adapters/messaging/kafka-node-mapping.publisher';
 import { RedisDiscoveredNodeRepository } from '@adapters/integration/redis/redis-discovered-node.repository';
 import {
   MarkerDocumentModel,
@@ -28,6 +29,7 @@ import {
   MARKER_REPOSITORY,
   NODE_REPOSITORY,
   NODE_RUNTIME_SNAPSHOT_REPOSITORY,
+  NODE_MAPPING_EVENT_PUBLISHER,
   RACK_REPOSITORY,
 } from '@domain/ports/port.tokens';
 import {
@@ -61,22 +63,29 @@ import {
   GetAssetByCodeUseCase,
   GetNodeContextUseCase,
   GetRackTopologyUseCase,
+  GetRackSummaryByCodeUseCase,
+  GetRackSummaryUseCase,
   GetTopologyTreeUseCase,
+  BatchGetRackSummariesUseCase,
+  ListRackSummariesUseCase,
   ResolveMarkerUseCase,
   SearchAssetsUseCase,
 } from '@use-cases/queries/topology.queries';
 import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
+import { ListUnassignedNodesUseCase } from '@use-cases/queries/unassigned-node.queries';
 import { AssetContextReadService } from '@use-cases/services/asset-context-read.service';
 import { AdminMarkersController } from '@presentation/http/controllers/admin-markers.controller';
 import { AdminTopologyController } from '@presentation/http/controllers/admin-topology.controller';
 import { AssetQueryController } from '@presentation/http/controllers/asset-query.controller';
 import { HealthController } from '@presentation/http/controllers/health.controller';
 import { InternalInventoryController } from '@presentation/http/controllers/internal-inventory.controller';
+import { RackQueryGrpcController } from '@presentation/grpc/controllers/rack-query.grpc.controller';
 import { ProblemDetailsExceptionFilter } from '@presentation/http/filters/problem-details-exception.filter';
 import { JwtAuthGuard } from '@presentation/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@presentation/http/guards/permissions.guard';
 import { JwtStrategy } from '@presentation/http/strategies/jwt.strategy';
 import { AssetServiceConfig } from '@infrastructure/config/asset-service-config';
+import { LoggingInterceptor } from '@presentation/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -98,9 +107,11 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     InternalInventoryController,
     AssetQueryController,
     HealthController,
+    RackQueryGrpcController,
   ],
   providers: [
     AssetServiceConfig,
+    LoggingInterceptor,
     JwtStrategy,
     JwtAuthGuard,
     PermissionsGuard,
@@ -114,6 +125,7 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     MongooseMarkerRepository,
     MongooseNodeRuntimeSnapshotRepository,
     CacheManagerAssetQueryCacheAdapter,
+    KafkaNodeMappingPublisher,
     RedisDiscoveredNodeRepository,
     {
       provide: RACK_REPOSITORY,
@@ -138,6 +150,10 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     {
       provide: ASSET_QUERY_CACHE,
       useExisting: CacheManagerAssetQueryCacheAdapter,
+    },
+    {
+      provide: NODE_MAPPING_EVENT_PUBLISHER,
+      useExisting: KafkaNodeMappingPublisher,
     },
     CreateRackUseCase,
     UpdateRackUseCase,
@@ -164,8 +180,13 @@ import { AssetServiceConfig } from '@infrastructure/config/asset-service-config'
     SeedAssetContextUseCase,
     GetTopologyTreeUseCase,
     GetRackTopologyUseCase,
+    GetRackSummaryUseCase,
+    GetRackSummaryByCodeUseCase,
+    ListRackSummariesUseCase,
+    BatchGetRackSummariesUseCase,
     GetNodeContextUseCase,
     ListDiscoveredNodesUseCase,
+    ListUnassignedNodesUseCase,
     GetAssetByCodeUseCase,
     ResolveMarkerUseCase,
     SearchAssetsUseCase,

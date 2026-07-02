@@ -1,5 +1,5 @@
-import { RoleCode } from '../../domain/constants/role-code.enum';
-import { UserStatus } from '../../domain/constants/user-status.enum';
+import { RoleCode } from "../../domain/constants/role-code.enum";
+import { UserStatus } from "../../domain/constants/user-status.enum";
 
 export interface AdminUserDto {
   id: string;

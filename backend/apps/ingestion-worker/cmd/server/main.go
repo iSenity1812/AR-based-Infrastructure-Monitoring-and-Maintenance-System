@@ -86,7 +86,7 @@ func main() {
 	var broker port.TelemetryBrokerPort = telemetryAdapter
 
 	regUseCase := usecase.NewRegistrationUseCase(cfg.Auth.BootstrapToken, pkiAdapter, redisAdapter)
-	telemetryUseCase := usecase.NewTelemetryUseCase(telemetryAdapter)
+	telemetryUseCase := usecase.NewTelemetryUseCase(redisAdapter, telemetryAdapter)
 
 	grpcHandler := delivery.NewRegistrationHandler(regUseCase)
 	telemetryHandler := delivery.NewTelemetryIngestHandler(telemetryUseCase)

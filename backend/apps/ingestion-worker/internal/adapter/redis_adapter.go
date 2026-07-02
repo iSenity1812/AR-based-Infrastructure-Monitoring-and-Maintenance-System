@@ -63,6 +63,29 @@ func (a *RedisAdapter) SaveNode(ctx context.Context, node *domain.Node) error {
 	return nil
 }
 
+// FindNodeByAgentID loads the node state from Redis so ingestion can gate telemetry
+// before publishing anything downstream.
+func (a *RedisAdapter) FindNodeByAgentID(ctx context.Context, agentID string) (*domain.Node, error) {
+	if agentID == "" {
+		return nil, nil
+	}
+
+	raw, err := a.client.Get(ctx, agentNodeKey(agentID)).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to load node from Redis: %w", err)
+	}
+
+	var node domain.Node
+	if err := json.Unmarshal([]byte(raw), &node); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal node from Redis: %w", err)
+	}
+
+	return &node, nil
+}
+
 func agentNodeKey(agentID string) string {
 	return fmt.Sprintf("node:agent:%s", agentID)
 }

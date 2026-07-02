@@ -37,6 +37,11 @@ async function bootstrap(): Promise<void> {
   let globalPrefix = process.env.API_PREFIX || "api/v1";
   app.setGlobalPrefix(globalPrefix);
 
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    credentials: true,
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -53,6 +58,7 @@ async function bootstrap(): Promise<void> {
       .setDescription("Authentication, user access, role, and session APIs.")
       .setVersion("1.0.0")
       .addBearerAuth()
+      .addServer("/identity/")
       .build();
     const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
 

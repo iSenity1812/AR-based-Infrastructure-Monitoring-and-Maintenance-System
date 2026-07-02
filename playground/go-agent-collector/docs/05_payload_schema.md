@@ -174,11 +174,12 @@ Thoi diem metric duoc gan sau khi normalize.
 
 Nen dung:
 
-- ISO 8601 UTC
+- ISO 8601 voi offset gio dia phuong cua collector
+- voi deployment hien tai: `Asia/Ho_Chi_Minh` (`+07:00`)
 
 Vi du:
 
-- `2026-05-28T12:30:00Z`
+- `2026-05-28T19:30:00+07:00`
 
 ### 7.7. `source`
 
@@ -311,13 +312,13 @@ Vi du:
     "sourceType": "windows_exporter",
     "agentVersion": "0.1.0",
     "hostname": "MSI",
-    "startedAt": "2026-05-28T12:00:00Z"
+    "startedAt": "2026-05-28T19:00:00+07:00"
   },
   "batch": {
     "batchId": "01JY3V8XJ52B4QZ1Q0JYV4NXX9",
     "sequence": 18,
-    "collectedAt": "2026-05-28T12:30:00Z",
-    "sentAt": "2026-05-28T12:30:01Z",
+    "collectedAt": "2026-05-28T19:30:00+07:00",
+    "sentAt": "2026-05-28T19:30:01+07:00",
     "recordCount": 4,
     "droppedCount": 0
   },
@@ -344,7 +345,7 @@ Vi du:
       "scopeId": "node-host-01",
       "value": 37.4,
       "unit": "%",
-      "timestamp": "2026-05-28T12:30:00Z",
+      "timestamp": "2026-05-28T19:30:00+07:00",
       "source": "windows_exporter",
       "sourceMetric": "windows_cpu_time_total",
       "tags": {
@@ -357,7 +358,7 @@ Vi du:
       "scopeId": "container-redpanda-1",
       "value": 71.2,
       "unit": "%",
-      "timestamp": "2026-05-28T12:30:00Z",
+      "timestamp": "2026-05-28T19:30:00+07:00",
       "source": "docker",
       "sourceMetric": "docker.stats.cpu",
       "tags": {
@@ -374,7 +375,7 @@ Vi du:
       "scopeId": "node-host-01",
       "value": "Windows 11 Pro",
       "unit": "text",
-      "timestamp": "2026-05-28T12:30:00Z",
+      "timestamp": "2026-05-28T19:30:00+07:00",
       "source": "windows_exporter",
       "sourceMetric": "windows_os_info",
       "tags": {

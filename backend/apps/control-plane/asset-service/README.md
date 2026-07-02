@@ -25,6 +25,11 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+This service exposes:
+
+- HTTP APIs for topology and admin workflows
+- gRPC rack-query APIs for internal consumers such as monitoring service
+
 ## Project setup
 
 ```bash
@@ -43,6 +48,13 @@ $ pnpm run start:dev
 # production mode
 $ pnpm run start:prod
 ```
+
+The gRPC listener is configured separately from HTTP.
+
+Environment variables:
+
+- `ASSET_GRPC_HOST` defaults to `0.0.0.0`
+- `ASSET_GRPC_PORT` defaults to `50052`
 
 ## Run tests
 

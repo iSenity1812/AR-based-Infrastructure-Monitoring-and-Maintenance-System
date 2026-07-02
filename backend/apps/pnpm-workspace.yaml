@@ -1,0 +1,16 @@
+packages:
+  - "control-plane/*"
+  - "data-plane/*"
+  - "ingestion-worker"
+  - "shared"
+
+allowBuilds:
+  '@nestjs/core': true
+  '@scarf/scarf': true
+  bcrypt: true
+  protobufjs: true
+  unrs-resolver: true
+
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "bcrypt"

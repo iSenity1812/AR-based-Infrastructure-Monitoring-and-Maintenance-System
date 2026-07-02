@@ -1,6 +1,17 @@
-import { NodeAssignmentState, NodeLifecycleState } from '@domain/entities/asset-context.entities';
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-unsafe-assignment */
+import {
+  NodeAssignmentState,
+  NodeLifecycleState,
+} from '@domain/entities/asset-context.entities';
+import type {
+  DiscoveredNodeRepositoryPort,
+  RackRepositoryPort,
+} from '@domain/ports/repositories.port';
 
+import { ActivateNodeUseCase } from './node-topology.commands';
 import { AssignDiscoveredNodeToRackUseCase } from './discovered-node.commands';
+import { AssignNodeToRackUseCase, NormalizeNodeUseCase } from './topology';
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 describe('AssignDiscoveredNodeToRackUseCase', () => {
   it('propagates discovery source and vendor metadata into node normalization', async () => {
@@ -25,26 +36,40 @@ describe('AssignDiscoveredNodeToRackUseCase', () => {
     const discoveredNodeRepository = {
       findByAgentId: jest.fn().mockResolvedValue(discoveredNode),
       save: jest.fn().mockResolvedValue(discoveredNode),
+      listAll: jest.fn().mockResolvedValue([]),
     };
     const rackRepository = {
       findById: jest.fn().mockResolvedValue({ siteCode: 'site-a' }),
+      create: jest.fn(),
+      update: jest.fn(),
+      findByCode: jest.fn(),
+      listAll: jest.fn(),
     };
     const normalizeNodeUseCase = {
-      execute: jest.fn().mockResolvedValue(normalizedNode),
+      execute: jest
+        .fn()
+        .mockResolvedValue(normalizedNode) as NormalizeNodeUseCase['execute'],
     };
     const assignNodeToRackUseCase = {
-      execute: jest.fn().mockResolvedValue(normalizedNode),
+      execute: jest
+        .fn()
+        .mockResolvedValue(
+          normalizedNode,
+        ) as AssignNodeToRackUseCase['execute'],
     };
     const activateNodeUseCase = {
-      execute: jest.fn().mockResolvedValue({ ...normalizedNode, lifecycleState: NodeLifecycleState.ACTIVE }),
+      execute: jest.fn().mockResolvedValue({
+        ...normalizedNode,
+        lifecycleState: NodeLifecycleState.ACTIVE,
+      }) as ActivateNodeUseCase['execute'],
     };
 
     const useCase = new AssignDiscoveredNodeToRackUseCase(
-      discoveredNodeRepository as any,
-      rackRepository as any,
-      normalizeNodeUseCase as any,
-      assignNodeToRackUseCase as any,
-      activateNodeUseCase as any,
+      discoveredNodeRepository,
+      rackRepository,
+      normalizeNodeUseCase,
+      assignNodeToRackUseCase,
+      activateNodeUseCase,
     );
 
     await useCase.execute('agent-123', 'rack-a', 'U22');
@@ -60,6 +85,9 @@ describe('AssignDiscoveredNodeToRackUseCase', () => {
           }),
         }),
       }),
+      {
+        publishNodeMapping: false,
+      },
     );
     expect(discoveredNodeRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({

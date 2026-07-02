@@ -11,3 +11,4 @@ export const LIST_ROLES_USE_CASE = Symbol('LIST_ROLES_USE_CASE');
 export const SEED_IDENTITY_USE_CASE = Symbol('SEED_IDENTITY_USE_CASE');
 export const LIST_USERS_USE_CASE = Symbol('LIST_USERS_USE_CASE');
 export const GET_BY_USERNAME_USE_CASE = Symbol('GET_BY_USERNAME_USE_CASE');
+export const GET_BY_ID_USE_CASE = Symbol('GET_BY_ID_USE_CASE');

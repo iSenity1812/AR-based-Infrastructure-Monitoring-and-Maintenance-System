@@ -19,11 +19,17 @@ func (m *mockPKI) GenerateCredentials(_ context.Context, agentID string) (*domai
 
 type mockNodeRepo struct {
 	saved *domain.Node
+	node  *domain.Node
 }
 
 func (m *mockNodeRepo) SaveNode(_ context.Context, node *domain.Node) error {
 	m.saved = node
 	return nil
+}
+
+func (m *mockNodeRepo) FindNodeByAgentID(_ context.Context, agentID string) (*domain.Node, error) {
+	_ = agentID
+	return m.node, nil
 }
 
 var _ port.PKIPort = (*mockPKI)(nil)

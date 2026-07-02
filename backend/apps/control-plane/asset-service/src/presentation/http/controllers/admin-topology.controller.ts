@@ -2,9 +2,11 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -27,10 +29,12 @@ import {
   UpdateRackUseCase,
 } from '@use-cases/commands/topology';
 import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
+import { ListUnassignedNodesUseCase } from '@use-cases/queries/unassigned-node.queries';
 import {
   AssignNodeToRackRequestDto,
   CreateRackRequestDto,
   NormalizeNodeRequestDto,
+  UnassignedNodesRequestDto,
   UpdateNodeRequestDto,
   UpdateRackRequestDto,
 } from '@presentation/http/dto';
@@ -54,6 +58,8 @@ function responseMeta(request: HeaderRequest) {
 @Controller('admin/topology')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminTopologyController {
+  private readonly logger = new Logger(AdminTopologyController.name);
+
   constructor(
     private readonly createRackUseCase: CreateRackUseCase,
     private readonly updateRackUseCase: UpdateRackUseCase,
@@ -69,6 +75,7 @@ export class AdminTopologyController {
     private readonly drainNodeUseCase: DrainNodeUseCase,
     private readonly retireNodeUseCase: RetireNodeUseCase,
     private readonly listDiscoveredNodesUseCase: ListDiscoveredNodesUseCase,
+    private readonly listUnassignedNodesUseCase: ListUnassignedNodesUseCase,
   ) {}
 
   @Post('racks')
@@ -167,6 +174,18 @@ export class AdminTopologyController {
     );
   }
 
+  @Get('nodes/unassigned')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary: 'List canonical nodes that have not been assigned to a rack.',
+  })
+  async listUnassignedNodes(
+    @Query() query: UnassignedNodesRequestDto,
+    @Req() request: HeaderRequest,
+  ) {
+    return this.serializeUnassignedNodes(query, request);
+  }
+
   @Get('discovered-nodes')
   @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
   @ApiOperation({
@@ -223,6 +242,9 @@ export class AdminTopologyController {
     @Body() body: AssignNodeToRackRequestDto,
     @Req() request: HeaderRequest,
   ) {
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}, rackId=${body.rackId}, positionCode=${body.positionCode}, allowDraining=${body.allowDraining})`,
+    );
     return serializeEnvelope(
       await this.assignDiscoveredNodeToRackUseCase.execute(
         agentId,
@@ -230,6 +252,16 @@ export class AdminTopologyController {
         body.positionCode,
         body.allowDraining,
       ),
+      responseMeta(request),
+    );
+  }
+
+  private async serializeUnassignedNodes(
+    query: UnassignedNodesRequestDto,
+    request: HeaderRequest,
+  ) {
+    return serializeEnvelope(
+      await this.listUnassignedNodesUseCase.execute(query),
       responseMeta(request),
     );
   }

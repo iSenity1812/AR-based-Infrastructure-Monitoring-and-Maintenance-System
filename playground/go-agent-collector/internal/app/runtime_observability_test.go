@@ -12,6 +12,7 @@ import (
 )
 
 func TestHandleHealthReturnsServiceUnavailableBeforeSuccessfulScrape(t *testing.T) {
+	startedAt := time.Date(2026, 5, 28, 4, 0, 0, 0, time.UTC)
 	r := &runner{
 		cfg: &config.Config{
 			Runtime: config.RuntimeConfig{
@@ -22,7 +23,7 @@ func TestHandleHealthReturnsServiceUnavailableBeforeSuccessfulScrape(t *testing.
 			queue: newRecordQueue(10, "drop_oldest"),
 		},
 		retry: &retryState{},
-		stats: newRuntimeStats(time.Now().UTC()),
+		stats: newRuntimeStats(startedAt),
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -41,10 +42,14 @@ func TestHandleHealthReturnsServiceUnavailableBeforeSuccessfulScrape(t *testing.
 	if snapshot.Status != "unhealthy" {
 		t.Fatalf("expected unhealthy status, got %q", snapshot.Status)
 	}
+	if snapshot.StartedAt != startedAt.In(vietnamLocation).Format(time.RFC3339) {
+		t.Fatalf("expected startedAt to be formatted in Vietnam time, got %s", snapshot.StartedAt)
+	}
 }
 
 func TestHandleStatsReturnsRuntimeSnapshot(t *testing.T) {
 	now := time.Now().UTC()
+	startedAt := now.Add(-30 * time.Second)
 	r := &runner{
 		cfg: &config.Config{
 			Runtime: config.RuntimeConfig{
@@ -58,7 +63,7 @@ func TestHandleStatsReturnsRuntimeSnapshot(t *testing.T) {
 			consecutiveFailures: 2,
 			nextAttemptAt:       now.Add(10 * time.Second),
 		},
-		stats: newRuntimeStats(now.Add(-30 * time.Second)),
+		stats: newRuntimeStats(startedAt),
 		nowFn: func() time.Time { return now },
 	}
 
@@ -90,5 +95,8 @@ func TestHandleStatsReturnsRuntimeSnapshot(t *testing.T) {
 	}
 	if snapshot.Sources["windows_exporter"].ScrapeSuccessCount != 1 {
 		t.Fatalf("expected windows_exporter source stats to be tracked, got %#v", snapshot.Sources)
+	}
+	if snapshot.StartedAt != startedAt.In(vietnamLocation).Format(time.RFC3339) {
+		t.Fatalf("expected startedAt to be formatted in Vietnam time, got %s", snapshot.StartedAt)
 	}
 }

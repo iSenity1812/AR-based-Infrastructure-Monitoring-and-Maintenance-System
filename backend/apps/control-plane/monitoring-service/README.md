@@ -25,6 +25,46 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
+## Monitoring Service Runtime
+
+- API prefix: `api/v1`
+- Swagger UI: `GET /api/v1/docs` when `SWAGGER_ENABLED=true`
+- Health checks:
+  - `GET /api/v1/health/live`
+  - `GET /api/v1/health`
+  - `GET /api/v1/health/ready`
+
+Responses use the shared envelope shape:
+
+- success: `{ "data": ..., "meta": ... }`
+- error: `{ "error": ..., "meta": ... }`
+- `error.details.reason` is the concise summary
+- `error.details.detail` carries the longer diagnostic message, and may include a stack trace for unexpected server errors
+
+## Environment
+
+Key environment variables:
+
+- `PORT`
+- `API_PREFIX`
+- `CORS_ORIGIN`
+- `NODE_ENV`
+- `SWAGGER_ENABLED`
+- `JWT_ACCESS_SECRET`
+- `ACCESS_TOKEN_SECRET`
+- `MONITORING_MONGODB_URI`
+- `MONGO_SERVER_SELECTION_TIMEOUT_MS`
+- `MONGO_RETRY_ATTEMPTS`
+- `MONGO_RETRY_DELAY_MS`
+- `MONGO_LAZY_CONNECTION`
+- `REDIS_URL`
+- `CLICKHOUSE_URL`
+- `CLICKHOUSE_USER`
+- `CLICKHOUSE_PASSWORD`
+- `CLICKHOUSE_DATABASE`
+- `CLICKHOUSE_APPLICATION`
+- `CLICKHOUSE_REQUEST_TIMEOUT_MS`
+
 ## Project setup
 
 ```bash

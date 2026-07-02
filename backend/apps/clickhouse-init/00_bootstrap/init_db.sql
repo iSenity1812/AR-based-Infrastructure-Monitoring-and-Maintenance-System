@@ -49,3 +49,5 @@ CREATE DICTIONARY dict_node_topology (
         TABLE 'node_topology_current'
     )
 ) LIFETIME (MIN 10 MAX 30) LAYOUT (HASHED ());
+
+SELECT * FROM telemetry_db.node_topology_current;

@@ -14,6 +14,14 @@ export interface SeedIdentityCommand {
   }>;
 }
 
+type SeedUserInput = {
+  username: string;
+  email: string;
+  password: string;
+  roleCodes: RoleCode[];
+  fullName: string;
+};
+
 export class SeedIdentityUseCase {
   constructor(
     private readonly roleRepository: RoleRepositoryPort,
@@ -29,13 +37,7 @@ export class SeedIdentityUseCase {
     }
   }
 
-  private async seedUser(input: {
-    username: string;
-    email: string;
-    password: string;
-    roleCodes: RoleCode[];
-    fullName: string;
-  }): Promise<void> {
+  private async seedUser(input: SeedUserInput): Promise<void> {
     const exists = await this.userRepository.existsByUsernameOrEmail(
       input.username,
       input.email.toLowerCase(),

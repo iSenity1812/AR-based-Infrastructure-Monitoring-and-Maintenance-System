@@ -325,11 +325,11 @@ export class AssignNodeToRackUseCase {
     const resolvedNodeId = node.id;
     const rack = await this.getRequiredRack(rackId);
 
-    if (node.lifecycleState === NodeLifecycleState.RETIRED) {
-      throw new BadRequestUseCaseError(
-        'Retired nodes cannot be assigned to racks.',
-      );
-    }
+    // if (node.lifecycleState === NodeLifecycleState.RETIRED) {
+    //   throw new BadRequestUseCaseError(
+    //     'Retired nodes cannot be assigned to racks.',
+    //   );
+    // }
 
     if (rack.lifecycleState === RackLifecycleState.RETIRED) {
       throw new BadRequestUseCaseError('Cannot assign nodes to retired racks.');
@@ -343,9 +343,9 @@ export class AssignNodeToRackUseCase {
 
     this.ensurePositionWithinRackCapacity(rack.capacityLimit, positionCode);
 
-    if (node.rackId === rackId) {
+    if (node.rackId === rackId && node.positionCode === positionCode) {
       throw new BadRequestUseCaseError(
-        `Node ${nodeId} is already assigned to rack ${rackId}.`,
+        `Node ${nodeId} is already assigned to rack ${rackId} at position ${positionCode}.`,
         ErrorCode.ASSET_NODE_ALREADY_ASSIGNED,
       );
     }

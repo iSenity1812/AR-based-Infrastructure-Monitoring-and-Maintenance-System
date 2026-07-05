@@ -16,9 +16,11 @@ export async function bootstrap() {
 
   const apiPrefix = config.apiPrefix;
   const publicApiBasePath = config.publicApiBasePath;
+  // Resolve from the compiled file location so it works in both ts-node and Docker runtime.
   const grpcProtoPath = join(
-    process.cwd(),
-    'src',
+    __dirname,
+    '..',
+    '..',
     'infrastructure',
     'grpc',
     'proto',

@@ -43,6 +43,9 @@ COPY shared \
 
 RUN pnpm --filter @ar-imms/asset-service build
 
+COPY control-plane/asset-service/src/infrastructure/grpc/proto \
+  ./control-plane/asset-service/dist/control-plane/asset-service/src/infrastructure/grpc/proto
+
 
 
 # =========================

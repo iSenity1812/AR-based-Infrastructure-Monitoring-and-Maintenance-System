@@ -45,6 +45,9 @@ services:
       PUBLIC_API_BASE_PATH: /asset
     expose:
       - "4002"
+      - "50052"
+    ports:
+      - "50052:50052"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     labels:
@@ -72,6 +75,8 @@ services:
     environment:
       MONITORING_MONGODB_URI: mongodb://host.docker.internal:27017/monitoring_context_db
       REDIS_URL: redis://host.docker.internal:6379/0
+      ASSET_SERVICE_GRPC_HOST: host.docker.internal
+      ASSET_SERVICE_GRPC_PORT: 50052
     expose:
       - "4003"
     extra_hosts:

@@ -185,6 +185,94 @@ export class RackOverviewItemDto {
   lastChangeAgeSec?: number | null;
 }
 
+export class RackGridItemDto {
+  @ApiProperty({
+    description: 'Stable rack identifier from asset context.',
+    example: 'rack-a1',
+  })
+  id!: string;
+
+  @ApiProperty({
+    description: 'Rack code used by the asset service.',
+    example: 'RACK-A1',
+  })
+  rackCode!: string;
+
+  @ApiProperty({
+    description: 'Human-friendly rack display name from asset context.',
+    example: 'Rack A1',
+  })
+  displayName!: string;
+
+  @ApiProperty({
+    description: 'Rack lifecycle state from asset context.',
+    example: 'ACTIVE',
+  })
+  lifecycleState!: string;
+
+  @ApiProperty({
+    description: 'Rack capacity state from asset context.',
+    example: 'AVAILABLE',
+  })
+  capacityState!: string;
+
+  @ApiPropertyOptional({
+    description: 'Physical site code of the rack.',
+    example: 'DC01',
+  })
+  siteCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Room code of the rack.',
+    example: 'ROOM-A',
+  })
+  roomCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Zone code of the rack.',
+    example: 'ZONE-1',
+  })
+  zoneCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Row code of the rack.',
+    example: 'ROW-03',
+  })
+  rowCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Position code of the rack inside the row.',
+    example: 'POS-12',
+  })
+  positionCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Configured capacity limit of the rack.',
+    example: 42,
+  })
+  capacityLimit?: number;
+
+  @ApiPropertyOptional({
+    description: 'Operator notes attached to the rack asset.',
+    example: 'Reserved for storage cluster expansion.',
+  })
+  notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Rack vendor from asset context.',
+    example: 'Dell',
+  })
+  vendor?: string;
+
+  @ApiPropertyOptional({
+    description: 'Extensible metadata bag from asset context.',
+    type: 'object',
+    additionalProperties: true,
+    example: { color: 'blue', arAnchorId: 'anchor-17' },
+  })
+  metadata?: Record<string, unknown>;
+}
+
 export class RackOverviewGridDto {
   @ApiProperty({
     description: 'Operational sort order applied to the returned rack grid.',
@@ -202,10 +290,11 @@ export class RackOverviewGridDto {
   sortBy!: string[];
 
   @ApiProperty({
-    description: 'All rack cards visible to the current caller.',
-    type: [RackOverviewItemDto],
+    description:
+      'Asset-context rack records used to render the physical rack grid.',
+    type: [RackGridItemDto],
   })
-  items!: RackOverviewItemDto[];
+  items!: RackGridItemDto[];
 }
 
 export class RackOverviewFiltersDto {

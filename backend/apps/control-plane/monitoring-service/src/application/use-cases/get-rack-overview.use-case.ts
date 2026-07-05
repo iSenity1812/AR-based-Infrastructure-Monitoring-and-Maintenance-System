@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { RackContextProvider } from '../ports/rack-context.provider';
+import {
+  RackContextProvider,
+  RackContextRecord,
+} from '../ports/rack-context.provider';
 import {
   RackOverviewCurrentRackRecord,
   RackOverviewHistoryRecord,
@@ -32,6 +35,23 @@ export type RackOverviewItemView = {
   lastChangeAgeSec: number | null;
 };
 
+export type RackGridItemView = {
+  id: string;
+  rackCode: string;
+  displayName: string;
+  lifecycleState: string;
+  capacityState: string;
+  siteCode?: string;
+  roomCode?: string;
+  zoneCode?: string;
+  rowCode?: string;
+  positionCode?: string;
+  capacityLimit?: number;
+  notes?: string;
+  vendor?: string;
+  metadata: Record<string, unknown>;
+};
+
 export type RackOverviewResponseView = {
   generatedAt: string;
   scope: 'rack';
@@ -47,7 +67,7 @@ export type RackOverviewResponseView = {
   topRiskRacks: RackOverviewItemView[];
   rackGrid: {
     sortBy: string[];
-    items: RackOverviewItemView[];
+    items: RackGridItemView[];
   };
   filters: {
     severity: string[];
@@ -90,17 +110,25 @@ export class GetRackOverviewUseCase {
       this.rackOverviewReadRepository.listRecentRackHistory(),
     ]);
 
-    const rackContextMap = await this.rackContextProvider.batchGetRacks(
-      currentRacks.map((rack) => rack.rackId),
+    const visibleRacks = currentRacks.filter((rack) =>
+      isUsableRackId(rack.rackId),
     );
 
-    const items = currentRacks.map((rack) =>
+    const rackContextMap = await this.rackContextProvider.batchGetRacks(
+      visibleRacks.map((rack) => rack.rackId),
+    );
+
+    const topRiskRacks = visibleRacks.map((rack) =>
       this.toRackOverviewItem(
         rack,
         history,
         generatedAt,
-        rackContextMap.get(rack.rackId)?.displayName,
+        rackContextMap.get(rack.rackId),
       ),
+    );
+
+    const rackGridItems = visibleRacks.map((rack) =>
+      this.toRackGridItem(rack.rackId, rackContextMap.get(rack.rackId)),
     );
 
     return {
@@ -108,10 +136,10 @@ export class GetRackOverviewUseCase {
       scope: 'rack',
       view: 'operator_dashboard',
       summary,
-      topRiskRacks: items.slice(0, 3),
+      topRiskRacks: topRiskRacks.slice(0, 3),
       rackGrid: {
         sortBy: [...RACK_GRID_SORT_ORDER],
-        items,
+        items: rackGridItems,
       },
       filters: {
         severity: [...RACK_OVERVIEW_FILTERS.severity],
@@ -125,7 +153,7 @@ export class GetRackOverviewUseCase {
     rack: RackOverviewCurrentRackRecord,
     history: RackOverviewHistoryRecord[],
     generatedAt: Date,
-    rackNameOverride?: string,
+    rackContext?: RackContextRecord,
   ): RackOverviewItemView {
     const historyEnrichment = buildRackOverviewHistoryEnrichment(
       rack,
@@ -135,7 +163,7 @@ export class GetRackOverviewUseCase {
 
     return {
       rackId: rack.rackId,
-      rackName: rackNameOverride?.trim() || rack.rackId,
+      rackName: rackContext?.displayName?.trim() || rack.rackId,
       summaryTs: rack.summaryTs,
       rackSeverityCode: toSeverityCode(rack.rackSeverityCode),
       hasOverrideFlag: toBinaryFlag(rack.hasOverrideFlag),
@@ -157,6 +185,28 @@ export class GetRackOverviewUseCase {
       lastChangeAgeSec: historyEnrichment.lastChangeAgeSec,
     };
   }
+
+  private toRackGridItem(
+    rackId: string,
+    rackContext?: RackContextRecord,
+  ): RackGridItemView {
+    return {
+      id: rackContext?.id || rackId,
+      rackCode: rackContext?.rackCode || rackId,
+      displayName: rackContext?.displayName?.trim() || rackId,
+      lifecycleState: rackContext?.lifecycleState || 'UNKNOWN',
+      capacityState: rackContext?.capacityState || 'UNKNOWN',
+      siteCode: rackContext?.siteCode,
+      roomCode: rackContext?.roomCode,
+      zoneCode: rackContext?.zoneCode,
+      rowCode: rackContext?.rowCode,
+      positionCode: rackContext?.positionCode,
+      capacityLimit: rackContext?.capacityLimit,
+      notes: rackContext?.notes,
+      vendor: rackContext?.vendor,
+      metadata: rackContext?.metadata || {},
+    };
+  }
 }
 
 function toBinaryFlag(value: number): 0 | 1 {
@@ -173,4 +223,18 @@ function toSeverityCode(value: number): 0 | 2 | 3 {
   }
 
   return 0;
+}
+
+function isUsableRackId(rackId: string | null | undefined): rackId is string {
+  if (typeof rackId !== 'string') {
+    return false;
+  }
+
+  const normalized = rackId.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const lowered = normalized.toLowerCase();
+  return lowered !== 'null' && lowered !== 'undefined';
 }

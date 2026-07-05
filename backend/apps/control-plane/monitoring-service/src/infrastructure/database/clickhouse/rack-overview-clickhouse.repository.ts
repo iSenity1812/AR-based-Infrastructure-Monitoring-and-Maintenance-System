@@ -91,6 +91,9 @@ export class RackOverviewClickhouseRepository
           worst_metric_value_numeric AS worstMetricValueNumeric,
           worst_metric_value_text AS worstMetricValueText
         FROM telemetry_db.rack_current_summary
+        WHERE rack_id IS NOT NULL
+          AND rack_id != ''
+          AND rack_id != 'null'
         ORDER BY
           rack_severity_code DESC,
           is_rack_level_failure DESC,
@@ -104,7 +107,9 @@ export class RackOverviewClickhouseRepository
     });
 
     const rows = await result.json<RackOverviewCurrentRackRow>();
-    return rows.map(mapRackOverviewCurrentRackRow);
+    return rows
+      .map(mapRackOverviewCurrentRackRow)
+      .filter((row) => isUsableRackId(row.rackId));
   }
 
   async getCurrentRackSummary(): Promise<RackOverviewCurrentRackSummary> {
@@ -118,6 +123,9 @@ export class RackOverviewClickhouseRepository
           countIf(has_signal_loss = 1) AS signalLossRacks,
           countIf(is_rack_level_failure = 1) AS rackLevelFailureRacks
         FROM telemetry_db.rack_current_summary
+        WHERE rack_id IS NOT NULL
+          AND rack_id != ''
+          AND rack_id != 'null'
       `,
       format: 'JSONEachRow',
     });
@@ -159,6 +167,9 @@ export class RackOverviewClickhouseRepository
         FROM telemetry_db.v_rack_summary_history
         WHERE bucket_granularity IN ('1m', '5m')
           AND bucket_start >= now() - INTERVAL 24 HOUR
+          AND rack_id IS NOT NULL
+          AND rack_id != ''
+          AND rack_id != 'null'
         ORDER BY
           bucket_granularity ASC,
           bucket_start DESC,
@@ -168,7 +179,9 @@ export class RackOverviewClickhouseRepository
     });
 
     const rows = await result.json<RackOverviewHistoryRow>();
-    return rows.map(mapRackOverviewHistoryRow);
+    return rows
+      .map(mapRackOverviewHistoryRow)
+      .filter((row) => isUsableRackId(row.rackId));
   }
 }
 
@@ -231,4 +244,18 @@ function toNumber(value: number | string | null | undefined): number {
   }
 
   return 0;
+}
+
+function isUsableRackId(rackId: string | null | undefined): rackId is string {
+  if (typeof rackId !== 'string') {
+    return false;
+  }
+
+  const normalized = rackId.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const lowered = normalized.toLowerCase();
+  return lowered !== 'null' && lowered !== 'undefined';
 }

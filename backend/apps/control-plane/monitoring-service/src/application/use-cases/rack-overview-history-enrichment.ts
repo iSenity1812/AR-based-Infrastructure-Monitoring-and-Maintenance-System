@@ -39,11 +39,7 @@ function computeSeverityTrendDelta(
   granularity: '1m' | '5m',
   generatedAt: Date,
 ): number {
-  const previousRow = findPreviousHistoryRow(
-    history,
-    granularity,
-    generatedAt,
-  );
+  const previousRow = findPreviousHistoryRow(history, granularity, generatedAt);
 
   if (!previousRow) {
     return 0;
@@ -59,7 +55,9 @@ function computeLastChangeAgeSec(
 ): number | null {
   const sorted1mRows = history
     .filter((entry) => entry.bucketGranularity === '1m')
-    .sort((left, right) => toTime(right.bucketStart) - toTime(left.bucketStart));
+    .sort(
+      (left, right) => toTime(right.bucketStart) - toTime(left.bucketStart),
+    );
 
   if (sorted1mRows.length === 0) {
     return null;

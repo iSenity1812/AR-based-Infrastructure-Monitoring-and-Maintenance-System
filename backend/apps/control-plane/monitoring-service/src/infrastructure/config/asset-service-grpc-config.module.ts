@@ -6,7 +6,7 @@ import { AssetServiceGrpcConfig } from './asset-service-grpc-config';
   providers: [
     {
       provide: AssetServiceGrpcConfig,
-      useFactory: () => new AssetServiceGrpcConfig(process.env),
+      useFactory: () => new AssetServiceGrpcConfig(),
     },
   ],
   exports: [AssetServiceGrpcConfig],

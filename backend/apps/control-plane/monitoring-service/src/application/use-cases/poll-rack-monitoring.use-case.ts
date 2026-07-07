@@ -6,6 +6,7 @@ import { mapRackOverviewRecordToSummaryRuleInput } from '../mappers/rack-summary
 import { MonitoringStateRepository } from '../ports/monitoring-state.repository';
 import type { MonitoringTransition } from '../ports/monitoring-transition';
 import { RackOverviewReadRepository } from '../ports/rack-overview-read.repository';
+import { DispatchRackAlertTransitionUseCase } from './dispatch-rack-alert-transition.use-case';
 
 export interface PollRackMonitoringInput {
   changedSinceSummaryTs?: string;
@@ -25,6 +26,7 @@ export class PollRackMonitoringUseCase {
     private readonly rackOverviewReadRepository: RackOverviewReadRepository,
     @Inject(MonitoringStateRepository)
     private readonly monitoringStateRepository: MonitoringStateRepository,
+    private readonly dispatchRackAlertTransitionUseCase: DispatchRackAlertTransitionUseCase,
   ) {}
 
   async execute(
@@ -59,7 +61,9 @@ export class PollRackMonitoringUseCase {
       );
 
       const transition = buildMonitoringTransition(evaluation, previousState);
-      if (transition.transitionKind !== 'noop') {
+      if (shouldDispatchTransition(transition)) {
+        await this.dispatchRackAlertTransitionUseCase.execute(transition);
+      } else if (shouldPersistTransition(transition)) {
         await this.monitoringStateRepository.save(transition.nextState);
       }
 
@@ -179,4 +183,15 @@ function maxTimestamp(current: string | null, candidate: string): string {
   }
 
   return candidate > current ? candidate : current;
+}
+
+function shouldDispatchTransition(transition: MonitoringTransition): boolean {
+  return (
+    transition.transitionKind === 'activate' ||
+    transition.transitionKind === 'resolve'
+  );
+}
+
+function shouldPersistTransition(transition: MonitoringTransition): boolean {
+  return transition.transitionKind === 'repeated_active';
 }

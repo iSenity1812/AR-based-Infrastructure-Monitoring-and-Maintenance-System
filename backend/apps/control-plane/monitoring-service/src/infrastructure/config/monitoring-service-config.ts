@@ -23,6 +23,12 @@ export class MonitoringServiceConfig {
 
   readonly swaggerEnabled: boolean;
 
+  readonly alertmanagerEnabled: boolean;
+
+  readonly alertmanagerBaseUrl: string;
+
+  readonly alertmanagerTimeoutMs: number;
+
   constructor(env: NodeJS.ProcessEnv) {
     this.port = Number(env.PORT ?? 4003);
     this.apiPrefix = env.API_PREFIX ?? 'api/v1';
@@ -44,5 +50,11 @@ export class MonitoringServiceConfig {
     this.mongoLazyConnection = env.MONGO_LAZY_CONNECTION !== 'false';
     this.redisUri = env.REDIS_URL ?? 'redis://127.0.0.1:6379/0';
     this.swaggerEnabled = env.SWAGGER_ENABLED === 'true';
+    this.alertmanagerEnabled = env.ALERTMANAGER_ENABLED === 'true';
+    this.alertmanagerBaseUrl =
+      env.ALERTMANAGER_BASE_URL ?? 'http://127.0.0.1:9093';
+    this.alertmanagerTimeoutMs = Number(
+      env.ALERTMANAGER_TIMEOUT_MS ?? 5000,
+    );
   }
 }

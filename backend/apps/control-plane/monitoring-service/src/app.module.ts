@@ -6,8 +6,10 @@ import { PermissionsGuard } from './adapters/inbound/http/guards/permissions.gua
 import { ApiResponseInterceptor } from './adapters/inbound/http/interceptors/api-response.interceptor';
 import { LoggingInterceptor } from './adapters/inbound/http/interceptors/logging.interceptor';
 import { JwtStrategy } from './adapters/inbound/http/strategies/jwt.strategy';
+import { DispatchRackAlertTransitionUseCase } from './application/use-cases/dispatch-rack-alert-transition.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
 import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
+import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
 import { MonitoringClickhouseModule } from './infrastructure/database/clickhouse/monitoring-clickhouse.module';
 import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/monitoring-state-mongo.module';
@@ -23,12 +25,14 @@ import { ProblemDetailsExceptionFilter } from './presentation/http/filters/probl
     MonitoringDatabaseModule,
     MonitoringStateMongoModule,
     MonitoringClickhouseModule,
+    AlertmanagerModule,
     AssetServiceGrpcModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
   controllers: [HealthController, RackOverviewController],
   providers: [
     JwtStrategy,
+    DispatchRackAlertTransitionUseCase,
     GetRackOverviewUseCase,
     PollRackMonitoringUseCase,
     {

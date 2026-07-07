@@ -5,6 +5,7 @@ import type {
   RackOverviewCurrentRackRecord,
   RackOverviewReadRepository,
 } from '../ports/rack-overview-read.repository';
+import type { DispatchRackAlertTransitionUseCase } from './dispatch-rack-alert-transition.use-case';
 import {
   buildMonitoringTransition,
   PollRackMonitoringUseCase,
@@ -44,10 +45,13 @@ describe('PollRackMonitoringUseCase', () => {
       findByScope: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
     };
+    const dispatchRackAlertTransitionUseCase =
+      createDispatchRackAlertTransitionUseCase();
 
     const useCase = new PollRackMonitoringUseCase(
       rackOverviewReadRepository,
       monitoringStateRepository,
+      dispatchRackAlertTransitionUseCase,
     );
 
     const result = await useCase.execute({
@@ -68,13 +72,14 @@ describe('PollRackMonitoringUseCase', () => {
       severityCode: 3,
       lifecycleStatus: 'active',
     });
-    expect(monitoringStateRepository.save).toHaveBeenCalledWith(
+    expect(dispatchRackAlertTransitionUseCase.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         scopeType: 'rack',
         scopeId: 'rack-a1',
         lifecycleStatus: 'active',
       }),
     );
+    expect(monitoringStateRepository.save).not.toHaveBeenCalled();
   });
 
   it('deduplicates repeated identical active rack states', async () => {
@@ -127,10 +132,13 @@ describe('PollRackMonitoringUseCase', () => {
       }),
       save: jest.fn(),
     };
+    const dispatchRackAlertTransitionUseCase =
+      createDispatchRackAlertTransitionUseCase();
 
     const useCase = new PollRackMonitoringUseCase(
       rackOverviewReadRepository,
       monitoringStateRepository,
+      dispatchRackAlertTransitionUseCase,
     );
 
     const result = await useCase.execute();
@@ -154,6 +162,7 @@ describe('PollRackMonitoringUseCase', () => {
         lastObservedAt: '2026-07-07 10:16:00',
       }),
     );
+    expect(dispatchRackAlertTransitionUseCase.execute).not.toHaveBeenCalled();
   });
 
   it('resolves previously active rack states when summary severity returns to zero', async () => {
@@ -233,4 +242,95 @@ describe('PollRackMonitoringUseCase', () => {
       }),
     });
   });
+
+  it('dispatches resolved transitions instead of persisting them locally first', async () => {
+    const rackRows: RackOverviewCurrentRackRecord[] = [
+      {
+        rackId: 'rack-a1',
+        summaryTs: '2026-07-07 10:20:00',
+        rackSeverityCode: 0,
+        hasOverrideFlag: 0,
+        totalNodes: 24,
+        badNodes: 0,
+        criticalNodes: 0,
+        warningNodes: 0,
+        staleNodes: 0,
+        silentDeadNodes: 0,
+        badNodeRatio: 0,
+        isRackLevelFailure: 0,
+        hasSignalLoss: 0,
+        worstNodeId: '',
+        worstMetricKey: '',
+        worstMetricTagsJson: '',
+        worstMetricValueNumeric: 0,
+        worstMetricValueText: '',
+      },
+    ];
+    const rackOverviewReadRepository: RackOverviewReadRepository = {
+      listCurrentRacks: jest.fn().mockResolvedValue(rackRows),
+      listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
+      getCurrentRackSummary: jest.fn(),
+      listRecentRackHistory: jest.fn(),
+    };
+    const monitoringStateRepository: MonitoringStateRepository = {
+      findByScope: jest.fn().mockResolvedValue({
+        scopeType: 'rack',
+        scopeId: 'rack-a1',
+        scopeKey: 'rack:rack-a1',
+        fingerprint:
+          'rack:rack-a1|source:rack_current_summary|severity:3|override:1|culprit:node-17|metric:cpu_usage_pct',
+        severityCode: 3,
+        overrideFlag: true,
+        lifecycleStatus: 'active',
+        notificationSyncStatus: 'open_synced',
+        firstObservedAt: '2026-07-07 10:10:00',
+        lastObservedAt: '2026-07-07 10:19:00',
+        lastStateChangedAt: '2026-07-07 10:10:00',
+        openedAt: '2026-07-07 10:10:00',
+        resolvedAt: null,
+        lastNotificationAttemptAt: '2026-07-07 10:10:05',
+        lastNotificationSyncedAt: '2026-07-07 10:10:06',
+      }),
+      save: jest.fn(),
+    };
+    const dispatchRackAlertTransitionUseCase =
+      createDispatchRackAlertTransitionUseCase();
+
+    const useCase = new PollRackMonitoringUseCase(
+      rackOverviewReadRepository,
+      monitoringStateRepository,
+      dispatchRackAlertTransitionUseCase,
+    );
+
+    const result = await useCase.execute();
+
+    expect(result.transitions[0]).toMatchObject({
+      transitionKind: 'resolve',
+      lifecycleStatus: 'resolved',
+    });
+    expect(dispatchRackAlertTransitionUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transitionKind: 'resolve',
+        scopeId: 'rack-a1',
+      }),
+    );
+    expect(monitoringStateRepository.save).not.toHaveBeenCalled();
+  });
 });
+
+function createDispatchRackAlertTransitionUseCase(): Pick<
+  DispatchRackAlertTransitionUseCase,
+  'execute'
+> {
+  return {
+    execute: jest.fn().mockResolvedValue({
+      action: 'sent',
+      attemptedAt: '2026-07-08T09:00:01.000Z',
+      deliveryResult: {
+        deliveryStatus: 'delivered',
+        deliveredAt: '2026-07-08T09:00:02.000Z',
+        syncStatus: 'open_synced',
+      },
+    }),
+  };
+}

@@ -7,8 +7,10 @@ import { ApiResponseInterceptor } from './adapters/inbound/http/interceptors/api
 import { LoggingInterceptor } from './adapters/inbound/http/interceptors/logging.interceptor';
 import { JwtStrategy } from './adapters/inbound/http/strategies/jwt.strategy';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
+import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
 import { MonitoringClickhouseModule } from './infrastructure/database/clickhouse/monitoring-clickhouse.module';
+import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/monitoring-state-mongo.module';
 import { MonitoringServiceConfigModule } from './infrastructure/config/monitoring-service-config.module';
 import { MonitoringDatabaseModule } from './infrastructure/database/monitoring-database.module';
 import { HealthController } from './presentation/http/controllers/health.controller';
@@ -19,6 +21,7 @@ import { ProblemDetailsExceptionFilter } from './presentation/http/filters/probl
   imports: [
     MonitoringServiceConfigModule,
     MonitoringDatabaseModule,
+    MonitoringStateMongoModule,
     MonitoringClickhouseModule,
     AssetServiceGrpcModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
@@ -27,6 +30,7 @@ import { ProblemDetailsExceptionFilter } from './presentation/http/filters/probl
   providers: [
     JwtStrategy,
     GetRackOverviewUseCase,
+    PollRackMonitoringUseCase,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

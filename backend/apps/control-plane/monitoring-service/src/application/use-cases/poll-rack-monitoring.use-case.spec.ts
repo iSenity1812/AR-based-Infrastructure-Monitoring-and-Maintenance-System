@@ -68,6 +68,13 @@ describe('PollRackMonitoringUseCase', () => {
       severityCode: 3,
       lifecycleStatus: 'active',
     });
+    expect(monitoringStateRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopeType: 'rack',
+        scopeId: 'rack-a1',
+        lifecycleStatus: 'active',
+      }),
+    );
   });
 
   it('deduplicates repeated identical active rack states', async () => {
@@ -140,6 +147,13 @@ describe('PollRackMonitoringUseCase', () => {
         notificationSyncStatus: 'open_synced',
       }),
     });
+    expect(monitoringStateRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopeId: 'rack-a1',
+        lifecycleStatus: 'active',
+        lastObservedAt: '2026-07-07 10:16:00',
+      }),
+    );
   });
 
   it('resolves previously active rack states when summary severity returns to zero', async () => {

@@ -58,7 +58,12 @@ export class PollRackMonitoringUseCase {
         evaluation.scopeId,
       );
 
-      transitions.push(buildMonitoringTransition(evaluation, previousState));
+      const transition = buildMonitoringTransition(evaluation, previousState);
+      if (transition.transitionKind !== 'noop') {
+        await this.monitoringStateRepository.save(transition.nextState);
+      }
+
+      transitions.push(transition);
     }
 
     return {

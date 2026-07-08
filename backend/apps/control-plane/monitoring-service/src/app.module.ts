@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
+import { ScheduleModule } from '@nestjs/schedule';
 import { JwtAuthGuard } from './adapters/inbound/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from './adapters/inbound/http/guards/permissions.guard';
 import { ApiResponseInterceptor } from './adapters/inbound/http/interceptors/api-response.interceptor';
@@ -10,6 +11,7 @@ import { DispatchRackAlertTransitionUseCase } from './application/use-cases/disp
 import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
 import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
+import { RackMonitoringPollingScheduler } from './application/use-cases/rack-monitoring-polling.scheduler';
 import { MonitoringRealtimePort } from './application/ports/monitoring-realtime.port';
 import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
@@ -25,6 +27,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     MonitoringServiceConfigModule,
     MonitoringDatabaseModule,
     MonitoringStateMongoModule,
@@ -49,6 +52,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     GetRackMonitoringStateUseCase,
     GetRackOverviewUseCase,
     PollRackMonitoringUseCase,
+    RackMonitoringPollingScheduler,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

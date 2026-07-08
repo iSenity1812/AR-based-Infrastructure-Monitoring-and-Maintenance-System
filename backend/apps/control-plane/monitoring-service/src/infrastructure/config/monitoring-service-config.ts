@@ -29,6 +29,10 @@ export class MonitoringServiceConfig {
 
   readonly alertmanagerTimeoutMs: number;
 
+  readonly monitoringRackPollEnabled: boolean;
+
+  readonly monitoringRackPollIntervalMs: number;
+
   constructor(env: NodeJS.ProcessEnv) {
     this.port = Number(env.PORT ?? 4003);
     this.apiPrefix = env.API_PREFIX ?? 'api/v1';
@@ -54,5 +58,10 @@ export class MonitoringServiceConfig {
     this.alertmanagerBaseUrl =
       env.ALERTMANAGER_BASE_URL ?? 'http://127.0.0.1:9093';
     this.alertmanagerTimeoutMs = Number(env.ALERTMANAGER_TIMEOUT_MS ?? 5000);
+    this.monitoringRackPollEnabled =
+      env.MONITORING_RACK_POLL_ENABLED === 'true';
+    this.monitoringRackPollIntervalMs = Number(
+      env.MONITORING_RACK_POLL_INTERVAL_MS ?? 30000,
+    );
   }
 }

@@ -41,7 +41,7 @@ export class MonitoringServiceConfig {
     this.mongoUri =
       env.MONITORING_MONGODB_URI ??
       env.MONGO_URI ??
-      'mongodb://127.0.0.1:27017/monitoring_context_db';
+      'mongodb://127.0.0.1:27017/monitoring_db';
     this.mongoServerSelectionTimeoutMs = Number(
       env.MONGO_SERVER_SELECTION_TIMEOUT_MS ?? 5000,
     );
@@ -53,8 +53,6 @@ export class MonitoringServiceConfig {
     this.alertmanagerEnabled = env.ALERTMANAGER_ENABLED === 'true';
     this.alertmanagerBaseUrl =
       env.ALERTMANAGER_BASE_URL ?? 'http://127.0.0.1:9093';
-    this.alertmanagerTimeoutMs = Number(
-      env.ALERTMANAGER_TIMEOUT_MS ?? 5000,
-    );
+    this.alertmanagerTimeoutMs = Number(env.ALERTMANAGER_TIMEOUT_MS ?? 5000);
   }
 }

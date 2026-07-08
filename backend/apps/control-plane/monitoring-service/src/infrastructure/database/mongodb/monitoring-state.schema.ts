@@ -46,16 +46,16 @@ export class MonitoringStatePersistence {
   @Prop({ required: true })
   lastStateChangedAt!: string;
 
-  @Prop()
+  @Prop({ type: String, required: false })
   openedAt!: string | null;
 
-  @Prop()
+  @Prop({ type: String, required: false })
   resolvedAt!: string | null;
 
-  @Prop()
+  @Prop({ type: String, required: false })
   lastNotificationAttemptAt!: string | null;
 
-  @Prop()
+  @Prop({ type: String, required: false })
   lastNotificationSyncedAt!: string | null;
 
   createdAt?: Date;

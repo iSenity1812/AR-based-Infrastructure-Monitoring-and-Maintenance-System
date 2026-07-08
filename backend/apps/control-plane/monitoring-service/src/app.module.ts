@@ -10,6 +10,7 @@ import { DispatchRackAlertTransitionUseCase } from './application/use-cases/disp
 import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
 import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
+import { MonitoringRealtimePort } from './application/ports/monitoring-realtime.port';
 import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
 import { MonitoringClickhouseModule } from './infrastructure/database/clickhouse/monitoring-clickhouse.module';
@@ -20,6 +21,7 @@ import { HealthController } from './presentation/http/controllers/health.control
 import { RackMonitoringStateController } from './presentation/http/controllers/rack-monitoring-state.controller';
 import { RackOverviewController } from './presentation/http/controllers/rack-overview.controller';
 import { ProblemDetailsExceptionFilter } from './presentation/http/filters/problem-details-exception.filter';
+import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/monitoring-realtime.gateway';
 
 @Module({
   imports: [
@@ -38,6 +40,11 @@ import { ProblemDetailsExceptionFilter } from './presentation/http/filters/probl
   ],
   providers: [
     JwtStrategy,
+    MonitoringRealtimeGateway,
+    {
+      provide: MonitoringRealtimePort,
+      useExisting: MonitoringRealtimeGateway,
+    },
     DispatchRackAlertTransitionUseCase,
     GetRackMonitoringStateUseCase,
     GetRackOverviewUseCase,

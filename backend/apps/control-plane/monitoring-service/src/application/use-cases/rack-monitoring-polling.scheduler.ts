@@ -7,6 +7,11 @@ import {
 import { SchedulerRegistry } from '@nestjs/schedule';
 
 import { MonitoringServiceConfig } from '../../infrastructure/config/monitoring-service-config';
+import {
+  formatRackMonitoringPollCompletedMessage,
+  formatRackMonitoringPollFailedMessage,
+  formatRackMonitoringPollStartMessage,
+} from './rack-monitoring-poll-observability';
 import { PollRackMonitoringUseCase } from './poll-rack-monitoring.use-case';
 
 export const RACK_MONITORING_POLL_INTERVAL_NAME = 'rack-monitoring-poll';
@@ -18,8 +23,6 @@ export class RackMonitoringPollingScheduler
   private readonly logger = new Logger(RackMonitoringPollingScheduler.name);
 
   private isRunning = false;
-
-  private lastCheckpointSummaryTs: string | null = null;
 
   constructor(
     private readonly pollRackMonitoringUseCase: PollRackMonitoringUseCase,
@@ -80,33 +83,32 @@ export class RackMonitoringPollingScheduler
   async handleInterval(): Promise<void> {
     if (this.isRunning) {
       this.logger.warn(
-        'Skipping automatic rack monitoring poll because the previous run is still in progress.',
+        'rack poll skipped (trigger=scheduled, reason=overlap, previousRun=still_running)',
       );
       return;
     }
 
     this.isRunning = true;
     const startedAt = Date.now();
+    const input = {};
+
+    this.logger.log(formatRackMonitoringPollStartMessage('scheduled', input));
 
     try {
-      const result = await this.pollRackMonitoringUseCase.execute(
-        this.lastCheckpointSummaryTs
-          ? {
-              changedSinceSummaryTs: this.lastCheckpointSummaryTs,
-            }
-          : {},
-      );
-
-      if (result.nextCheckpointSummaryTs) {
-        this.lastCheckpointSummaryTs = result.nextCheckpointSummaryTs;
-      }
+      const result = await this.pollRackMonitoringUseCase.execute(input);
 
       this.logger.log(
-        `Automatic rack monitoring poll completed in ${Date.now() - startedAt}ms (processed=${result.processedRows}, skipped=${result.skippedRows}, transitions=${result.transitions.length}, checkpoint=${this.lastCheckpointSummaryTs ?? 'none'}).`,
+        formatRackMonitoringPollCompletedMessage(
+          'scheduled',
+          Date.now() - startedAt,
+          result,
+        ),
       );
     } catch (error) {
-      const stack = error instanceof Error ? error.stack : undefined;
-      this.logger.error('Automatic rack monitoring poll failed.', stack);
+      this.logger.error(
+        formatRackMonitoringPollFailedMessage('scheduled', input, error),
+        error instanceof Error ? error.stack : undefined,
+      );
     } finally {
       this.isRunning = false;
     }

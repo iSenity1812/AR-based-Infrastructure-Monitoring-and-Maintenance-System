@@ -53,7 +53,7 @@ describe('RackMonitoringPollingScheduler', () => {
     expect(addInterval).not.toHaveBeenCalled();
   });
 
-  it('uses the previous checkpoint for incremental scheduled polls', async () => {
+  it('uses full poll on every scheduled tick', async () => {
     const execute = pollRackMonitoringUseCase.execute as jest.Mock;
     execute
       .mockResolvedValueOnce({
@@ -77,9 +77,7 @@ describe('RackMonitoringPollingScheduler', () => {
     await scheduler.handleInterval();
 
     expect(execute).toHaveBeenNthCalledWith(1, {});
-    expect(execute).toHaveBeenNthCalledWith(2, {
-      changedSinceSummaryTs: '2026-07-09 16:45:00',
-    });
+    expect(execute).toHaveBeenNthCalledWith(2, {});
   });
 
   it('skips a new tick while the previous scheduled poll is still running', async () => {

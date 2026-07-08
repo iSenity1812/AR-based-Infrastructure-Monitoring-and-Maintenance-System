@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -17,6 +17,11 @@ import {
   PollRackMonitoringUseCase,
 } from '../../../application/use-cases/poll-rack-monitoring.use-case';
 import {
+  formatRackMonitoringPollCompletedMessage,
+  formatRackMonitoringPollFailedMessage,
+  formatRackMonitoringPollStartMessage,
+} from '../../../application/use-cases/rack-monitoring-poll-observability';
+import {
   MonitoringRackStateResponseDto,
   MonitoringRackStateResponseEnvelopeDto,
 } from '../dto/rack-monitoring-state-response.dto';
@@ -31,6 +36,8 @@ import {
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RackMonitoringStateController {
+  private readonly logger = new Logger(RackMonitoringStateController.name);
+
   constructor(
     private readonly getRackMonitoringStateUseCase: GetRackMonitoringStateUseCase,
     private readonly pollRackMonitoringUseCase: PollRackMonitoringUseCase,
@@ -60,9 +67,27 @@ export class RackMonitoringStateController {
   async pollRackMonitoring(
     @Body() input: RackMonitoringPollRequestDto = {},
   ): Promise<RackMonitoringPollResponseDto> {
-    const result = await this.pollRackMonitoringUseCase.execute(input);
+    const startedAt = Date.now();
+    this.logger.log(formatRackMonitoringPollStartMessage('manual', input));
 
-    return mapPollResultToResponse(result, input);
+    try {
+      const result = await this.pollRackMonitoringUseCase.execute(input);
+      this.logger.log(
+        formatRackMonitoringPollCompletedMessage(
+          'manual',
+          Date.now() - startedAt,
+          result,
+        ),
+      );
+
+      return mapPollResultToResponse(result, input);
+    } catch (error) {
+      this.logger.error(
+        formatRackMonitoringPollFailedMessage('manual', input, error),
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
+    }
   }
 }
 

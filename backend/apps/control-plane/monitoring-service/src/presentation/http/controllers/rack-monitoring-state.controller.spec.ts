@@ -89,4 +89,28 @@ describe('RackMonitoringStateController', () => {
     expect(result.affectedRackIds).toEqual(['rack-a1', 'rack-b2', 'rack-c3']);
     expect(result.nextCheckpointSummaryTs).toBe('2026-07-08T16:15:00.000Z');
   });
+
+  it('allows manual full poll without providing a checkpoint', async () => {
+    const controller = new RackMonitoringStateController(
+      {
+        execute: jest.fn(),
+      } as never,
+      {
+        execute: jest.fn().mockResolvedValue({
+          transitions: [],
+          processedRows: 2,
+          skippedRows: 0,
+          nextCheckpointSummaryTs: '2026-07-08T16:20:00.000Z',
+        }),
+      } as never,
+    );
+
+    const result = await controller.pollRackMonitoring({});
+
+    expect(controller['pollRackMonitoringUseCase'].execute).toHaveBeenCalledWith(
+      {},
+    );
+    expect(result.changedSinceSummaryTs).toBeNull();
+    expect(result.nextCheckpointSummaryTs).toBe('2026-07-08T16:20:00.000Z');
+  });
 });

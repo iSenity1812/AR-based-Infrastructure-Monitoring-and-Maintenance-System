@@ -6,7 +6,7 @@ import { ResponseMetaDto } from './health-response.dto';
 export class RackMonitoringPollRequestDto {
   @ApiPropertyOptional({
     description:
-      'Optional summary timestamp checkpoint. When provided, only rack rows changed since this timestamp are polled.',
+      'Optional caller-provided summary timestamp checkpoint. Omit it to force a full poll. Provide it to poll only rack rows changed since this timestamp.',
     example: '2026-07-08T16:05:00.000Z',
   })
   @IsOptional()
@@ -60,7 +60,8 @@ export class RackMonitoringPollResponseDto {
   view!: 'monitoring_poll';
 
   @ApiProperty({
-    description: 'Summary timestamp checkpoint used for this poll run, if any.',
+    description:
+      'Caller-provided summary timestamp checkpoint used for this poll run, if any. Null means the caller intentionally triggered a full poll.',
     nullable: true,
     example: '2026-07-08T16:05:00.000Z',
   })
@@ -98,7 +99,8 @@ export class RackMonitoringPollResponseDto {
   affectedRackIds!: string[];
 
   @ApiProperty({
-    description: 'Next summary timestamp checkpoint observed during this poll run.',
+    description:
+      'Next summary timestamp checkpoint observed during this poll run. Phase 1 returns it for caller reuse, but does not persist a shared checkpoint store for manual polling.',
     nullable: true,
     example: '2026-07-08T16:15:00.000Z',
   })

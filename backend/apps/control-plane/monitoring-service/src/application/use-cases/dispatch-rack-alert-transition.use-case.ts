@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { applyAlertDeliveryResultToState, mapMonitoringTransitionToAlertDeliveryCommand } from '../mappers/alert-delivery-command.mapper';
 import { mapTransitionToRackMonitoringStateChangedEvent } from '../mappers/rack-monitoring-realtime-event.mapper';
@@ -20,6 +20,8 @@ export interface DispatchRackAlertTransitionResult {
 
 @Injectable()
 export class DispatchRackAlertTransitionUseCase {
+  private readonly logger = new Logger(DispatchRackAlertTransitionUseCase.name);
+
   constructor(
     @Inject(AlertDeliveryPort)
     private readonly alertDeliveryPort: AlertDeliveryPort,
@@ -45,6 +47,9 @@ export class DispatchRackAlertTransitionUseCase {
 
     const attemptedAt = new Date().toISOString();
     const deliveryResult = await this.alertDeliveryPort.sendAlert(command);
+    this.logger.log(
+      `alert delivery attempted (scope=${transition.scopeType}:${transition.scopeId}, transition=${transition.transitionKind}, syncStatus=${deliveryResult.syncStatus}, deliveryStatus=${deliveryResult.deliveryStatus})`,
+    );
     const nextState = applyAlertDeliveryResultToState(
       transition.nextState,
       {
@@ -55,6 +60,9 @@ export class DispatchRackAlertTransitionUseCase {
     );
 
     await this.monitoringStateRepository.save(nextState);
+    this.logger.log(
+      `monitoring state saved after alert delivery (scope=${nextState.scopeType}:${nextState.scopeId}, lifecycle=${nextState.lifecycleStatus}, notificationSync=${nextState.notificationSyncStatus}, lastObservedAt=${nextState.lastObservedAt})`,
+    );
     const nextTransition = {
       ...transition,
       nextState,

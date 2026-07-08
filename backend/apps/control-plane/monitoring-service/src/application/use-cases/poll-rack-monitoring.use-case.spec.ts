@@ -42,6 +42,7 @@ describe('PollRackMonitoringUseCase', () => {
       listRecentRackHistory: jest.fn(),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
+      listByScopeType: jest.fn(),
       findByScope: jest.fn().mockResolvedValue(null),
       save: jest.fn(),
     };
@@ -112,6 +113,7 @@ describe('PollRackMonitoringUseCase', () => {
       listRecentRackHistory: jest.fn(),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
+      listByScopeType: jest.fn(),
       findByScope: jest.fn().mockResolvedValue({
         scopeType: 'rack',
         scopeId: 'rack-a1',
@@ -273,6 +275,7 @@ describe('PollRackMonitoringUseCase', () => {
       listRecentRackHistory: jest.fn(),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
+      listByScopeType: jest.fn(),
       findByScope: jest.fn().mockResolvedValue({
         scopeType: 'rack',
         scopeId: 'rack-a1',

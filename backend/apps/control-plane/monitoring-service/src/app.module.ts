@@ -7,6 +7,7 @@ import { ApiResponseInterceptor } from './adapters/inbound/http/interceptors/api
 import { LoggingInterceptor } from './adapters/inbound/http/interceptors/logging.interceptor';
 import { JwtStrategy } from './adapters/inbound/http/strategies/jwt.strategy';
 import { DispatchRackAlertTransitionUseCase } from './application/use-cases/dispatch-rack-alert-transition.use-case';
+import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
 import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
 import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
@@ -16,6 +17,7 @@ import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/mo
 import { MonitoringServiceConfigModule } from './infrastructure/config/monitoring-service-config.module';
 import { MonitoringDatabaseModule } from './infrastructure/database/monitoring-database.module';
 import { HealthController } from './presentation/http/controllers/health.controller';
+import { RackMonitoringStateController } from './presentation/http/controllers/rack-monitoring-state.controller';
 import { RackOverviewController } from './presentation/http/controllers/rack-overview.controller';
 import { ProblemDetailsExceptionFilter } from './presentation/http/filters/problem-details-exception.filter';
 
@@ -29,10 +31,15 @@ import { ProblemDetailsExceptionFilter } from './presentation/http/filters/probl
     AssetServiceGrpcModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
-  controllers: [HealthController, RackOverviewController],
+  controllers: [
+    HealthController,
+    RackOverviewController,
+    RackMonitoringStateController,
+  ],
   providers: [
     JwtStrategy,
     DispatchRackAlertTransitionUseCase,
+    GetRackMonitoringStateUseCase,
     GetRackOverviewUseCase,
     PollRackMonitoringUseCase,
     {

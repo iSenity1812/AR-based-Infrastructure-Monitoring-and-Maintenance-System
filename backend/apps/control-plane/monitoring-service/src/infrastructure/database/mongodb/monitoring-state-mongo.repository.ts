@@ -22,6 +22,22 @@ export class MonitoringStateMongoRepository
     private readonly monitoringStateModel: Model<MonitoringStateDocument>,
   ) {}
 
+  async listByScopeType(
+    scopeType: MonitoringScopeType,
+  ): Promise<MonitoringState[]> {
+    const documents = await this.monitoringStateModel
+      .find({ scopeType })
+      .sort({
+        severityCode: -1,
+        lastStateChangedAt: -1,
+        scopeId: 1,
+      })
+      .lean<MonitoringStatePersistence[]>()
+      .exec();
+
+    return documents.map(mapDocumentToMonitoringState);
+  }
+
   async findByScope(
     scopeType: MonitoringScopeType,
     scopeId: string,

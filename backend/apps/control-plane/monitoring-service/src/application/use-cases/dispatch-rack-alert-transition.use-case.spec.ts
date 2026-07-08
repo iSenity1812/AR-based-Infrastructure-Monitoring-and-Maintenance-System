@@ -15,6 +15,7 @@ describe('DispatchRackAlertTransitionUseCase', () => {
       }),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
+      listByScopeType: jest.fn(),
       findByScope: jest.fn(),
       save: jest.fn(),
     };
@@ -44,6 +45,7 @@ describe('DispatchRackAlertTransitionUseCase', () => {
       sendAlert: jest.fn(),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
+      listByScopeType: jest.fn(),
       findByScope: jest.fn(),
       save: jest.fn(),
     };

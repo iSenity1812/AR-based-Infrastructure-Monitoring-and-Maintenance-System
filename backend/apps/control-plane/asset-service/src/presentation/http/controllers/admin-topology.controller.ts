@@ -25,6 +25,7 @@ import {
   NormalizeNodeUseCase,
   RetireNodeUseCase,
   RetireRackUseCase,
+  UnifiedAssignNodeToRackUseCase,
   UpdateNodeUseCase,
   UpdateRackUseCase,
 } from '@use-cases/commands/topology';
@@ -35,6 +36,7 @@ import {
   AssignNodeToRackRequestDto,
   CreateRackRequestDto,
   NormalizeNodeRequestDto,
+  UnifiedAssignNodeToRackRequestDto,
   UnassignedNodesRequestDto,
   UpdateNodeRequestDto,
   UpdateRackRequestDto,
@@ -72,6 +74,7 @@ export class AdminTopologyController {
     private readonly updateNodeUseCase: UpdateNodeUseCase,
     private readonly assignNodeToRackUseCase: AssignNodeToRackUseCase,
     private readonly assignDiscoveredNodeToRackUseCase: AssignDiscoveredNodeToRackUseCase,
+    private readonly unifiedAssignNodeToRackUseCase: UnifiedAssignNodeToRackUseCase,
     private readonly activateNodeUseCase: ActivateNodeUseCase,
     private readonly drainNodeUseCase: DrainNodeUseCase,
     private readonly retireNodeUseCase: RetireNodeUseCase,
@@ -242,6 +245,26 @@ export class AdminTopologyController {
         body.positionCode,
         body.allowDraining,
       ),
+      responseMeta(request),
+    );
+  }
+
+  @Post('nodes/:nodeId/assign')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'Assign a node to a rack through a unified command that syncs Mongo and Redis.',
+  })
+  async unifiedAssignNodeToRack(
+    @Param('nodeId') nodeId: string,
+    @Body() body: UnifiedAssignNodeToRackRequestDto,
+    @Req() request: HeaderRequest,
+  ) {
+    return serializeEnvelope(
+      await this.unifiedAssignNodeToRackUseCase.execute({
+        nodeId,
+        ...body,
+      }),
       responseMeta(request),
     );
   }

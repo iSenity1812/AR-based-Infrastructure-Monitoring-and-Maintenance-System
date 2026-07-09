@@ -268,3 +268,20 @@ export class AssignNodeToRackRequestDto {
   @IsBoolean()
   allowDraining?: boolean;
 }
+
+export class UnifiedAssignNodeToRackRequestDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  rackId!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  positionCode!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  allowDraining?: boolean;
+}

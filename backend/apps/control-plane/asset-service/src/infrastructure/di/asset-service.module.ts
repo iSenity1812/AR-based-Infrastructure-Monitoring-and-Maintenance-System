@@ -56,6 +56,7 @@ import {
   NormalizeNodeUseCase,
   RetireNodeUseCase,
   RetireRackUseCase,
+  UnifiedAssignNodeToRackUseCase,
   UpdateNodeUseCase,
   UpdateRackUseCase,
 } from '@use-cases/commands/topology';
@@ -166,6 +167,7 @@ import { LoggingInterceptor } from '@presentation/interceptors/logging.intercept
     UpdateNodeUseCase,
     AssignNodeToRackUseCase,
     AssignDiscoveredNodeToRackUseCase,
+    UnifiedAssignNodeToRackUseCase,
     ActivateNodeUseCase,
     DrainNodeUseCase,
     RetireNodeUseCase,

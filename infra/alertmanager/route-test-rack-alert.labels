@@ -1,0 +1,8 @@
+alertname=RackHealthAlert
+scope_type=rack
+scope_id=rack-a1
+scope_key=rack:rack-a1
+severity_code=3
+lifecycle_status=active
+summary_source=rack_current_summary
+fingerprint=rack:rack-a1|severity:3

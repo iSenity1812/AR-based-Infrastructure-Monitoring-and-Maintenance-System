@@ -1,0 +1,28 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: monitoring-phase1-default
+  group_by:
+    - alertname
+    - scope_type
+    - scope_id
+  group_wait: 15s
+  group_interval: 2m
+  repeat_interval: 4h
+  routes:
+    - receiver: monitoring-rack-phase1
+      matchers:
+        - alertname="RackHealthAlert"
+        - scope_type="rack"
+      group_by:
+        - alertname
+        - scope_id
+        - severity_code
+      continue: false
+
+receivers:
+  - name: monitoring-phase1-default
+  - name: monitoring-rack-phase1
+
+inhibit_rules: []

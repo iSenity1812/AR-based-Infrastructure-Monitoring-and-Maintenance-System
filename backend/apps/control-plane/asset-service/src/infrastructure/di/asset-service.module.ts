@@ -72,6 +72,7 @@ import {
   SearchAssetsUseCase,
 } from '@use-cases/queries/topology.queries';
 import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
+import { ListPendingAssignmentNodesUseCase } from '@use-cases/queries/pending-assignment-node.queries';
 import { ListUnassignedNodesUseCase } from '@use-cases/queries/unassigned-node.queries';
 import { AssetContextReadService } from '@use-cases/services/asset-context-read.service';
 import { AdminMarkersController } from '@presentation/http/controllers/admin-markers.controller';
@@ -186,6 +187,7 @@ import { LoggingInterceptor } from '@presentation/interceptors/logging.intercept
     BatchGetRackSummariesUseCase,
     GetNodeContextUseCase,
     ListDiscoveredNodesUseCase,
+    ListPendingAssignmentNodesUseCase,
     ListUnassignedNodesUseCase,
     GetAssetByCodeUseCase,
     ResolveMarkerUseCase,

@@ -29,6 +29,7 @@ import {
   UpdateRackUseCase,
 } from '@use-cases/commands/topology';
 import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
+import { ListPendingAssignmentNodesUseCase } from '@use-cases/queries/pending-assignment-node.queries';
 import { ListUnassignedNodesUseCase } from '@use-cases/queries/unassigned-node.queries';
 import {
   AssignNodeToRackRequestDto,
@@ -75,6 +76,7 @@ export class AdminTopologyController {
     private readonly drainNodeUseCase: DrainNodeUseCase,
     private readonly retireNodeUseCase: RetireNodeUseCase,
     private readonly listDiscoveredNodesUseCase: ListDiscoveredNodesUseCase,
+    private readonly listPendingAssignmentNodesUseCase: ListPendingAssignmentNodesUseCase,
     private readonly listUnassignedNodesUseCase: ListUnassignedNodesUseCase,
   ) {}
 
@@ -194,6 +196,19 @@ export class AdminTopologyController {
   async listDiscoveredNodes(@Req() request: HeaderRequest) {
     return serializeEnvelope(
       await this.listDiscoveredNodesUseCase.execute(),
+      responseMeta(request),
+    );
+  }
+
+  @Get('nodes/pending-assignment')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'List nodes pending assignment by merging canonical Mongo and discovered Redis state.',
+  })
+  async listPendingAssignmentNodes(@Req() request: HeaderRequest) {
+    return serializeEnvelope(
+      await this.listPendingAssignmentNodesUseCase.execute(),
       responseMeta(request),
     );
   }

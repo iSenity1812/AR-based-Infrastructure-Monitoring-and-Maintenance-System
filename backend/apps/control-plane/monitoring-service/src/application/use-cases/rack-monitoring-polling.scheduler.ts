@@ -4,7 +4,6 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { SchedulerRegistry } from '@nestjs/schedule';
 
 import { MonitoringServiceConfig } from '../../infrastructure/config/monitoring-service-config';
 import {
@@ -22,12 +21,12 @@ export class RackMonitoringPollingScheduler
 {
   private readonly logger = new Logger(RackMonitoringPollingScheduler.name);
 
+  private intervalHandle: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
 
   constructor(
     private readonly pollRackMonitoringUseCase: PollRackMonitoringUseCase,
     private readonly config: MonitoringServiceConfig,
-    private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
 
   onModuleInit(): void {
@@ -46,23 +45,14 @@ export class RackMonitoringPollingScheduler
       return;
     }
 
-    if (
-      this.schedulerRegistry.doesExist(
-        'interval',
-        RACK_MONITORING_POLL_INTERVAL_NAME,
-      )
-    ) {
-      this.schedulerRegistry.deleteInterval(RACK_MONITORING_POLL_INTERVAL_NAME);
+    if (this.intervalHandle) {
+      clearInterval(this.intervalHandle);
+      this.intervalHandle = null;
     }
 
-    const interval = setInterval(() => {
+    this.intervalHandle = setInterval(() => {
       void this.handleInterval();
     }, this.config.monitoringRackPollIntervalMs);
-
-    this.schedulerRegistry.addInterval(
-      RACK_MONITORING_POLL_INTERVAL_NAME,
-      interval,
-    );
 
     this.logger.log(
       `Automatic rack monitoring polling registered every ${this.config.monitoringRackPollIntervalMs}ms.`,
@@ -70,13 +60,9 @@ export class RackMonitoringPollingScheduler
   }
 
   onModuleDestroy(): void {
-    if (
-      this.schedulerRegistry.doesExist(
-        'interval',
-        RACK_MONITORING_POLL_INTERVAL_NAME,
-      )
-    ) {
-      this.schedulerRegistry.deleteInterval(RACK_MONITORING_POLL_INTERVAL_NAME);
+    if (this.intervalHandle) {
+      clearInterval(this.intervalHandle);
+      this.intervalHandle = null;
     }
   }
 

@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
-import { ScheduleModule } from '@nestjs/schedule';
 import { JwtAuthGuard } from './adapters/inbound/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from './adapters/inbound/http/guards/permissions.guard';
 import { ApiResponseInterceptor } from './adapters/inbound/http/interceptors/api-response.interceptor';
@@ -27,7 +26,6 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
     MonitoringServiceConfigModule,
     MonitoringDatabaseModule,
     MonitoringStateMongoModule,

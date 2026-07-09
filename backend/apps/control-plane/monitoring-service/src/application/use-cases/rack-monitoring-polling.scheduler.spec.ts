@@ -1,5 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import type { SchedulerRegistry } from '@nestjs/schedule';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 
 import { MonitoringServiceConfig } from '../../infrastructure/config/monitoring-service-config';
 import type { PollRackMonitoringUseCase } from './poll-rack-monitoring.use-case';
@@ -9,22 +15,22 @@ import {
 } from './rack-monitoring-polling.scheduler';
 
 describe('RackMonitoringPollingScheduler', () => {
-  let addInterval: jest.Mock;
-  let deleteInterval: jest.Mock;
-  let doesExist: jest.Mock;
+  let clearIntervalSpy: jest.SpyInstance;
+  let setIntervalSpy: jest.SpyInstance;
   let pollRackMonitoringUseCase: Pick<PollRackMonitoringUseCase, 'execute'>;
 
   beforeEach(() => {
     jest.useFakeTimers();
-    addInterval = jest.fn();
-    deleteInterval = jest.fn();
-    doesExist = jest.fn().mockReturnValue(false);
+    clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+    setIntervalSpy = jest.spyOn(global, 'setInterval');
     pollRackMonitoringUseCase = {
       execute: jest.fn(),
     };
   });
 
   afterEach(() => {
+    clearIntervalSpy.mockRestore();
+    setIntervalSpy.mockRestore();
     jest.clearAllTimers();
     jest.useRealTimers();
   });
@@ -37,10 +43,8 @@ describe('RackMonitoringPollingScheduler', () => {
 
     scheduler.onModuleInit();
 
-    expect(addInterval).toHaveBeenCalledWith(
-      RACK_MONITORING_POLL_INTERVAL_NAME,
-      expect.any(Object),
-    );
+    expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+    expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 15000);
   });
 
   it('does not register an interval when polling is disabled', () => {
@@ -50,7 +54,7 @@ describe('RackMonitoringPollingScheduler', () => {
 
     scheduler.onModuleInit();
 
-    expect(addInterval).not.toHaveBeenCalled();
+    expect(setIntervalSpy).not.toHaveBeenCalled();
   });
 
   it('uses full poll on every scheduled tick', async () => {
@@ -109,17 +113,15 @@ describe('RackMonitoringPollingScheduler', () => {
     await firstRun;
   });
 
-  it('removes the registered interval on module destroy', () => {
-    doesExist.mockReturnValue(true);
+  it('clears the registered interval on module destroy', () => {
     const scheduler = createScheduler({
       MONITORING_RACK_POLL_ENABLED: 'true',
     });
 
+    scheduler.onModuleInit();
     scheduler.onModuleDestroy();
 
-    expect(deleteInterval).toHaveBeenCalledWith(
-      RACK_MONITORING_POLL_INTERVAL_NAME,
-    );
+    expect(clearIntervalSpy).toHaveBeenCalledWith(expect.any(Object));
   });
 
   function createScheduler(envOverrides: NodeJS.ProcessEnv) {
@@ -127,19 +129,9 @@ describe('RackMonitoringPollingScheduler', () => {
       ...envOverrides,
     });
 
-    const schedulerRegistry: Pick<
-      SchedulerRegistry,
-      'addInterval' | 'deleteInterval' | 'doesExist'
-    > = {
-      addInterval,
-      deleteInterval,
-      doesExist,
-    };
-
     return new RackMonitoringPollingScheduler(
       pollRackMonitoringUseCase as PollRackMonitoringUseCase,
       config,
-      schedulerRegistry as SchedulerRegistry,
     );
   }
 });

@@ -55,6 +55,7 @@ describe('GetRackOverviewUseCase', () => {
     const history: RackOverviewHistoryRecord[] = [];
     const rackOverviewReadRepository: RackOverviewReadRepository = {
       listCurrentRacks: jest.fn().mockResolvedValue(currentRacks),
+      listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
       getCurrentRackSummary: jest.fn().mockResolvedValue({
         totalRacks: 2,
         criticalRacks: 1,

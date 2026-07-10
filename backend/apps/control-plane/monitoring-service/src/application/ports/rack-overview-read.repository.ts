@@ -51,6 +51,10 @@ export interface RackOverviewHistoryRecord {
 export abstract class RackOverviewReadRepository {
   abstract listCurrentRacks(): Promise<RackOverviewCurrentRackRecord[]>;
 
+  abstract listCurrentRacksChangedSince(
+    summaryTs: string,
+  ): Promise<RackOverviewCurrentRackRecord[]>;
+
   abstract getCurrentRackSummary(): Promise<RackOverviewCurrentRackSummary>;
 
   abstract listRecentRackHistory(): Promise<RackOverviewHistoryRecord[]>;

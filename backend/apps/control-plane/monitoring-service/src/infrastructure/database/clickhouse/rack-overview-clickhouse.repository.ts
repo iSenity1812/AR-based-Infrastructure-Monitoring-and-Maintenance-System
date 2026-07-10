@@ -69,47 +69,13 @@ export class RackOverviewClickhouseRepository
   ) {}
 
   async listCurrentRacks(): Promise<RackOverviewCurrentRackRecord[]> {
-    const result = await this.clickhouseClient.query({
-      query: `
-        SELECT
-          rack_id AS rackId,
-          toString(summary_ts) AS summaryTs,
-          rack_severity_code AS rackSeverityCode,
-          has_override_flag AS hasOverrideFlag,
-          total_nodes AS totalNodes,
-          bad_nodes AS badNodes,
-          critical_nodes AS criticalNodes,
-          warning_nodes AS warningNodes,
-          stale_nodes AS staleNodes,
-          silent_dead_nodes AS silentDeadNodes,
-          bad_node_ratio AS badNodeRatio,
-          is_rack_level_failure AS isRackLevelFailure,
-          has_signal_loss AS hasSignalLoss,
-          worst_node_id AS worstNodeId,
-          worst_metric_key AS worstMetricKey,
-          worst_metric_tags_json AS worstMetricTagsJson,
-          worst_metric_value_numeric AS worstMetricValueNumeric,
-          worst_metric_value_text AS worstMetricValueText
-        FROM telemetry_db.rack_current_summary
-        WHERE rack_id IS NOT NULL
-          AND rack_id != ''
-          AND rack_id != 'null'
-        ORDER BY
-          rack_severity_code DESC,
-          is_rack_level_failure DESC,
-          has_signal_loss DESC,
-          bad_node_ratio DESC,
-          stale_nodes DESC,
-          summary_ts DESC,
-          rack_id ASC
-      `,
-      format: 'JSONEachRow',
-    });
+    return this.queryCurrentRacks();
+  }
 
-    const rows = await result.json<RackOverviewCurrentRackRow>();
-    return rows
-      .map(mapRackOverviewCurrentRackRow)
-      .filter((row) => isUsableRackId(row.rackId));
+  async listCurrentRacksChangedSince(
+    summaryTs: string,
+  ): Promise<RackOverviewCurrentRackRecord[]> {
+    return this.queryCurrentRacks(summaryTs);
   }
 
   async getCurrentRackSummary(): Promise<RackOverviewCurrentRackSummary> {
@@ -181,6 +147,70 @@ export class RackOverviewClickhouseRepository
     const rows = await result.json<RackOverviewHistoryRow>();
     return rows
       .map(mapRackOverviewHistoryRow)
+      .filter((row) => isUsableRackId(row.rackId));
+  }
+
+  private async queryCurrentRacks(
+    changedSinceSummaryTs?: string,
+  ): Promise<RackOverviewCurrentRackRecord[]> {
+    const incrementalFilter = changedSinceSummaryTs
+      ? `
+          AND summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})
+        `
+      : '';
+
+    const sortClause = changedSinceSummaryTs
+      ? `
+          summary_ts ASC,
+          rack_id ASC
+        `
+      : `
+          rack_severity_code DESC,
+          is_rack_level_failure DESC,
+          has_signal_loss DESC,
+          bad_node_ratio DESC,
+          stale_nodes DESC,
+          summary_ts DESC,
+          rack_id ASC
+        `;
+
+    const result = await this.clickhouseClient.query({
+      query: `
+        SELECT
+          rack_id AS rackId,
+          toString(summary_ts) AS summaryTs,
+          rack_severity_code AS rackSeverityCode,
+          has_override_flag AS hasOverrideFlag,
+          total_nodes AS totalNodes,
+          bad_nodes AS badNodes,
+          critical_nodes AS criticalNodes,
+          warning_nodes AS warningNodes,
+          stale_nodes AS staleNodes,
+          silent_dead_nodes AS silentDeadNodes,
+          bad_node_ratio AS badNodeRatio,
+          is_rack_level_failure AS isRackLevelFailure,
+          has_signal_loss AS hasSignalLoss,
+          worst_node_id AS worstNodeId,
+          worst_metric_key AS worstMetricKey,
+          worst_metric_tags_json AS worstMetricTagsJson,
+          worst_metric_value_numeric AS worstMetricValueNumeric,
+          worst_metric_value_text AS worstMetricValueText
+        FROM telemetry_db.rack_current_summary
+        WHERE rack_id IS NOT NULL
+          AND rack_id != ''
+          AND rack_id != 'null'
+          ${incrementalFilter}
+        ORDER BY ${sortClause}
+      `,
+      query_params: changedSinceSummaryTs
+        ? { changedSinceSummaryTs }
+        : undefined,
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<RackOverviewCurrentRackRow>();
+    return rows
+      .map(mapRackOverviewCurrentRackRow)
       .filter((row) => isUsableRackId(row.rackId));
   }
 }

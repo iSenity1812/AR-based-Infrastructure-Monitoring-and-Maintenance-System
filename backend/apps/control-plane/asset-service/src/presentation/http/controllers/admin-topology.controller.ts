@@ -25,15 +25,18 @@ import {
   NormalizeNodeUseCase,
   RetireNodeUseCase,
   RetireRackUseCase,
+  UnifiedAssignNodeToRackUseCase,
   UpdateNodeUseCase,
   UpdateRackUseCase,
 } from '@use-cases/commands/topology';
 import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
+import { ListPendingAssignmentNodesUseCase } from '@use-cases/queries/pending-assignment-node.queries';
 import { ListUnassignedNodesUseCase } from '@use-cases/queries/unassigned-node.queries';
 import {
   AssignNodeToRackRequestDto,
   CreateRackRequestDto,
   NormalizeNodeRequestDto,
+  UnifiedAssignNodeToRackRequestDto,
   UnassignedNodesRequestDto,
   UpdateNodeRequestDto,
   UpdateRackRequestDto,
@@ -71,10 +74,12 @@ export class AdminTopologyController {
     private readonly updateNodeUseCase: UpdateNodeUseCase,
     private readonly assignNodeToRackUseCase: AssignNodeToRackUseCase,
     private readonly assignDiscoveredNodeToRackUseCase: AssignDiscoveredNodeToRackUseCase,
+    private readonly unifiedAssignNodeToRackUseCase: UnifiedAssignNodeToRackUseCase,
     private readonly activateNodeUseCase: ActivateNodeUseCase,
     private readonly drainNodeUseCase: DrainNodeUseCase,
     private readonly retireNodeUseCase: RetireNodeUseCase,
     private readonly listDiscoveredNodesUseCase: ListDiscoveredNodesUseCase,
+    private readonly listPendingAssignmentNodesUseCase: ListPendingAssignmentNodesUseCase,
     private readonly listUnassignedNodesUseCase: ListUnassignedNodesUseCase,
   ) {}
 
@@ -198,6 +203,19 @@ export class AdminTopologyController {
     );
   }
 
+  @Get('nodes/pending-assignment')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'List nodes pending assignment by merging canonical Mongo and discovered Redis state.',
+  })
+  async listPendingAssignmentNodes(@Req() request: HeaderRequest) {
+    return serializeEnvelope(
+      await this.listPendingAssignmentNodesUseCase.execute(),
+      responseMeta(request),
+    );
+  }
+
   @Patch('nodes/:nodeId')
   @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
   @ApiOperation({ summary: 'Update node business fields.' })
@@ -227,6 +245,26 @@ export class AdminTopologyController {
         body.positionCode,
         body.allowDraining,
       ),
+      responseMeta(request),
+    );
+  }
+
+  @Post('nodes/:nodeId/assign')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'Assign a node to a rack through a unified command that syncs Mongo and Redis.',
+  })
+  async unifiedAssignNodeToRack(
+    @Param('nodeId') nodeId: string,
+    @Body() body: UnifiedAssignNodeToRackRequestDto,
+    @Req() request: HeaderRequest,
+  ) {
+    return serializeEnvelope(
+      await this.unifiedAssignNodeToRackUseCase.execute({
+        nodeId,
+        ...body,
+      }),
       responseMeta(request),
     );
   }

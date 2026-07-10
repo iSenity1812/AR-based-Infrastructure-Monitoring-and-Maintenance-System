@@ -1,6 +1,7 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import {
+  RackOverviewClickhouseRepository,
   mapRackOverviewCurrentRackRow,
   mapRackOverviewHistoryRow,
 } from './rack-overview-clickhouse.repository';
@@ -90,5 +91,31 @@ describe('mapRackOverviewCurrentRackRow', () => {
       worstMetricValueNumeric: 87.2,
       worstMetricValueText: '87.2',
     });
+  });
+});
+
+describe('RackOverviewClickhouseRepository incremental polling', () => {
+  it('queries changed rack rows with summary timestamp checkpoint ordering', async () => {
+    const json = jest.fn().mockResolvedValue([]);
+    const query = jest.fn().mockResolvedValue({ json });
+    const repository = new RackOverviewClickhouseRepository({
+      query,
+    } as never);
+
+    await repository.listCurrentRacksChangedSince('2026-07-07 10:15:00');
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: 'JSONEachRow',
+        query_params: {
+          changedSinceSummaryTs: '2026-07-07 10:15:00',
+        },
+      }),
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      'summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})',
+    );
+    expect(query.mock.calls[0][0].query).toContain('summary_ts ASC');
+    expect(query.mock.calls[0][0].query).toContain('rack_id ASC');
   });
 });

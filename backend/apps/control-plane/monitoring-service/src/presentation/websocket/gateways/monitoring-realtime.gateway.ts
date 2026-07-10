@@ -4,11 +4,14 @@ import { Server } from 'socket.io';
 
 import {
   MonitoringRealtimePort,
+  type NodeOverviewRealtimeUpdatedEvent,
   type RackMonitoringStateChangedEvent,
 } from '../../../application/ports/monitoring-realtime.port';
 
 export const MONITORING_RACK_STATE_CHANGED_EVENT =
   'monitoring.rack.state.changed';
+export const MONITORING_NODE_OVERVIEW_UPDATED_EVENT =
+  'monitoring.node.overview.updated';
 
 @Injectable()
 @WebSocketGateway({
@@ -25,5 +28,11 @@ export class MonitoringRealtimeGateway implements MonitoringRealtimePort {
     payload: RackMonitoringStateChangedEvent,
   ): Promise<void> {
     this.server?.emit(MONITORING_RACK_STATE_CHANGED_EVENT, payload);
+  }
+
+  async emitNodeOverviewUpdated(
+    payload: NodeOverviewRealtimeUpdatedEvent,
+  ): Promise<void> {
+    this.server?.emit(MONITORING_NODE_OVERVIEW_UPDATED_EVENT, payload);
   }
 }

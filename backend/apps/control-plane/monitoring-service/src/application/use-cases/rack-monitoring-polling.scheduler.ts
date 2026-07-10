@@ -12,6 +12,7 @@ import {
   formatRackMonitoringPollStartMessage,
 } from './rack-monitoring-poll-observability';
 import { PollRackMonitoringUseCase } from './poll-rack-monitoring.use-case';
+import { SyncNodeOverviewRealtimeUseCase } from './sync-node-overview-realtime.use-case';
 
 export const RACK_MONITORING_POLL_INTERVAL_NAME = 'rack-monitoring-poll';
 
@@ -26,6 +27,7 @@ export class RackMonitoringPollingScheduler
 
   constructor(
     private readonly pollRackMonitoringUseCase: PollRackMonitoringUseCase,
+    private readonly syncNodeOverviewRealtimeUseCase: SyncNodeOverviewRealtimeUseCase,
     private readonly config: MonitoringServiceConfig,
   ) {}
 
@@ -82,6 +84,8 @@ export class RackMonitoringPollingScheduler
 
     try {
       const result = await this.pollRackMonitoringUseCase.execute(input);
+      const nodeOverviewRealtimeResult =
+        await this.syncNodeOverviewRealtimeUseCase.execute();
 
       this.logger.log(
         formatRackMonitoringPollCompletedMessage(
@@ -89,6 +93,9 @@ export class RackMonitoringPollingScheduler
           Date.now() - startedAt,
           result,
         ),
+      );
+      this.logger.log(
+        `node overview realtime sync completed (trigger=scheduled, emittedEvents=${nodeOverviewRealtimeResult.emittedEvents}, changedNodeIds=${nodeOverviewRealtimeResult.changedNodeIds}, initialized=${nodeOverviewRealtimeResult.initialized}, nextCheckpoint=${nodeOverviewRealtimeResult.nextCheckpointSummaryTs ?? 'none'})`,
       );
     } catch (error) {
       this.logger.error(

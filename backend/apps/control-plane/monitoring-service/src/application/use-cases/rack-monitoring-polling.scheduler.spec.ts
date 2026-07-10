@@ -13,11 +13,16 @@ import {
   RACK_MONITORING_POLL_INTERVAL_NAME,
   RackMonitoringPollingScheduler,
 } from './rack-monitoring-polling.scheduler';
+import type { SyncNodeOverviewRealtimeUseCase } from './sync-node-overview-realtime.use-case';
 
 describe('RackMonitoringPollingScheduler', () => {
   let clearIntervalSpy: jest.SpyInstance;
   let setIntervalSpy: jest.SpyInstance;
   let pollRackMonitoringUseCase: Pick<PollRackMonitoringUseCase, 'execute'>;
+  let syncNodeOverviewRealtimeUseCase: Pick<
+    SyncNodeOverviewRealtimeUseCase,
+    'execute'
+  >;
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -25,6 +30,14 @@ describe('RackMonitoringPollingScheduler', () => {
     setIntervalSpy = jest.spyOn(global, 'setInterval');
     pollRackMonitoringUseCase = {
       execute: jest.fn(),
+    };
+    syncNodeOverviewRealtimeUseCase = {
+      execute: jest.fn().mockResolvedValue({
+        emittedEvents: 0,
+        changedNodeIds: 0,
+        nextCheckpointSummaryTs: null,
+        initialized: true,
+      }),
     };
   });
 
@@ -131,6 +144,7 @@ describe('RackMonitoringPollingScheduler', () => {
 
     return new RackMonitoringPollingScheduler(
       pollRackMonitoringUseCase as PollRackMonitoringUseCase,
+      syncNodeOverviewRealtimeUseCase as SyncNodeOverviewRealtimeUseCase,
       config,
     );
   }

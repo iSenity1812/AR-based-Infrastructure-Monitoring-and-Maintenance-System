@@ -28,6 +28,7 @@ $CH_CLIENT < /docker-entrypoint-initdb.d/04_node_serving/08_node_current_summary
 $CH_CLIENT < /docker-entrypoint-initdb.d/05_window_aggregates/01_agg_1m_by_scope_metric.sql
 $CH_CLIENT < /docker-entrypoint-initdb.d/05_window_aggregates/02_mv_telemetry_metrics_to_agg_1m_by_scope_metric.sql
 $CH_CLIENT < /docker-entrypoint-initdb.d/05_window_aggregates/03_v_agg_1m_by_scope_metric.sql
+$CH_CLIENT < /docker-entrypoint-initdb.d/04_node_serving/09_node_summary_trend_1m.sql
 $CH_CLIENT < /docker-entrypoint-initdb.d/05_window_aggregates/04_agg_5m_by_scope_metric.sql
 $CH_CLIENT < /docker-entrypoint-initdb.d/05_window_aggregates/05_mv_telemetry_metrics_to_agg_5m_by_scope_metric.sql
 $CH_CLIENT < /docker-entrypoint-initdb.d/05_window_aggregates/06_v_agg_5m_by_scope_metric.sql

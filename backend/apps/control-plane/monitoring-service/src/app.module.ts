@@ -7,13 +7,16 @@ import { ApiResponseInterceptor } from './adapters/inbound/http/interceptors/api
 import { LoggingInterceptor } from './adapters/inbound/http/interceptors/logging.interceptor';
 import { JwtStrategy } from './adapters/inbound/http/strategies/jwt.strategy';
 import { DispatchRackAlertTransitionUseCase } from './application/use-cases/dispatch-rack-alert-transition.use-case';
+import { GetNodeMetricsUseCase } from './application/use-cases/get-node-metrics.use-case';
 import { GetNodeOverviewUseCase } from './application/use-cases/get-node-overview.use-case';
 import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
 import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
 import { RackMonitoringPollingScheduler } from './application/use-cases/rack-monitoring-polling.scheduler';
 import { SyncNodeOverviewRealtimeUseCase } from './application/use-cases/sync-node-overview-realtime.use-case';
+import { SyncNodeMetricsRealtimeUseCase } from './application/use-cases/sync-node-metrics-realtime.use-case';
 import { MonitoringRealtimePort } from './application/ports/monitoring-realtime.port';
+import { NodeMetricsComposerService } from './application/services/node-metrics-composer.service';
 import { NodeOverviewComposerService } from './application/services/node-overview-composer.service';
 import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
@@ -22,6 +25,7 @@ import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/mo
 import { MonitoringServiceConfigModule } from './infrastructure/config/monitoring-service-config.module';
 import { MonitoringDatabaseModule } from './infrastructure/database/monitoring-database.module';
 import { HealthController } from './presentation/http/controllers/health.controller';
+import { NodeMetricsController } from './presentation/http/controllers/node-metrics.controller';
 import { NodeOverviewController } from './presentation/http/controllers/node-overview.controller';
 import { RackMonitoringStateController } from './presentation/http/controllers/rack-monitoring-state.controller';
 import { RackOverviewController } from './presentation/http/controllers/rack-overview.controller';
@@ -40,6 +44,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
   ],
   controllers: [
     HealthController,
+    NodeMetricsController,
     NodeOverviewController,
     RackOverviewController,
     RackMonitoringStateController,
@@ -52,12 +57,15 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
       useExisting: MonitoringRealtimeGateway,
     },
     DispatchRackAlertTransitionUseCase,
+    NodeMetricsComposerService,
+    GetNodeMetricsUseCase,
     NodeOverviewComposerService,
     GetNodeOverviewUseCase,
     GetRackMonitoringStateUseCase,
     GetRackOverviewUseCase,
     PollRackMonitoringUseCase,
     RackMonitoringPollingScheduler,
+    SyncNodeMetricsRealtimeUseCase,
     SyncNodeOverviewRealtimeUseCase,
     {
       provide: APP_GUARD,

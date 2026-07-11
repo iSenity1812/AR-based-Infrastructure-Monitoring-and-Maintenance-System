@@ -20,6 +20,8 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
     const monitoringRealtimePort: MonitoringRealtimePort = {
       emitRackStateChanged: jest.fn(),
       emitNodeOverviewUpdated: jest.fn(),
+      emitNodeMetricsUpdated: jest.fn(),
+      emitNodeMetricsWorkloadsChanged: jest.fn(),
     };
     const useCase = new SyncNodeOverviewRealtimeUseCase(
       nodeOverviewReadRepository,
@@ -99,6 +101,8 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
     const monitoringRealtimePort: MonitoringRealtimePort = {
       emitRackStateChanged: jest.fn(),
       emitNodeOverviewUpdated: jest.fn(),
+      emitNodeMetricsUpdated: jest.fn(),
+      emitNodeMetricsWorkloadsChanged: jest.fn(),
     };
     const useCase = new SyncNodeOverviewRealtimeUseCase(
       nodeOverviewReadRepository,

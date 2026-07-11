@@ -1,6 +1,8 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import {
+  MONITORING_NODE_METRICS_UPDATED_EVENT,
+  MONITORING_NODE_METRICS_WORKLOADS_CHANGED_EVENT,
   MONITORING_NODE_OVERVIEW_UPDATED_EVENT,
   MONITORING_RACK_STATE_CHANGED_EVENT,
   MonitoringRealtimeGateway,
@@ -105,6 +107,86 @@ describe('MonitoringRealtimeGateway', () => {
 
     expect(emit).toHaveBeenCalledWith(
       MONITORING_NODE_OVERVIEW_UPDATED_EVENT,
+      expect.objectContaining({
+        nodeId: 'node-a1',
+      }),
+    );
+  });
+
+  it('emits node metrics updates on the expected event channel', async () => {
+    const emit = jest.fn();
+    const gateway = new MonitoringRealtimeGateway();
+
+    Object.assign(gateway as object, {
+      server: {
+        emit,
+      },
+    });
+
+    await gateway.emitNodeMetricsUpdated({
+      event: 'monitoring.node.metrics.updated',
+      nodeId: 'node-a1',
+      ts: '2026-07-12T09:13:00.000Z',
+      bucketSec: 60,
+      node: {
+        cpuUsagePct: 84.1,
+        memoryUsagePct: 76.8,
+        diskUsagePct: 71.4,
+        cpuTemperatureC: 81,
+        networkRxBytesSec: 2510000,
+        networkTxBytesSec: 1840000,
+      },
+      workloads: [
+        {
+          workloadId: 'container-api',
+          cpuUsagePct: 47.3,
+          memoryUsagePct: 39.1,
+        },
+      ],
+    });
+
+    expect(emit).toHaveBeenCalledWith(
+      MONITORING_NODE_METRICS_UPDATED_EVENT,
+      expect.objectContaining({
+        nodeId: 'node-a1',
+        bucketSec: 60,
+      }),
+    );
+  });
+
+  it('emits node metrics workload membership changes on the expected event channel', async () => {
+    const emit = jest.fn();
+    const gateway = new MonitoringRealtimeGateway();
+
+    Object.assign(gateway as object, {
+      server: {
+        emit,
+      },
+    });
+
+    await gateway.emitNodeMetricsWorkloadsChanged({
+      event: 'monitoring.node.metrics.workloads.changed',
+      nodeId: 'node-a1',
+      ts: '2026-07-12T09:13:00.000Z',
+      workloadSummary: {
+        total: 1,
+        returned: 1,
+        selectionMode: 'top_cpu_then_memory',
+      },
+      workloads: [
+        {
+          workloadId: 'container-api',
+          workloadType: 'container',
+          name: 'api',
+          status: 'running',
+          latestCpuUsagePct: 49.2,
+          latestMemoryUsagePct: 39.8,
+        },
+      ],
+    });
+
+    expect(emit).toHaveBeenCalledWith(
+      MONITORING_NODE_METRICS_WORKLOADS_CHANGED_EVENT,
       expect.objectContaining({
         nodeId: 'node-a1',
       }),

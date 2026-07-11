@@ -12,6 +12,7 @@ import {
   formatRackMonitoringPollStartMessage,
 } from './rack-monitoring-poll-observability';
 import { PollRackMonitoringUseCase } from './poll-rack-monitoring.use-case';
+import { SyncNodeMetricsRealtimeUseCase } from './sync-node-metrics-realtime.use-case';
 import { SyncNodeOverviewRealtimeUseCase } from './sync-node-overview-realtime.use-case';
 
 export const RACK_MONITORING_POLL_INTERVAL_NAME = 'rack-monitoring-poll';
@@ -28,6 +29,7 @@ export class RackMonitoringPollingScheduler
   constructor(
     private readonly pollRackMonitoringUseCase: PollRackMonitoringUseCase,
     private readonly syncNodeOverviewRealtimeUseCase: SyncNodeOverviewRealtimeUseCase,
+    private readonly syncNodeMetricsRealtimeUseCase: SyncNodeMetricsRealtimeUseCase,
     private readonly config: MonitoringServiceConfig,
   ) {}
 
@@ -97,6 +99,7 @@ export class RackMonitoringPollingScheduler
       this.logger.log(
         `node overview realtime sync completed (trigger=scheduled, emittedEvents=${nodeOverviewRealtimeResult.emittedEvents}, changedNodeIds=${nodeOverviewRealtimeResult.changedNodeIds}, initialized=${nodeOverviewRealtimeResult.initialized}, nextCheckpoint=${nodeOverviewRealtimeResult.nextCheckpointSummaryTs ?? 'none'})`,
       );
+      await this.syncNodeMetricsRealtime();
     } catch (error) {
       this.logger.error(
         formatRackMonitoringPollFailedMessage('scheduled', input, error),
@@ -104,6 +107,20 @@ export class RackMonitoringPollingScheduler
       );
     } finally {
       this.isRunning = false;
+    }
+  }
+
+  private async syncNodeMetricsRealtime(): Promise<void> {
+    try {
+      const result = await this.syncNodeMetricsRealtimeUseCase.execute();
+      this.logger.log(
+        `node metrics realtime sync completed (trigger=scheduled, emittedMetricEvents=${result.emittedMetricEvents}, emittedWorkloadMembershipEvents=${result.emittedWorkloadMembershipEvents}, changedNodeIds=${result.changedNodeIds}, initialized=${result.initialized}, nextCheckpoint=${result.nextCheckpointSummaryTs ?? 'none'})`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `node metrics realtime sync failed (trigger=scheduled, reason=${error instanceof Error ? error.message : String(error)})`,
+        error instanceof Error ? error.stack : undefined,
+      );
     }
   }
 }

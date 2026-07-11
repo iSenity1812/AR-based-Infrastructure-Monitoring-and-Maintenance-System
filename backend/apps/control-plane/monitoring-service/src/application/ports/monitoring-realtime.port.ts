@@ -86,6 +86,51 @@ export interface NodeOverviewRealtimeUpdatedEvent {
   }>;
 }
 
+export interface NodeMetricsUpdatedEvent {
+  event: 'monitoring.node.metrics.updated';
+  nodeId: string;
+  ts: string;
+  bucketSec: 60;
+  node: {
+    cpuUsagePct: number | null;
+    memoryUsagePct: number | null;
+    diskUsagePct: number | null;
+    cpuTemperatureC: number | null;
+    networkRxBytesSec: number | null;
+    networkTxBytesSec: number | null;
+  };
+  workloads: Array<{
+    workloadId: string;
+    cpuUsagePct: number | null;
+    memoryUsagePct: number | null;
+  }>;
+}
+
+export interface NodeMetricsWorkloadsChangedEvent {
+  event: 'monitoring.node.metrics.workloads.changed';
+  nodeId: string;
+  ts: string;
+  workloadSummary: {
+    total: number;
+    returned: number;
+    selectionMode:
+      | 'top_cpu_then_memory'
+      | 'top_memory_then_cpu'
+      | 'abnormal_first_then_top_cpu'
+      | 'abnormal_only'
+      | 'pinned_workloads'
+      | 'manual_ids';
+  };
+  workloads: Array<{
+    workloadId: string;
+    workloadType: 'container';
+    name: string;
+    status: string;
+    latestCpuUsagePct: number | null;
+    latestMemoryUsagePct: number | null;
+  }>;
+}
+
 export abstract class MonitoringRealtimePort {
   abstract emitRackStateChanged(
     payload: RackMonitoringStateChangedEvent,
@@ -93,5 +138,13 @@ export abstract class MonitoringRealtimePort {
 
   abstract emitNodeOverviewUpdated(
     payload: NodeOverviewRealtimeUpdatedEvent,
+  ): Promise<void>;
+
+  abstract emitNodeMetricsUpdated(
+    payload: NodeMetricsUpdatedEvent,
+  ): Promise<void>;
+
+  abstract emitNodeMetricsWorkloadsChanged(
+    payload: NodeMetricsWorkloadsChangedEvent,
   ): Promise<void>;
 }

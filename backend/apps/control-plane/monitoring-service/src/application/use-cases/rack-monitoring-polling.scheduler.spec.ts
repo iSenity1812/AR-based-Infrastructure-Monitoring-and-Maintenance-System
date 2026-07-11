@@ -13,6 +13,7 @@ import {
   RACK_MONITORING_POLL_INTERVAL_NAME,
   RackMonitoringPollingScheduler,
 } from './rack-monitoring-polling.scheduler';
+import type { SyncNodeMetricsRealtimeUseCase } from './sync-node-metrics-realtime.use-case';
 import type { SyncNodeOverviewRealtimeUseCase } from './sync-node-overview-realtime.use-case';
 
 describe('RackMonitoringPollingScheduler', () => {
@@ -21,6 +22,10 @@ describe('RackMonitoringPollingScheduler', () => {
   let pollRackMonitoringUseCase: Pick<PollRackMonitoringUseCase, 'execute'>;
   let syncNodeOverviewRealtimeUseCase: Pick<
     SyncNodeOverviewRealtimeUseCase,
+    'execute'
+  >;
+  let syncNodeMetricsRealtimeUseCase: Pick<
+    SyncNodeMetricsRealtimeUseCase,
     'execute'
   >;
 
@@ -34,6 +39,15 @@ describe('RackMonitoringPollingScheduler', () => {
     syncNodeOverviewRealtimeUseCase = {
       execute: jest.fn().mockResolvedValue({
         emittedEvents: 0,
+        changedNodeIds: 0,
+        nextCheckpointSummaryTs: null,
+        initialized: true,
+      }),
+    };
+    syncNodeMetricsRealtimeUseCase = {
+      execute: jest.fn().mockResolvedValue({
+        emittedMetricEvents: 0,
+        emittedWorkloadMembershipEvents: 0,
         changedNodeIds: 0,
         nextCheckpointSummaryTs: null,
         initialized: true,
@@ -145,6 +159,7 @@ describe('RackMonitoringPollingScheduler', () => {
     return new RackMonitoringPollingScheduler(
       pollRackMonitoringUseCase as PollRackMonitoringUseCase,
       syncNodeOverviewRealtimeUseCase as SyncNodeOverviewRealtimeUseCase,
+      syncNodeMetricsRealtimeUseCase as SyncNodeMetricsRealtimeUseCase,
       config,
     );
   }

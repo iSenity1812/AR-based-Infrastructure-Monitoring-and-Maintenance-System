@@ -51,9 +51,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Node {{ $labels.node_id }} is stale"
-          description: "Latest serving snapshot for node {{ $labels.node_id }} is older than 120 seconds."
+          summary: "Node {{ $labels.node_id }} stale for {{ printf \"%.0f\" $values.A.Value }}s"
+          description: "Node {{ $labels.node_id }} in rack {{ $labels.rack_id }} has not published a fresh serving snapshot for {{ printf \"%.0f\" $values.A.Value }} seconds, exceeding the stale threshold of 120 seconds."
           metric_key: stale_age_sec
+          current_value: "{{ printf \"%.0f\" $values.A.Value }}"
+          threshold: "120"
+          unit: "seconds"
+          reason_code: stale_snapshot
           observed_window: 120s
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/node-stale"
@@ -111,10 +115,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Node {{ $labels.node_id }} CPU temperature is critical"
-          description: "Node {{ $labels.node_id }} stayed above 90C during the last 5 minutes."
+          summary: "Node {{ $labels.node_id }} CPU temperature {{ printf \"%.1f\" $values.A.Value }}C > 90C"
+          description: "Node {{ $labels.node_id }} in rack {{ $labels.rack_id }} sustained CPU temperature at or above {{ printf \"%.1f\" $values.A.Value }}C during the last 5 minutes, breaching the 90C critical threshold."
           metric_key: cpu_temperature_c_current
+          current_value: "{{ printf \"%.1f\" $values.A.Value }}"
           threshold: "90"
+          unit: "celsius"
+          reason_code: cpu_temperature_sustained_critical
           observed_window: 5m
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/node-cpu-temp-critical"
@@ -172,10 +179,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Node {{ $labels.node_id }} memory pressure is high"
-          description: "Node {{ $labels.node_id }} stayed above 90% memory usage during the last 5 minutes."
+          summary: "Node {{ $labels.node_id }} memory usage {{ printf \"%.1f\" $values.A.Value }}% > 90%"
+          description: "Node {{ $labels.node_id }} in rack {{ $labels.rack_id }} sustained memory usage at or above {{ printf \"%.1f\" $values.A.Value }} percent during the last 5 minutes, breaching the 90 percent threshold."
           metric_key: memory_used_pct_current
+          current_value: "{{ printf \"%.1f\" $values.A.Value }}"
           threshold: "90"
+          unit: "percent"
+          reason_code: memory_usage_sustained_high
           observed_window: 5m
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/node-memory-pressure-high"
@@ -233,10 +243,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Node {{ $labels.node_id }} disk usage is high"
-          description: "Node {{ $labels.node_id }} stayed above 85% max disk usage during the last 10 minutes."
+          summary: "Node {{ $labels.node_id }} disk usage {{ printf \"%.1f\" $values.A.Value }}% > 85%"
+          description: "Node {{ $labels.node_id }} in rack {{ $labels.rack_id }} sustained max disk usage at or above {{ printf \"%.1f\" $values.A.Value }} percent during the last 10 minutes, breaching the 85 percent threshold."
           metric_key: disk_used_pct_max_current
+          current_value: "{{ printf \"%.1f\" $values.A.Value }}"
           threshold: "85"
+          unit: "percent"
+          reason_code: disk_usage_sustained_high
           observed_window: 10m
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/node-disk-usage-high"
@@ -294,10 +307,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Node {{ $labels.node_id }} CPU usage is high"
-          description: "Node {{ $labels.node_id }} stayed above 90% CPU usage during the last 5 minutes."
+          summary: "Node {{ $labels.node_id }} CPU usage {{ printf \"%.1f\" $values.A.Value }}% > 90%"
+          description: "Node {{ $labels.node_id }} in rack {{ $labels.rack_id }} sustained CPU usage at or above {{ printf \"%.1f\" $values.A.Value }} percent during the last 5 minutes, breaching the 90 percent threshold."
           metric_key: cpu_usage_pct_current
+          current_value: "{{ printf \"%.1f\" $values.A.Value }}"
           threshold: "90"
+          unit: "percent"
+          reason_code: cpu_usage_sustained_high
           observed_window: 5m
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/node-cpu-usage-high"
@@ -360,9 +376,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Node {{ $labels.node_id }} has unhealthy containers"
-          description: "At least one container on node {{ $labels.node_id }} is reporting unhealthy status."
+          summary: "Node {{ $labels.node_id }} has {{ printf \"%.0f\" $values.A.Value }} unhealthy container(s)"
+          description: "Node {{ $labels.node_id }} in rack {{ $labels.rack_id }} currently has {{ printf \"%.0f\" $values.A.Value }} container(s) reporting unhealthy status in the latest serving snapshot."
           metric_key: unhealthy_container_count
+          current_value: "{{ printf \"%.0f\" $values.A.Value }}"
+          threshold: "1"
+          unit: "containers"
+          reason_code: unhealthy_containers_present
           observed_window: current-snapshot
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/container-unhealthy-present"
@@ -419,9 +439,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Workload {{ $labels.workload_id }} is restarting"
-          description: "Workload {{ $labels.workload_id }} on node {{ $labels.node_id }} has a restart count above zero."
+          summary: "Workload {{ $labels.workload_id }} restart count is {{ printf \"%.0f\" $values.A.Value }}"
+          description: "Workload {{ $labels.workload_id }} on node {{ $labels.node_id }} in rack {{ $labels.rack_id }} currently reports restart_count_current={{ printf \"%.0f\" $values.A.Value }}, which is above zero."
           metric_key: restart_count_current
+          current_value: "{{ printf \"%.0f\" $values.A.Value }}"
+          threshold: "0"
+          unit: "restarts"
+          reason_code: workload_restarting
           observed_window: current-snapshot
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/container-restarting"
@@ -457,7 +481,17 @@ groups:
               rawSql: |
                 SELECT
                     rack_id,
-                    toFloat64(greatest(critical_nodes, stale_nodes, if(is_rack_level_failure = 1, 1, 0), if(has_signal_loss = 1, 1, 0))) AS alert_value
+                    toFloat64(
+                        if(
+                            critical_nodes > 0,
+                            critical_nodes,
+                            if(
+                                stale_nodes > 0,
+                                stale_nodes,
+                                if(is_rack_level_failure = 1 OR has_signal_loss = 1, 1, 0)
+                            )
+                        )
+                    ) AS alert_value
                 FROM telemetry_db.rack_current_summary
                 WHERE is_rack_level_failure = 1
                    OR critical_nodes > 0
@@ -484,8 +518,13 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: "Rack {{ $labels.rack_id }} is in critical state"
-          description: "Rack-level critical condition detected for rack {{ $labels.rack_id }}."
+          summary: "Rack {{ $labels.rack_id }} critical with impact value {{ printf \"%.0f\" $values.A.Value }}"
+          description: "Rack {{ $labels.rack_id }} is critical. Impact value={{ printf \"%.0f\" $values.A.Value }} where the value represents critical_nodes first, then stale_nodes, and falls back to 1 for rack-level failure or signal loss."
+          metric_key: rack_impact_value
+          current_value: "{{ printf \"%.0f\" $values.A.Value }}"
+          threshold: "1"
+          unit: "impact-count"
+          reason_code: rack_failure_or_critical_nodes_or_signal_loss
           observed_window: current-snapshot
           dashboard_url: "/d/monitoring-overview"
           runbook_url: "/docs/runbooks/alerting/rack-critical"

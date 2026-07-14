@@ -21,6 +21,7 @@ import { NodeOverviewComposerService } from './application/services/node-overvie
 import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
 import { MonitoringClickhouseModule } from './infrastructure/database/clickhouse/monitoring-clickhouse.module';
+import { AlertCurrentStateMongoModule } from './infrastructure/database/mongodb/alert-current-state-mongo.module';
 import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/monitoring-state-mongo.module';
 import { MonitoringServiceConfigModule } from './infrastructure/config/monitoring-service-config.module';
 import { MonitoringDatabaseModule } from './infrastructure/database/monitoring-database.module';
@@ -37,6 +38,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     MonitoringServiceConfigModule,
     MonitoringDatabaseModule,
     MonitoringStateMongoModule,
+    AlertCurrentStateMongoModule,
     MonitoringClickhouseModule,
     AlertmanagerModule,
     AssetServiceGrpcModule,

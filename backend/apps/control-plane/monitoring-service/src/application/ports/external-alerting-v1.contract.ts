@@ -2,6 +2,7 @@ export const EXTERNAL_ALERT_SCOPE_TYPES = [
   'node',
   'rack',
   'workload',
+  'service',
 ] as const;
 
 export type ExternalAlertScopeType =
@@ -16,6 +17,8 @@ export const EXTERNAL_ALERT_CATEGORIES = [
   'resource',
   'thermal',
   'runtime',
+  'network',
+  'connectivity',
 ] as const;
 
 export type ExternalAlertCategory = (typeof EXTERNAL_ALERT_CATEGORIES)[number];
@@ -42,6 +45,9 @@ export type ExternalAlertScopeLabels =
       workload_id: string;
       node_id: string;
       rack_id: string;
+    }
+  | {
+      workload_id: string;
     };
 
 export type ExternalAlertLabels = ExternalAlertCommonLabels &
@@ -84,6 +90,11 @@ export const EXTERNAL_ALERT_SCOPE_CONTRACTS: Record<
   },
   workload: {
     requiredLabelKeys: ['workload_id', 'node_id', 'rack_id'],
+    groupingKeys: ['alertname', 'workload_id'],
+    inhibitionIdentityKeys: ['workload_id'],
+  },
+  service: {
+    requiredLabelKeys: ['workload_id'],
     groupingKeys: ['alertname', 'workload_id'],
     inhibitionIdentityKeys: ['workload_id'],
   },
@@ -306,4 +317,3 @@ export function getExternalAlertScopeContract(
 ): ExternalAlertScopeContract {
   return EXTERNAL_ALERT_SCOPE_CONTRACTS[scopeType];
 }
-

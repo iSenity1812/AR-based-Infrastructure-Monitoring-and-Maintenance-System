@@ -26,6 +26,10 @@ describe('external alerting v1 contract', () => {
       'alertname',
       'workload_id',
     ]);
+    expect(getExternalAlertScopeContract('service').groupingKeys).toEqual([
+      'alertname',
+      'workload_id',
+    ]);
   });
 
   it('defines a query contract baseline for every v1 rule', () => {

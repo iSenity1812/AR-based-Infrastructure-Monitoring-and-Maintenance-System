@@ -1,0 +1,10 @@
+alertname=ContainerRestarting
+scope_type=workload
+workload_id=container-42
+node_id=node-msi-5e8ff2c0
+rack_id=rack-a1
+environment=lab
+team=infra
+category=runtime
+severity=warning
+source=grafana

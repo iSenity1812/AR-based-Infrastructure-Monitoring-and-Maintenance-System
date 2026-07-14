@@ -1,0 +1,498 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: monitoring_node_health_v1
+    folder: delegated-alerting-v1
+    interval: 60s
+    rules:
+      - uid: node_stale_v1
+        title: NodeStale
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(dateDiff('second', summary_ts, now())) AS alert_value
+                FROM telemetry_db.node_current_summary
+                WHERE dateDiff('second', summary_ts, now()) > 120
+              refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Node {{ $labels.node_id }} is stale"
+          description: "Latest serving snapshot for node {{ $labels.node_id }} is older than 120 seconds."
+          metric_key: stale_age_sec
+          observed_window: 120s
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/node-stale"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: node
+          severity: warning
+          category: availability
+      - uid: node_cpu_temp_critical_v1
+        title: NodeCpuTempCritical
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(min(cpu_temperature_c_current)) AS alert_value
+                FROM telemetry_db.node_summary_trend_1m
+                WHERE bucket_start >= toStartOfMinute(now()) - INTERVAL 5 MINUTE
+                GROUP BY node_id, rack_id
+                HAVING min(cpu_temperature_c_current) > 90
+              refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Node {{ $labels.node_id }} CPU temperature is critical"
+          description: "Node {{ $labels.node_id }} stayed above 90C during the last 5 minutes."
+          metric_key: cpu_temperature_c_current
+          threshold: "90"
+          observed_window: 5m
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/node-cpu-temp-critical"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: node
+          severity: critical
+          category: thermal
+      - uid: node_memory_pressure_high_v1
+        title: NodeMemoryPressureHigh
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(min(memory_used_pct_current)) AS alert_value
+                FROM telemetry_db.node_summary_trend_1m
+                WHERE bucket_start >= toStartOfMinute(now()) - INTERVAL 5 MINUTE
+                GROUP BY node_id, rack_id
+                HAVING min(memory_used_pct_current) > 90
+              refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Node {{ $labels.node_id }} memory pressure is high"
+          description: "Node {{ $labels.node_id }} stayed above 90% memory usage during the last 5 minutes."
+          metric_key: memory_used_pct_current
+          threshold: "90"
+          observed_window: 5m
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/node-memory-pressure-high"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: node
+          severity: critical
+          category: resource
+      - uid: node_disk_usage_high_v1
+        title: NodeDiskUsageHigh
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(min(disk_used_pct_max_current)) AS alert_value
+                FROM telemetry_db.node_summary_trend_1m
+                WHERE bucket_start >= toStartOfMinute(now()) - INTERVAL 10 MINUTE
+                GROUP BY node_id, rack_id
+                HAVING min(disk_used_pct_max_current) > 85
+              refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Node {{ $labels.node_id }} disk usage is high"
+          description: "Node {{ $labels.node_id }} stayed above 85% max disk usage during the last 10 minutes."
+          metric_key: disk_used_pct_max_current
+          threshold: "85"
+          observed_window: 10m
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/node-disk-usage-high"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: node
+          severity: warning
+          category: resource
+      - uid: node_cpu_usage_high_v1
+        title: NodeCpuUsageHigh
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(min(cpu_usage_pct_current)) AS alert_value
+                FROM telemetry_db.node_summary_trend_1m
+                WHERE bucket_start >= toStartOfMinute(now()) - INTERVAL 5 MINUTE
+                GROUP BY node_id, rack_id
+                HAVING min(cpu_usage_pct_current) > 90
+              refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Node {{ $labels.node_id }} CPU usage is high"
+          description: "Node {{ $labels.node_id }} stayed above 90% CPU usage during the last 5 minutes."
+          metric_key: cpu_usage_pct_current
+          threshold: "90"
+          observed_window: 5m
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/node-cpu-usage-high"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: node
+          severity: critical
+          category: resource
+
+  - orgId: 1
+    name: monitoring_runtime_v1
+    folder: delegated-alerting-v1
+    interval: 60s
+    rules:
+      - uid: container_unhealthy_present_v1
+        title: ContainerUnhealthyPresent
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(countIf(lower(container_health_status) = 'unhealthy')) AS alert_value
+                FROM telemetry_db.container_current_summary
+                GROUP BY node_id, rack_id
+                HAVING countIf(lower(container_health_status) = 'unhealthy') > 0
+              refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Node {{ $labels.node_id }} has unhealthy containers"
+          description: "At least one container on node {{ $labels.node_id }} is reporting unhealthy status."
+          metric_key: unhealthy_container_count
+          observed_window: current-snapshot
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/container-unhealthy-present"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: node
+          severity: warning
+          category: runtime
+      - uid: container_restarting_v1
+        title: ContainerRestarting
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    container_id AS workload_id,
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(restart_count_current) AS alert_value
+                FROM telemetry_db.container_current_summary
+                WHERE restart_count_current > 0
+              refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Workload {{ $labels.workload_id }} is restarting"
+          description: "Workload {{ $labels.workload_id }} on node {{ $labels.node_id }} has a restart count above zero."
+          metric_key: restart_count_current
+          observed_window: current-snapshot
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/container-restarting"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: workload
+          severity: warning
+          category: runtime
+
+  - orgId: 1
+    name: monitoring_rack_health_v1
+    folder: delegated-alerting-v1
+    interval: 60s
+    rules:
+      - uid: rack_critical_v1
+        title: RackCritical
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    rack_id,
+                    toFloat64(greatest(critical_nodes, stale_nodes, if(is_rack_level_failure = 1, 1, 0), if(has_signal_loss = 1, 1, 0))) AS alert_value
+                FROM telemetry_db.rack_current_summary
+                WHERE is_rack_level_failure = 1
+                   OR critical_nodes > 0
+                   OR has_signal_loss = 1
+              refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Rack {{ $labels.rack_id }} is in critical state"
+          description: "Rack-level critical condition detected for rack {{ $labels.rack_id }}."
+          observed_window: current-snapshot
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/rack-critical"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: rack
+          severity: critical
+          category: availability

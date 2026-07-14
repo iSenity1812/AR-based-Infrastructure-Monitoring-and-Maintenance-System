@@ -289,6 +289,32 @@ services:
       timeout: 5s
       retries: 10
 
+  alert-webhook-sink:
+    image: python:3.12-alpine
+    container_name: backend-shared-alert-webhook-sink
+    command: ["python", "/app/server.py"]
+    restart: unless-stopped
+    ports:
+      - "18081:8080"
+    environment:
+      WEBHOOK_SINK_LOG_PATH: /data/requests.jsonl
+    volumes:
+      - ../../infra/alertmanager/lab-webhook-sink:/app:ro
+      - backend-shared-alert-webhook-sink-data:/data
+    networks:
+      - redpanda-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health').read()"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   backend-shared-redis-data:
   backend-shared-mongo-data:
@@ -296,3 +322,4 @@ volumes:
   backend-shared-clickhouse-data:
   backend-shared-minio-data:
   backend-shared-grafana-data:
+  backend-shared-alert-webhook-sink-data:

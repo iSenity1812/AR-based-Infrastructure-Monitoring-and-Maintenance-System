@@ -324,6 +324,70 @@ groups:
           scope_type: node
           severity: critical
           category: resource
+      - uid: node_packet_loss_high_v1
+        title: NodePacketLossHigh
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    node_id,
+                    ifNull(dictGet('telemetry_db.dict_node_topology', 'rack_id', node_id), '') AS rack_id,
+                    toFloat64(min(tcp_retransmit_pct_max_current)) AS alert_value
+                FROM telemetry_db.node_summary_trend_1m
+                WHERE bucket_start >= toStartOfMinute(now()) - INTERVAL 5 MINUTE
+                GROUP BY node_id, rack_id
+                HAVING min(tcp_retransmit_pct_max_current) > 5
+              refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Node {{ $labels.node_id }} packet retransmit {{ printf \"%.1f\" $values.A.Value }}% > 5%"
+          description: "Node {{ $labels.node_id }} in rack {{ $labels.rack_id }} sustained TCP retransmit at or above {{ printf \"%.1f\" $values.A.Value }} percent during the last 5 minutes, indicating likely packet loss or network degradation beyond the 5 percent warning threshold."
+          metric_key: tcp_retransmit_pct_max_current
+          current_value: "{{ printf \"%.1f\" $values.A.Value }}"
+          threshold: "5"
+          unit: "percent"
+          reason_code: tcp_retransmit_sustained_high
+          observed_window: 5m
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/node-packet-loss-high"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: node
+          severity: warning
+          category: network
 
   - orgId: 1
     name: monitoring_runtime_v1
@@ -456,6 +520,72 @@ groups:
           scope_type: workload
           severity: warning
           category: runtime
+      - uid: service_partial_outage_v1
+        title: ServicePartialOutage
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    `s.service_id` AS workload_id,
+                    service_name,
+                    toString(toInt64(service_running_container_count_current)) AS running_replicas,
+                    toString(toInt64(service_container_count_current)) AS expected_replicas,
+                    toFloat64(round(running_container_ratio_current * 100, 1)) AS alert_value
+                FROM telemetry_db.service_current_summary
+                WHERE service_container_count_current > 0
+                  AND service_running_container_count_current > 0
+                  AND service_running_container_count_current < service_container_count_current
+              refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Service {{ $labels.service_name }} running {{ $labels.running_replicas }} / {{ $labels.expected_replicas }} containers"
+          description: "Service {{ $labels.service_name }} currently has only {{ $labels.running_replicas }} of {{ $labels.expected_replicas }} expected containers running, leaving capacity at {{ printf \"%.1f\" $values.A.Value }} percent."
+          metric_key: running_container_ratio_current
+          current_value: "{{ printf \"%.1f\" $values.A.Value }}"
+          threshold: "100"
+          unit: "percent-of-expected-capacity"
+          reason_code: service_partial_outage
+          observed_window: current-snapshot
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/service-partial-outage"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: service
+          severity: warning
+          category: availability
 
   - orgId: 1
     name: monitoring_rack_health_v1
@@ -535,3 +665,68 @@ groups:
           scope_type: rack
           severity: critical
           category: availability
+      - uid: rack_signal_loss_present_v1
+        title: RackSignalLossPresent
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: clickhouse
+            model:
+              datasource:
+                type: grafana-clickhouse-datasource
+                uid: clickhouse
+              editorType: sql
+              format: table
+              intervalMs: 1000
+              maxDataPoints: 43200
+              queryType: sql
+              rawQuery: true
+              rawSql: |
+                SELECT
+                    rack_id,
+                    toFloat64(if(silent_dead_nodes > 0, silent_dead_nodes, stale_nodes)) AS alert_value,
+                    toString(toInt64(silent_dead_nodes)) AS silent_dead_nodes_label,
+                    toString(toInt64(stale_nodes)) AS stale_nodes_label
+                FROM telemetry_db.rack_current_summary
+                WHERE has_signal_loss = 1
+                  AND rack_id != ''
+                  AND lowerUTF8(rack_id) != 'null'
+              refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: $A > 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: math
+            relativeTimeRange:
+              from: 0
+              to: 0
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "Rack {{ $labels.rack_id }} signal loss with {{ $labels.silent_dead_nodes_label }} silent node(s)"
+          description: "Rack {{ $labels.rack_id }} is reporting signal loss. Silent nodes={{ $labels.silent_dead_nodes_label }}, stale nodes={{ $labels.stale_nodes_label }}, which indicates rack-level connectivity degradation or missing telemetry."
+          metric_key: has_signal_loss
+          current_value: "{{ printf \"%.0f\" $values.A.Value }}"
+          threshold: "1"
+          unit: "affected-nodes"
+          reason_code: rack_signal_loss_present
+          observed_window: current-snapshot
+          dashboard_url: "/d/monitoring-overview"
+          runbook_url: "/docs/runbooks/alerting/rack-signal-loss-present"
+        labels:
+          source: grafana
+          team: infra
+          environment: lab
+          scope_type: rack
+          severity: critical
+          category: connectivity

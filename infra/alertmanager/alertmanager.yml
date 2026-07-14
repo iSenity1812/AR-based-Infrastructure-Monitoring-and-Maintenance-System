@@ -59,6 +59,26 @@ route:
         - workload_id
       continue: false
 
+    - receiver: monitoring-service-critical-lab
+      matchers:
+        - scope_type="service"
+        - environment="lab"
+        - severity="critical"
+      group_by:
+        - alertname
+        - workload_id
+      continue: false
+
+    - receiver: monitoring-service-warning-lab
+      matchers:
+        - scope_type="service"
+        - environment="lab"
+        - severity="warning"
+      group_by:
+        - alertname
+        - workload_id
+      continue: false
+
 inhibit_rules:
   - source_matchers:
       - alertname="RackCritical"
@@ -89,6 +109,16 @@ inhibit_rules:
       - alertname
       - workload_id
 
+  - source_matchers:
+      - severity="critical"
+      - scope_type="service"
+    target_matchers:
+      - severity="warning"
+      - scope_type="service"
+    equal:
+      - alertname
+      - workload_id
+
 receivers:
   - name: monitoring-lab-default
     webhook_configs:
@@ -111,6 +141,14 @@ receivers:
       - url: http://alert-webhook-sink:8080/critical
         send_resolved: true
   - name: monitoring-workload-warning-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/warning
+        send_resolved: true
+  - name: monitoring-service-critical-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/critical
+        send_resolved: true
+  - name: monitoring-service-warning-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/warning
         send_resolved: true

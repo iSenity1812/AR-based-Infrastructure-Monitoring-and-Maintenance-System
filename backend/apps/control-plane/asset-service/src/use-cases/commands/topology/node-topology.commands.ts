@@ -223,7 +223,9 @@ export class UpdateNodeUseCase {
       nextPositionCode,
     );
 
-    const updatePayload: Parameters<NodeRepositoryPort['update']>[1] = { ...input };
+    const updatePayload: Parameters<NodeRepositoryPort['update']>[1] = {
+      ...input,
+    };
     if (placementUpdateRequested) {
       updatePayload.assignmentState = this.resolveAssignmentState(
         node,
@@ -543,7 +545,11 @@ export class ActivateNodeUseCase {
   constructor(
     @Inject(NODE_REPOSITORY)
     private readonly nodeRepository: NodeRepositoryPort,
+    @Inject(DISCOVERED_NODE_REPOSITORY)
+    private readonly discoveredNodeRepository: DiscoveredNodeRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(RACK_REPOSITORY)
+    private readonly rackRepository: RackRepositoryPort,
   ) {}
 
   async execute(nodeId: string) {
@@ -552,6 +558,24 @@ export class ActivateNodeUseCase {
     const updated = await this.nodeRepository.update(resolvedNodeId, {
       lifecycleState: NodeLifecycleState.ACTIVE,
     });
+
+    const discoveredNode = await this.discoveredNodeRepository.findByAgentId(
+      node.nodeCode,
+    );
+    if (discoveredNode) {
+      const rack = node.rackId
+        ? await this.rackRepository.findById(node.rackId)
+        : null;
+      await this.discoveredNodeRepository.save({
+        ...discoveredNode,
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: node.assignmentState,
+        logicalRackId: node.rackId ?? null,
+        siteCode: rack?.siteCode,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
     await this.assetContextReadService.invalidateNodeContext(resolvedNodeId);
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);

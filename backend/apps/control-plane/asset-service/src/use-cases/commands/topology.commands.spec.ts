@@ -12,6 +12,7 @@ import { BadRequestUseCaseError } from '@use-cases/errors/use-case.errors';
 import { ConflictUseCaseError } from '@use-cases/errors/use-case.errors';
 import { ActivateMarkerUseCase } from './marker.commands';
 import {
+  ActivateNodeUseCase,
   AssignNodeToRackUseCase,
   ConfirmRackReadyUseCase,
   CreateRackUseCase,
@@ -768,6 +769,93 @@ describe('asset lifecycle commands', () => {
     expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
       'NODE-1',
       'rack-1',
+    );
+  });
+
+  it('syncs discovered node state in Redis when activating a retired assigned node', async () => {
+    const nodeRepository = {
+      create: jest.fn(),
+      update: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        positionCode: 'U01',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findById: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        positionCode: 'U01',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.RETIRED,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      findByRackIdAndPositionCode: jest.fn(),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
+    };
+    const discoveredNodeRepository = {
+      findByAgentId: jest.fn().mockResolvedValue({
+        agentId: 'NODE-1',
+        hostname: 'Node 1',
+        deviceType: 'SERVER',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.RETIRED,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        logicalRackId: null,
+        hardware: {},
+        createdAt: '2026-06-17T08:00:00.000Z',
+        updatedAt: '2026-06-17T08:00:00.000Z',
+      }),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    const rackRepository: RackRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn(),
+      findById: jest.fn().mockResolvedValue({
+        id: 'rack-1',
+        rackCode: 'RACK-A1',
+        displayName: 'Rack A1',
+        lifecycleState: RackLifecycleState.READY,
+        capacityState: RackCapacityState.AVAILABLE,
+        siteCode: 'SITE-A',
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      listAll: jest.fn(),
+    };
+
+    const useCase = new ActivateNodeUseCase(
+      nodeRepository,
+      discoveredNodeRepository as never,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+      rackRepository,
+    );
+
+    await useCase.execute('node-1');
+
+    expect(discoveredNodeRepository.findByAgentId).toHaveBeenCalledWith(
+      'NODE-1',
+    );
+    expect(discoveredNodeRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        logicalRackId: 'rack-1',
+        siteCode: 'SITE-A',
+      }),
     );
   });
 

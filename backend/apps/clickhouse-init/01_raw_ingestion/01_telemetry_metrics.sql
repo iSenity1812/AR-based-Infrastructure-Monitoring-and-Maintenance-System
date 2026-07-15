@@ -22,31 +22,25 @@ DROP TABLE IF EXISTS telemetry_db.telemetry_metrics;
 CREATE TABLE IF NOT EXISTS telemetry_db.telemetry_metrics (
     agent_id String,
     batch_sequence Int32,
-
-    metric_key LowCardinality(String),
-    scope_type LowCardinality(String),
+    metric_key LowCardinality (String),
+    scope_type LowCardinality (String),
     scope_id String,
-
     metric_timestamp DateTime('Asia/Ho_Chi_Minh'),
-
     metric_value_numeric Float64,
     metric_value_text String,
-
-    unit LowCardinality(String),
-    source LowCardinality(String),
+    unit LowCardinality (String),
+    source LowCardinality (String),
     source_metric String,
-
-    tags Map(String, String),
-
+    tags Map (String, String),
     tags_json String,
     series_key String
-)
-ENGINE = MergeTree()
-PARTITION BY toYYYYMM(metric_timestamp)
+) ENGINE = MergeTree ()
+PARTITION BY
+    toYYYYMM (metric_timestamp)
 ORDER BY (
-    scope_type,
-    scope_id,
-    metric_key,
-    series_key,
-    metric_timestamp
-);
+        scope_type, scope_id, metric_key, series_key, metric_timestamp
+    );
+
+-- TTL cho bảng telemetry_metrics để tự động xóa dữ liệu cũ hơn 7 ngày
+ALTER TABLE telemetry_db.telemetry_metrics
+MODIFY TTL metric_timestamp + INTERVAL 7 DAY;

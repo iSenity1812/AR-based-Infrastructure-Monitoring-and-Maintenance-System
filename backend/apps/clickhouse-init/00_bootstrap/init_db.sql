@@ -9,10 +9,6 @@ USE telemetry_db;
 CREATE TABLE IF NOT EXISTS normalized_telemetry_queue (payload String) ENGINE = MergeTree
 ORDER BY tuple ();
 
--- TTL cho bảng telemetry_metrics để tự động xóa dữ liệu cũ hơn 7 ngày
-ALTER TABLE telemetry_db.telemetry_metrics
-MODIFY TTL metric_timestamp + INTERVAL 7 DAY;
-
 CREATE TABLE IF NOT EXISTS node_topology_base (
     node_id String,
     rack_id Nullable (String),

@@ -9,7 +9,7 @@ import type {
 } from '../ports/rack-overview-read.repository';
 
 describe('GetRackOverviewUseCase', () => {
-  it('filters placeholder rack ids out of the response and enrichment lookup', async () => {
+  it('filters placeholder rack ids out of the response and enriches the consumer-first schema', async () => {
     const currentRacks: RackOverviewCurrentRackRecord[] = [
       {
         rackId: 'rack-a1',
@@ -60,7 +60,7 @@ describe('GetRackOverviewUseCase', () => {
         totalRacks: 2,
         criticalRacks: 1,
         warningRacks: 0,
-        staleRacks: 0,
+        staleRacks: 1,
         signalLossRacks: 1,
         rackLevelFailureRacks: 1,
       }),
@@ -93,16 +93,70 @@ describe('GetRackOverviewUseCase', () => {
     const result = await useCase.execute();
 
     expect(batchGetRacks).toHaveBeenCalledWith(['rack-a1']);
-    expect(result.topRiskRacks).toHaveLength(1);
-    expect(result.topRiskRacks[0]).toMatchObject({
-      rackId: 'rack-a1',
-      rackName: 'Rack A1',
+    expect(result.overview.counts).toEqual({
+      total: 2,
+      critical: 1,
+      warning: 0,
+      stale: 1,
+      signalLoss: 1,
+      rackLevelFailure: 1,
     });
-    expect(result.rackGrid.items).toHaveLength(1);
-    expect(result.rackGrid.items[0]).toMatchObject({
-      id: 'rack-a1',
-      rackCode: 'RACK-A1',
-      displayName: 'Rack A1',
+    expect(result.riskCards).toHaveLength(1);
+    expect(result.riskCards[0]).toMatchObject({
+      rack: {
+        id: 'rack-a1',
+        name: 'Rack A1',
+        code: 'RACK-A1',
+      },
+      status: {
+        severity: 'critical',
+        override: true,
+        rackLevelFailure: true,
+        signalLoss: true,
+        staleNodes: 2,
+      },
+      metrics: {
+        totalNodes: 24,
+        badNodes: 13,
+        criticalNodes: 5,
+        warningNodes: 8,
+        badNodeRatio: 0.5417,
+      },
+      culprit: {
+        nodeId: 'node-17',
+        metric: {
+          key: 'cpu_usage_pct',
+          tags: {
+            host: 'node-17',
+          },
+          value: {
+            numeric: 98.4,
+            text: '98.4',
+          },
+        },
+      },
+      trend: {
+        delta1m: 0,
+        delta5m: 0,
+        lastChangeAgeSec: null,
+      },
+      updatedAt: '2026-07-01 10:15:00',
+      location: {
+        site: undefined,
+        room: undefined,
+        zone: undefined,
+        row: undefined,
+        position: undefined,
+      },
     });
+    expect(result.rackList.sort).toEqual([
+      'severity',
+      'rackLevelFailure',
+      'signalLoss',
+      'badNodeRatio',
+      'staleNodes',
+      'updatedAt',
+      'rackId',
+    ]);
   });
 });

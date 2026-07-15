@@ -12,7 +12,7 @@
 - Trang này là `low-resolution operational overview`
 - Không drill vào metric-row level
 - Mọi rack phải xuất phát từ cùng `single source of truth`: `telemetry_db.rack_current_summary`
-- Các trường dẫn xuất như `top_risk_racks`, `severity_trend_delta_*`, `last_change_age_sec` do backend assemble từ serving views
+- Các trường dẫn xuất như `riskCards`, `trend.delta*`, `trend.lastChangeAgeSec` do backend assemble từ serving views
 
 ---
 
@@ -20,58 +20,80 @@
 
 ```json
 {
-  "generated_at": "2026-07-01T10:15:00+07:00",
+  "generatedAt": "2026-07-01T10:15:00+07:00",
   "scope": "rack",
   "view": "operator_dashboard",
-  "summary": {
-    "total_racks": 48,
-    "critical_racks": 6,
-    "warning_racks": 11,
-    "stale_racks": 3,
-    "signal_loss_racks": 2,
-    "rack_level_failure_racks": 4
+  "overview": {
+    "counts": {
+      "total": 48,
+      "critical": 6,
+      "warning": 11,
+      "stale": 3,
+      "signalLoss": 2,
+      "rackLevelFailure": 4
+    }
   },
-  "top_risk_racks": [
+  "riskCards": [
     {
-      "rack_id": "rack-a1",
-      "rack_name": "Rack A1",
-      "summary_ts": "2026-07-01T10:15:00+07:00",
-      "rack_severity_code": 3,
-      "has_override_flag": 1,
-      "total_nodes": 24,
-      "bad_nodes": 13,
-      "critical_nodes": 5,
-      "warning_nodes": 8,
-      "stale_nodes": 2,
-      "bad_node_ratio": 0.5417,
-      "is_rack_level_failure": 1,
-      "has_signal_loss": 1,
-      "worst_node_id": "node-17",
-      "worst_metric_key": "cpu_usage_pct",
-      "worst_metric_tags_json": "{\"host\":\"node-17\"}",
-      "worst_metric_value_numeric": 98.4,
-      "worst_metric_value_text": "98.4",
-      "severity_trend_delta_1m": 1,
-      "severity_trend_delta_5m": 2,
-      "last_change_age_sec": 42
+      "rack": {
+        "id": "rack-a1",
+        "name": "Rack A1",
+        "code": "RACK-A1"
+      },
+      "status": {
+        "severity": "critical",
+        "override": true,
+        "rackLevelFailure": true,
+        "signalLoss": true,
+        "staleNodes": 2
+      },
+      "metrics": {
+        "totalNodes": 24,
+        "badNodes": 13,
+        "criticalNodes": 5,
+        "warningNodes": 8,
+        "badNodeRatio": 0.5417
+      },
+      "culprit": {
+        "nodeId": "node-17",
+        "metric": {
+          "key": "cpu_usage_pct",
+          "tags": { "host": "node-17" },
+          "value": {
+            "numeric": 98.4,
+            "text": "98.4"
+          }
+        }
+      },
+      "trend": {
+        "delta1m": 1,
+        "delta5m": 2,
+        "lastChangeAgeSec": 42
+      },
+      "updatedAt": "2026-07-01T10:15:00+07:00",
+      "location": {
+        "site": "DC01",
+        "room": "ROOM-A",
+        "row": "ROW-03",
+        "position": "POS-12"
+      }
     }
   ],
-  "rack_grid": {
-    "sort_by": [
-      "rack_severity_code_desc",
-      "is_rack_level_failure_desc",
-      "has_signal_loss_desc",
-      "bad_node_ratio_desc",
-      "stale_nodes_desc",
-      "summary_ts_desc",
-      "rack_id_asc"
-    ],
-    "items": []
+  "rackList": {
+    "sort": [
+      "severity",
+      "rackLevelFailure",
+      "signalLoss",
+      "badNodeRatio",
+      "staleNodes",
+      "updatedAt",
+      "rackId"
+    ]
   },
   "filters": {
     "severity": ["critical", "warning", "stale", "normal"],
-    "only_failure": false,
-    "only_signal_loss": false
+    "onlyFailure": false,
+    "onlySignalLoss": false
   }
 }
 ```
@@ -82,15 +104,14 @@
 
 | Response field                   | Source                                                     | Notes                                                         |
 | -------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `generated_at`                   | Backend app clock                                          | ISO-8601                                                      |
+| `generatedAt`                    | Backend app clock                                          | ISO-8601                                                      |
 | `scope`, `view`                  | Backend constant                                           | contract constant                                             |
-| `summary.*`                      | `telemetry_db.rack_current_summary`                        | aggregate over all racks                                      |
-| `rack_grid.items[*]` base fields | `telemetry_db.rack_current_summary`                        | one row per rack                                              |
-| `rack_name`                      | topology/dimension service or rack dictionary if available | optional enrichment                                           |
-| `severity_trend_delta_1m`        | `telemetry_db.v_rack_summary_history`                      | current severity - latest `1m` historical severity before now |
-| `severity_trend_delta_5m`        | `telemetry_db.v_rack_summary_history`                      | current severity - latest `5m` historical severity before now |
-| `last_change_age_sec`            | `telemetry_db.v_rack_summary_history` + current row        | age since last severity/state change                          |
-| `top_risk_racks`                 | backend slice of sorted `rack_grid.items`                  | top `N=3` recommended                                         |
+| `overview.counts.*`              | `telemetry_db.rack_current_summary`                        | aggregate over all racks                                      |
+| `riskCards[*].rack.name`         | topology/dimension service or rack dictionary if available | optional enrichment                                           |
+| `riskCards[*].trend.delta1m`     | `telemetry_db.v_rack_summary_history`                      | current severity - latest `1m` historical severity before now |
+| `riskCards[*].trend.delta5m`     | `telemetry_db.v_rack_summary_history`                      | current severity - latest `5m` historical severity before now |
+| `riskCards[*].trend.lastChangeAgeSec` | `telemetry_db.v_rack_summary_history` + current row   | age since last severity/state change                          |
+| `riskCards`                      | backend slice of the sorted rack list                      | top `N=3` recommended                                         |
 | `filters`                        | backend constant/defaults                                  | UI capability descriptor                                      |
 
 ---
@@ -169,9 +190,9 @@ WHERE bucket_granularity IN ('1m', '5m')
 
 **Backend uses this dataset to compute**
 
-- `severity_trend_delta_1m`
-- `severity_trend_delta_5m`
-- `last_change_age_sec`
+- `trend.delta1m`
+- `trend.delta5m`
+- `trend.lastChangeAgeSec`
 
 ---
 
@@ -182,56 +203,55 @@ WHERE bucket_granularity IN ('1m', '5m')
 3. Query `v_rack_summary_history` for recent `1m` and `5m` snapshots of those racks.
 4. For each rack:
    - map current fields directly
-   - find latest prior `1m` row, compute `severity_trend_delta_1m = current.rack_severity_code - previous_1m.rack_severity_code`
-   - find latest prior `5m` row, compute `severity_trend_delta_5m = current.rack_severity_code - previous_5m.rack_severity_code`
-   - determine last state-change point by scanning newest-to-oldest historical rows until severity or signal-loss state differs from current; then `last_change_age_sec = generated_at - changed_bucket_start`
+   - find latest prior `1m` row, compute `trend.delta1m = current internal severity code - previous_1m internal severity code`
+   - find latest prior `5m` row, compute `trend.delta5m = current internal severity code - previous_5m internal severity code`
+   - determine last state-change point by scanning newest-to-oldest historical rows until severity or signal-loss state differs from current; then `trend.lastChangeAgeSec = generatedAt - changed_bucket_start`
 5. Sort full list using operational order:
-   - `rack_severity_code DESC`
-   - `is_rack_level_failure DESC`
-   - `has_signal_loss DESC`
-   - `bad_node_ratio DESC`
-   - `stale_nodes DESC`
-   - `summary_ts DESC`
-   - `rack_id ASC`
-6. Set `top_risk_racks = first 3 items of sorted list`
+   - `severity DESC`
+   - `rackLevelFailure DESC`
+   - `signalLoss DESC`
+   - `badNodeRatio DESC`
+   - `staleNodes DESC`
+   - `updatedAt DESC`
+   - `rackId ASC`
+6. Set `riskCards = first 3 items of sorted list`
 7. Return payload.
 
 ---
 
 **8. Field Semantics**
 
-- `rack_severity_code`
-  - `0`: normal
-  - `2`: warning
-  - `3`: critical
+- `status.severity`
+  - `normal`
+  - `warning`
+  - `critical`
   - stale/signal loss is represented via `stale_nodes`, `has_signal_loss`, not as a separate dashboard severity
-- `has_override_flag`
+- `status.override`
   - rack contains at least one override-worthy critical condition
-- `bad_node_ratio`
+- `metrics.badNodeRatio`
   - `bad_nodes / total_nodes`
-- `is_rack_level_failure`
+- `status.rackLevelFailure`
   - `1` when impact is broad enough to consider rack-wide failure
-- `has_signal_loss`
+- `status.signalLoss`
   - indicates silent death / missing telemetry pattern
-- `worst_*`
+- `culprit.*`
   - culprit rack-level explanation for operator triage
-- `severity_trend_delta_*`
+- `trend.delta*`
   - positive means worsening, negative means recovering
-- `last_change_age_sec`
+- `trend.lastChangeAgeSec`
   - time since current risk posture began
 
 ---
 
 **9. Response Rules**
 
-- `rack_grid.items` always contains all racks visible to the caller
-- `top_risk_racks` is not separately queried from DB; it is a backend-derived subset
+- `riskCards` is not separately queried from DB; it is a backend-derived subset
 - if no historical row exists for a rack:
-  - `severity_trend_delta_1m = 0`
-  - `severity_trend_delta_5m = 0`
-  - `last_change_age_sec = null`
-- if `rack_name` enrichment unavailable:
-  - fallback to `rack_id`
+  - `trend.delta1m = 0`
+  - `trend.delta5m = 0`
+  - `trend.lastChangeAgeSec = null`
+- if `rack.name` enrichment unavailable:
+  - fallback to `rack.id`
 
 ---
 
@@ -259,8 +279,9 @@ WHERE bucket_granularity IN ('1m', '5m')
 **11. Recommended Backend DTO Shape**
 
 - `MonitoringRackOverviewResponse`
-- `RackOverviewSummary`
-- `RackOverviewItem`
+- `RackOverviewOverview`
+- `RackOverviewRiskCard`
+- `RackOverviewRackList`
 - `RackOverviewFilters`
 
 Nếu bạn muốn, mình có thể viết tiếp luôn phần `OpenAPI-style response schema` và `example 200/500 payloads` cho endpoint này.

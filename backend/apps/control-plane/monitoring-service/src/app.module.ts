@@ -9,6 +9,7 @@ import { LoggingInterceptor } from './adapters/inbound/http/interceptors/logging
 import { JwtStrategy } from './adapters/inbound/http/strategies/jwt.strategy';
 import { DispatchRackAlertTransitionUseCase } from './application/use-cases/dispatch-rack-alert-transition.use-case';
 import { GetNodeMetricsUseCase } from './application/use-cases/get-node-metrics.use-case';
+import { GetNodeMonitoringStateUseCase } from './application/use-cases/get-node-monitoring-state.use-case';
 import { GetNodeOverviewUseCase } from './application/use-cases/get-node-overview.use-case';
 import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
@@ -29,6 +30,7 @@ import { MonitoringServiceConfigModule } from './infrastructure/config/monitorin
 import { MonitoringDatabaseModule } from './infrastructure/database/monitoring-database.module';
 import { HealthController } from './presentation/http/controllers/health.controller';
 import { NodeMetricsController } from './presentation/http/controllers/node-metrics.controller';
+import { NodeMonitoringStateController } from './presentation/http/controllers/node-monitoring-state.controller';
 import { NodeOverviewController } from './presentation/http/controllers/node-overview.controller';
 import { ExternalAlertSyncController } from './presentation/http/controllers/external-alert-sync.controller';
 import { RackMonitoringStateController } from './presentation/http/controllers/rack-monitoring-state.controller';
@@ -50,6 +52,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
   controllers: [
     HealthController,
     NodeMetricsController,
+    NodeMonitoringStateController,
     NodeOverviewController,
     ExternalAlertSyncController,
     RackOverviewController,
@@ -66,6 +69,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     DispatchRackAlertTransitionUseCase,
     NodeMetricsComposerService,
     GetNodeMetricsUseCase,
+    GetNodeMonitoringStateUseCase,
     NodeOverviewComposerService,
     GetNodeOverviewUseCase,
     GetRackMonitoringStateUseCase,

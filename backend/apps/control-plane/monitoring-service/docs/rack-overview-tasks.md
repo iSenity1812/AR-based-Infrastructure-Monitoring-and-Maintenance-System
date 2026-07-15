@@ -3,14 +3,14 @@ Có, và mình nghĩ `rack-overview.md` đã đủ rõ để tách ra thành m�
 **Implementation Plan: Rack Overview Endpoint**
 
 **Overview**  
-Chúng ta sẽ triển khai `GET /api/v1/monitoring/racks/overview` như một consumer-shaped endpoint cho Operator Dashboard. Nguồn sự thật vẫn là `telemetry_db.rack_current_summary` và `telemetry_db.v_rack_summary_history`, còn backend chịu trách nhiệm assemble các trường dẫn xuất như `top_risk_racks`, `severity_trend_delta_*`, `last_change_age_sec`, và contract JSON cuối cùng.
+Chúng ta sẽ triển khai `GET /api/v1/monitoring/racks/overview` như một consumer-shaped endpoint cho Operator Dashboard. Nguồn sự thật vẫn là `telemetry_db.rack_current_summary` và `telemetry_db.v_rack_summary_history`, còn backend chịu trách nhiệm assemble các trường dẫn xuất như `riskCards`, `trend.delta*`, `trend.lastChangeAgeSec`, và contract JSON cuối cùng.
 
 **Architecture decisions**
 
 - ClickHouse giữ vai trò `single source of truth` cho current state và history snapshots.
 - Backend không tính lại severity hay blast radius; backend chỉ compose, enrich, sort, và format payload.
-- `top_risk_racks` là derived subset của `rack_grid.items`, không tạo query riêng.
-- Trend delta và `last_change_age_sec` được tính ở backend từ history view, chưa materialize ở DB ở phase đầu.
+- `riskCards` là derived subset của rack list đã sort, không tạo query riêng.
+- Trend delta và `trend.lastChangeAgeSec` được tính ở backend từ history view, chưa materialize ở DB ở phase đầu.
 
 **Task List**
 
@@ -25,7 +25,7 @@ Tạo các response DTO/model nội bộ cho `MonitoringRackOverviewResponse`, `
 
 - [x] DTO phản ánh đầy đủ các field trong `rack-overview.md`
 - [x] Có typing rõ cho summary, grid item, filters, top risk items
-- [x] Có quy ước fallback cho `rack_name`, `last_change_age_sec`, `severity_trend_delta_*`
+- [x] Có quy ước fallback cho `rack.name`, `trend.lastChangeAgeSec`, `trend.delta*`
 
 **Verification:**
 
@@ -118,8 +118,8 @@ Viết service/use-case assemble payload cuối cùng từ current rows, summary
 
 **Acceptance criteria:**
 
-- [x] Compose được `summary`, `top_risk_racks`, `rack_grid.items`, `filters`
-- [x] `top_risk_racks` lấy từ sorted full list, không query riêng
+- [x] Compose được `overview.counts`, `riskCards`, `rackList.sort`, `filters`
+- [x] `riskCards` lấy từ sorted full list, không query riêng
 - [x] Có fallback hợp lệ khi history hoặc rack name chưa có
 
 **Verification:**
@@ -139,16 +139,16 @@ Viết service/use-case assemble payload cuối cùng từ current rows, summary
 
 ---
 
-## Task 5: Implement enrichment logic for `severity_trend_delta_*` and `last_change_age_sec`
+## Task 5: Implement enrichment logic for `trend.delta*` and `trend.lastChangeAgeSec`
 
 **Description:**  
 Tách riêng logic derived fields để tránh nhét quá nhiều rule vào controller/service chính.
 
 **Acceptance criteria:**
 
-- [x] Tính đúng `severity_trend_delta_1m`
-- [x] Tính đúng `severity_trend_delta_5m`
-- [x] Tính đúng `last_change_age_sec` theo history scan rule
+- [x] Tính đúng `trend.delta1m`
+- [x] Tính đúng `trend.delta5m`
+- [x] Tính đúng `trend.lastChangeAgeSec` theo history scan rule
 - [x] Trường hợp thiếu history trả về default theo doc
 
 **Verification:**
@@ -246,7 +246,7 @@ Viết doc đủ để frontend dùng ngay: field semantics, sort semantics, fal
 **Acceptance criteria:**
 
 - [ ] Doc ghi rõ source-of-truth views
-- [ ] Doc ghi rõ semantic của `severity_trend_delta_*`
+- [ ] Doc ghi rõ semantic của `trend.delta*`
 - [ ] Doc ghi rõ fallback rules và nullability
 - [ ] Frontend biết field nào render trực tiếp, field nào optional
 
@@ -275,8 +275,8 @@ Viết doc đủ để frontend dùng ngay: field semantics, sort semantics, fal
 
 | Risk                                          | Impact | Mitigation                                      |
 | --------------------------------------------- | ------ | ----------------------------------------------- |
-| `last_change_age_sec` logic dễ lệch trực giác | High   | Tách riêng thành utility + test scenario rõ     |
-| `rack_name` chưa có topology enrichment       | Medium | Fallback cứng về `rack_id`                      |
+| `trend.lastChangeAgeSec` logic dễ lệch trực giác | High   | Tách riêng thành utility + test scenario rõ     |
+| `rack.name` chưa có topology enrichment       | Medium | Fallback cứng về `rack.id`                      |
 | History query quá rộng khi rack count lớn     | Medium | Giới hạn window và chỉ lấy fields tối thiểu     |
 | Naming mismatch giữa SQL docs và backend DTO  | Medium | Chốt contract names ở Task 1 rồi bám xuyên suốt |
 

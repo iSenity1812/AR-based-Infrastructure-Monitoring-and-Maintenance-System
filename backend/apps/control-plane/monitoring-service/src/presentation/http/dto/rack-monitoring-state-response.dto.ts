@@ -98,6 +98,196 @@ export class RackMonitoringNotificationStateDto {
   lastNotificationSyncedAt!: string | null;
 }
 
+export class RackAlertStateDto {
+  @ApiProperty({
+    description: 'Operator-facing rack alert status derived from active external alerts.',
+    enum: ['healthy', 'alerting'],
+    example: 'alerting',
+  })
+  status!: 'healthy' | 'alerting';
+
+  @ApiProperty({
+    description: 'Highest external alert severity currently affecting this rack.',
+    enum: ['none', 'warning', 'critical'],
+    example: 'critical',
+  })
+  highestSeverity!: 'none' | 'warning' | 'critical';
+
+  @ApiProperty({
+    description: 'Number of active rack-scoped alerts currently firing for this rack.',
+    example: 2,
+  })
+  activeAlertCount!: number;
+
+  @ApiProperty({
+    description: 'Latest timestamp when the rack alert state changed.',
+    nullable: true,
+    example: '2026-07-15T14:20:00.000Z',
+  })
+  lastChangedAt!: string | null;
+}
+
+export class RackAlertSummaryDto {
+  @ApiProperty({
+    description: 'Number of active critical rack alerts.',
+    example: 1,
+  })
+  critical!: number;
+
+  @ApiProperty({
+    description: 'Number of active warning rack alerts.',
+    example: 1,
+  })
+  warning!: number;
+}
+
+export class RackPrimaryAlertDto {
+  @ApiProperty({
+    description: 'Deduplication fingerprint of the selected primary alert.',
+    example: '56b08c98fd42c43a',
+  })
+  fingerprint!: string;
+
+  @ApiProperty({
+    description: 'Alert rule name from the external alert stack.',
+    example: 'RackSignalLossPresent',
+  })
+  alertName!: string;
+
+  @ApiProperty({
+    description: 'Alert severity as exposed to operators.',
+    enum: ['warning', 'critical'],
+    example: 'critical',
+  })
+  severity!: 'warning' | 'critical';
+
+  @ApiProperty({
+    description: 'Alert category used for routing and UI grouping.',
+    enum: [
+      'availability',
+      'resource',
+      'thermal',
+      'runtime',
+      'network',
+      'connectivity',
+    ],
+    example: 'connectivity',
+  })
+  category!:
+    | 'availability'
+    | 'resource'
+    | 'thermal'
+    | 'runtime'
+    | 'network'
+    | 'connectivity';
+
+  @ApiProperty({
+    description: 'Current alert status from the external read model.',
+    enum: ['firing', 'resolved'],
+    example: 'firing',
+  })
+  status!: 'firing' | 'resolved';
+
+  @ApiProperty({
+    description: 'Short operator-facing summary of the alert.',
+    example: 'Rack A1 signal loss with 1 silent node(s)',
+  })
+  summary!: string;
+
+  @ApiProperty({
+    description: 'Longer alert description suitable for a detail panel.',
+    example: 'Rack A1 is reporting signal loss.',
+  })
+  description!: string;
+
+  @ApiProperty({
+    description: 'Timestamp when the alert started firing.',
+    example: '2026-07-15T14:20:00.000Z',
+  })
+  startsAt!: string;
+
+  @ApiProperty({
+    description: 'Timestamp when the alert resolved, if available.',
+    nullable: true,
+    example: null,
+  })
+  endsAt!: string | null;
+
+  @ApiProperty({
+    description: 'Dashboard URL for operator drill-down when available.',
+    nullable: true,
+    example: '/d/monitoring-overview',
+  })
+  dashboardUrl!: string | null;
+
+  @ApiProperty({
+    description: 'Runbook URL for operator guidance when available.',
+    nullable: true,
+    example: '/docs/runbooks/alerting/rack-signal-loss-present',
+  })
+  runbookUrl!: string | null;
+}
+
+export class RackActiveAlertDto {
+  @ApiProperty({
+    description: 'Deduplication fingerprint of the active alert.',
+    example: '56b08c98fd42c43a',
+  })
+  fingerprint!: string;
+
+  @ApiProperty({
+    description: 'Alert rule name from the external alert stack.',
+    example: 'RackSignalLossPresent',
+  })
+  alertName!: string;
+
+  @ApiProperty({
+    description: 'Alert severity as exposed to operators.',
+    enum: ['warning', 'critical'],
+    example: 'critical',
+  })
+  severity!: 'warning' | 'critical';
+
+  @ApiProperty({
+    description: 'Alert category used for routing and UI grouping.',
+    enum: [
+      'availability',
+      'resource',
+      'thermal',
+      'runtime',
+      'network',
+      'connectivity',
+    ],
+    example: 'connectivity',
+  })
+  category!:
+    | 'availability'
+    | 'resource'
+    | 'thermal'
+    | 'runtime'
+    | 'network'
+    | 'connectivity';
+
+  @ApiProperty({
+    description: 'Current alert status from the external read model.',
+    enum: ['firing', 'resolved'],
+    example: 'firing',
+  })
+  status!: 'firing' | 'resolved';
+
+  @ApiProperty({
+    description: 'Short operator-facing summary of the active alert.',
+    example: 'Rack A1 signal loss with 1 silent node(s)',
+  })
+  summary!: string;
+
+  @ApiProperty({
+    description: 'Timestamp when the alert started firing.',
+    example: '2026-07-15T14:20:00.000Z',
+  })
+  startsAt!: string;
+}
+
 export class RackMonitoringStateItemDto {
   @ApiProperty({
     description: 'Stable rack identifier used by the monitoring scope.',
@@ -128,6 +318,31 @@ export class RackMonitoringStateItemDto {
     type: RackMonitoringNotificationStateDto,
   })
   notification!: RackMonitoringNotificationStateDto;
+
+  @ApiProperty({
+    description: 'Consumer-first rack alert state derived from active external alerts.',
+    type: RackAlertStateDto,
+  })
+  state!: RackAlertStateDto;
+
+  @ApiProperty({
+    description: 'Count summary of active rack-scoped alerts.',
+    type: RackAlertSummaryDto,
+  })
+  alertSummary!: RackAlertSummaryDto;
+
+  @ApiProperty({
+    description: 'Most important active alert selected for this rack.',
+    nullable: true,
+    type: RackPrimaryAlertDto,
+  })
+  primaryAlert!: RackPrimaryAlertDto | null;
+
+  @ApiProperty({
+    description: 'Active rack-scoped alerts for drill-down rendering.',
+    type: [RackActiveAlertDto],
+  })
+  activeAlerts!: RackActiveAlertDto[];
 }
 
 export class MonitoringRackStateResponseDto {

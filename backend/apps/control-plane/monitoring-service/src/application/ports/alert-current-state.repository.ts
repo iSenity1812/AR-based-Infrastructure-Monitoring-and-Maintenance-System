@@ -14,6 +14,10 @@ export abstract class AlertCurrentStateRepository {
     status: AlertCurrentStateStatus,
   ): Promise<AlertCurrentState[]>;
 
+  abstract listActiveRackAlerts(): Promise<AlertCurrentState[]>;
+
+  abstract listActiveNodeAlerts(): Promise<AlertCurrentState[]>;
+
   abstract listActiveByNodeId(nodeId: string): Promise<AlertCurrentState[]>;
 
   abstract listActiveByRackId(rackId: string): Promise<AlertCurrentState[]>;

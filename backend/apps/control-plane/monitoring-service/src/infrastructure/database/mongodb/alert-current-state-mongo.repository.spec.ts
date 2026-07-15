@@ -144,4 +144,40 @@ describe('AlertCurrentStateMongoRepository', () => {
       status: 'firing',
     });
   });
+
+  it('lists active rack alerts in one query for rack state composition', async () => {
+    const exec = jest.fn().mockResolvedValue([]);
+    const lean = jest.fn().mockReturnValue({ exec });
+    const sort = jest.fn().mockReturnValue({ lean });
+    const find = jest.fn().mockReturnValue({ sort });
+
+    const repository = new AlertCurrentStateMongoRepository({
+      find,
+    } as never);
+
+    await repository.listActiveRackAlerts();
+
+    expect(find).toHaveBeenCalledWith({
+      scopeType: 'rack',
+      status: 'firing',
+    });
+  });
+
+  it('lists active node alerts in one query for node state composition', async () => {
+    const exec = jest.fn().mockResolvedValue([]);
+    const lean = jest.fn().mockReturnValue({ exec });
+    const sort = jest.fn().mockReturnValue({ lean });
+    const find = jest.fn().mockReturnValue({ sort });
+
+    const repository = new AlertCurrentStateMongoRepository({
+      find,
+    } as never);
+
+    await repository.listActiveNodeAlerts();
+
+    expect(find).toHaveBeenCalledWith({
+      scopeType: 'node',
+      status: 'firing',
+    });
+  });
 });

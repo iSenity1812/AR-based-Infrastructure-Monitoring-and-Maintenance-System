@@ -58,6 +58,40 @@ export class AlertCurrentStateMongoRepository
     return documents.map(mapDocumentToAlertCurrentState);
   }
 
+  async listActiveRackAlerts(): Promise<AlertCurrentState[]> {
+    const documents = await this.alertCurrentStateModel
+      .find({
+        scopeType: 'rack',
+        status: 'firing',
+      })
+      .sort({
+        severity: -1,
+        lastStatusChangedAt: -1,
+        alertName: 1,
+      })
+      .lean<AlertCurrentStatePersistence[]>()
+      .exec();
+
+    return documents.map(mapDocumentToAlertCurrentState);
+  }
+
+  async listActiveNodeAlerts(): Promise<AlertCurrentState[]> {
+    const documents = await this.alertCurrentStateModel
+      .find({
+        scopeType: 'node',
+        status: 'firing',
+      })
+      .sort({
+        severity: -1,
+        lastStatusChangedAt: -1,
+        alertName: 1,
+      })
+      .lean<AlertCurrentStatePersistence[]>()
+      .exec();
+
+    return documents.map(mapDocumentToAlertCurrentState);
+  }
+
   async listActiveByNodeId(nodeId: string): Promise<AlertCurrentState[]> {
     return this.listActiveBy({ nodeId });
   }

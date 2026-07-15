@@ -12,62 +12,68 @@ import {
 import { buildRackOverviewHistoryEnrichment } from './rack-overview-history-enrichment';
 
 export type RackOverviewItemView = {
-  rackId: string;
-  rackName: string;
-  summaryTs: string;
-  rackSeverityCode: 0 | 2 | 3;
-  hasOverrideFlag: 0 | 1;
-  totalNodes: number;
-  badNodes: number;
-  criticalNodes: number;
-  warningNodes: number;
-  staleNodes: number;
-  badNodeRatio: number;
-  isRackLevelFailure: 0 | 1;
-  hasSignalLoss: 0 | 1;
-  worstNodeId: string;
-  worstMetricKey: string;
-  worstMetricTagsJson: string;
-  worstMetricValueNumeric: number;
-  worstMetricValueText: string;
-  severityTrendDelta1m: number;
-  severityTrendDelta5m: number;
-  lastChangeAgeSec: number | null;
-};
-
-export type RackGridItemView = {
-  id: string;
-  rackCode: string;
-  displayName: string;
-  lifecycleState: string;
-  capacityState: string;
-  siteCode?: string;
-  roomCode?: string;
-  zoneCode?: string;
-  rowCode?: string;
-  positionCode?: string;
-  capacityLimit?: number;
-  notes?: string;
-  vendor?: string;
-  metadata: Record<string, unknown>;
+  rack: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  status: {
+    severity: 'normal' | 'warning' | 'critical';
+    override: boolean;
+    rackLevelFailure: boolean;
+    signalLoss: boolean;
+    staleNodes: number;
+  };
+  metrics: {
+    totalNodes: number;
+    badNodes: number;
+    criticalNodes: number;
+    warningNodes: number;
+    badNodeRatio: number;
+  };
+  culprit: {
+    nodeId: string;
+    metric: {
+      key: string;
+      tags: Record<string, unknown>;
+      value: {
+        numeric: number;
+        text: string;
+      };
+    };
+  };
+  trend: {
+    delta1m: number;
+    delta5m: number;
+    lastChangeAgeSec: number | null;
+  };
+  updatedAt: string;
+  location: {
+    site?: string;
+    room?: string;
+    zone?: string;
+    row?: string;
+    position?: string;
+  };
 };
 
 export type RackOverviewResponseView = {
   generatedAt: string;
   scope: 'rack';
   view: 'operator_dashboard';
-  summary: {
-    totalRacks: number;
-    criticalRacks: number;
-    warningRacks: number;
-    staleRacks: number;
-    signalLossRacks: number;
-    rackLevelFailureRacks: number;
+  overview: {
+    counts: {
+      total: number;
+      critical: number;
+      warning: number;
+      stale: number;
+      signalLoss: number;
+      rackLevelFailure: number;
+    };
   };
-  topRiskRacks: RackOverviewItemView[];
-  rackGrid: {
-    sortBy: string[];
-    items: RackGridItemView[];
+  riskCards: RackOverviewItemView[];
+  rackList: {
+    sort: string[];
   };
   filters: {
     severity: string[];
@@ -77,13 +83,13 @@ export type RackOverviewResponseView = {
 };
 
 const RACK_GRID_SORT_ORDER = [
-  'rack_severity_code_desc',
-  'is_rack_level_failure_desc',
-  'has_signal_loss_desc',
-  'bad_node_ratio_desc',
-  'stale_nodes_desc',
-  'summary_ts_desc',
-  'rack_id_asc',
+  'severity',
+  'rackLevelFailure',
+  'signalLoss',
+  'badNodeRatio',
+  'staleNodes',
+  'updatedAt',
+  'rackId',
 ] as const;
 
 const RACK_OVERVIEW_FILTERS = {
@@ -127,19 +133,23 @@ export class GetRackOverviewUseCase {
       ),
     );
 
-    const rackGridItems = visibleRacks.map((rack) =>
-      this.toRackGridItem(rack.rackId, rackContextMap.get(rack.rackId)),
-    );
-
     return {
       generatedAt: generatedAt.toISOString(),
       scope: 'rack',
       view: 'operator_dashboard',
-      summary,
-      topRiskRacks: topRiskRacks.slice(0, 3),
-      rackGrid: {
-        sortBy: [...RACK_GRID_SORT_ORDER],
-        items: rackGridItems,
+      overview: {
+        counts: {
+          total: summary.totalRacks,
+          critical: summary.criticalRacks,
+          warning: summary.warningRacks,
+          stale: summary.staleRacks,
+          signalLoss: summary.signalLossRacks,
+          rackLevelFailure: summary.rackLevelFailureRacks,
+        },
+      },
+      riskCards: topRiskRacks.slice(0, 3),
+      rackList: {
+        sort: [...RACK_GRID_SORT_ORDER],
       },
       filters: {
         severity: [...RACK_OVERVIEW_FILTERS.severity],
@@ -160,51 +170,52 @@ export class GetRackOverviewUseCase {
       history,
       generatedAt,
     );
+    const metricTags = parseMetricTagsJson(rack.worstMetricTagsJson);
 
     return {
-      rackId: rack.rackId,
-      rackName: rackContext?.displayName?.trim() || rack.rackId,
-      summaryTs: rack.summaryTs,
-      rackSeverityCode: toSeverityCode(rack.rackSeverityCode),
-      hasOverrideFlag: toBinaryFlag(rack.hasOverrideFlag),
-      totalNodes: rack.totalNodes,
-      badNodes: rack.badNodes,
-      criticalNodes: rack.criticalNodes,
-      warningNodes: rack.warningNodes,
-      staleNodes: rack.staleNodes,
-      badNodeRatio: rack.badNodeRatio,
-      isRackLevelFailure: toBinaryFlag(rack.isRackLevelFailure),
-      hasSignalLoss: toBinaryFlag(rack.hasSignalLoss),
-      worstNodeId: rack.worstNodeId,
-      worstMetricKey: rack.worstMetricKey,
-      worstMetricTagsJson: rack.worstMetricTagsJson,
-      worstMetricValueNumeric: rack.worstMetricValueNumeric,
-      worstMetricValueText: rack.worstMetricValueText,
-      severityTrendDelta1m: historyEnrichment.severityTrendDelta1m,
-      severityTrendDelta5m: historyEnrichment.severityTrendDelta5m,
-      lastChangeAgeSec: historyEnrichment.lastChangeAgeSec,
-    };
-  }
-
-  private toRackGridItem(
-    rackId: string,
-    rackContext?: RackContextRecord,
-  ): RackGridItemView {
-    return {
-      id: rackContext?.id || rackId,
-      rackCode: rackContext?.rackCode || rackId,
-      displayName: rackContext?.displayName?.trim() || rackId,
-      lifecycleState: rackContext?.lifecycleState || 'UNKNOWN',
-      capacityState: rackContext?.capacityState || 'UNKNOWN',
-      siteCode: rackContext?.siteCode,
-      roomCode: rackContext?.roomCode,
-      zoneCode: rackContext?.zoneCode,
-      rowCode: rackContext?.rowCode,
-      positionCode: rackContext?.positionCode,
-      capacityLimit: rackContext?.capacityLimit,
-      notes: rackContext?.notes,
-      vendor: rackContext?.vendor,
-      metadata: rackContext?.metadata || {},
+      rack: {
+        id: rack.rackId,
+        name: rackContext?.displayName?.trim() || rack.rackId,
+        code: rackContext?.rackCode?.trim() || rack.rackId,
+      },
+      status: {
+        severity: toSeverityLabel(rack.rackSeverityCode),
+        override: toBinaryFlag(rack.hasOverrideFlag) === 1,
+        rackLevelFailure: toBinaryFlag(rack.isRackLevelFailure) === 1,
+        signalLoss: toBinaryFlag(rack.hasSignalLoss) === 1,
+        staleNodes: rack.staleNodes,
+      },
+      metrics: {
+        totalNodes: rack.totalNodes,
+        badNodes: rack.badNodes,
+        criticalNodes: rack.criticalNodes,
+        warningNodes: rack.warningNodes,
+        badNodeRatio: rack.badNodeRatio,
+      },
+      culprit: {
+        nodeId: rack.worstNodeId,
+        metric: {
+          key: rack.worstMetricKey,
+          tags: metricTags,
+          value: {
+            numeric: rack.worstMetricValueNumeric,
+            text: rack.worstMetricValueText,
+          },
+        },
+      },
+      trend: {
+        delta1m: historyEnrichment.severityTrendDelta1m,
+        delta5m: historyEnrichment.severityTrendDelta5m,
+        lastChangeAgeSec: historyEnrichment.lastChangeAgeSec,
+      },
+      updatedAt: rack.summaryTs,
+      location: {
+        site: rackContext?.siteCode,
+        room: rackContext?.roomCode,
+        zone: rackContext?.zoneCode,
+        row: rackContext?.rowCode,
+        position: rackContext?.positionCode,
+      },
     };
   }
 }
@@ -213,16 +224,33 @@ function toBinaryFlag(value: number): 0 | 1 {
   return value >= 1 ? 1 : 0;
 }
 
-function toSeverityCode(value: number): 0 | 2 | 3 {
+function toSeverityLabel(value: number): 'normal' | 'warning' | 'critical' {
   if (value >= 3) {
-    return 3;
+    return 'critical';
   }
 
   if (value >= 2) {
-    return 2;
+    return 'warning';
   }
 
-  return 0;
+  return 'normal';
+}
+
+function parseMetricTagsJson(value: string): Record<string, unknown> {
+  if (!value.trim()) {
+    return {};
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return {};
+  }
+
+  return {};
 }
 
 function isUsableRackId(rackId: string | null | undefined): rackId is string {

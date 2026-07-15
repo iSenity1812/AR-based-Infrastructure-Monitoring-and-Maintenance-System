@@ -111,11 +111,45 @@ FROM
         max(if(severity_code = 2, 1, 0)) AS node_is_warning,
         max(if(live_state IN ('stale', 'unknown'), 1, 0)) AS node_is_stale,
         max(if(live_state = 'unknown', 1, 0)) AS node_is_unknown,
-        -- Chọn metric culprit của node:
-        -- ưu tiên severity vận hành cao hơn, sau đó override, sau đó timestamp mới hơn
+        -- Chọn metric culprit của node theo hướng operator-safe:
+        -- 1) Nếu node stale/unknown thì ưu tiên metric nhóm freshness / last-seen / ops
+        -- 2) Ưu tiên metric vận hành thực chiến như cpu, memory, disk, thermal, network
+        -- 3) Metric inventory/static như logical_cpu_count bị đẩy xuống cuối
+        -- 4) Sau đó mới xét severity vận hành, override, và timestamp mới hơn
         argMax(
             metric_key,
             tuple(
+                multiIf(
+                    live_state IN ('stale', 'unknown')
+                    AND (
+                        metric_key LIKE 'ops.%'
+                        OR positionCaseInsensitive(metric_key, 'last_seen') > 0
+                        OR positionCaseInsensitive(metric_key, 'freshness') > 0
+                    ), 3,
+                    metric_key IN (
+                        'node.cpu_usage_pct',
+                        'node.memory_used_pct',
+                        'node.disk_used_pct',
+                        'node.disk_used_pct_max',
+                        'node.cpu_temperature_c',
+                        'node.network_utilization_pct',
+                        'node.network_receive_bytes_per_sec',
+                        'node.network_transmit_bytes_per_sec',
+                        'ops.collector_last_seen_at'
+                    ), 2,
+                    metric_key IN (
+                        'node.logical_cpu_count',
+                        'node.total_memory_bytes',
+                        'node.memory_total_bytes',
+                        'node.total_disk_bytes',
+                        'node.disk_total_bytes',
+                        'node.hostname',
+                        'node.kernel_version',
+                        'node.os_version',
+                        'node.platform'
+                    ), 0,
+                    1
+                ),
                 if(severity_code = 4, -1, severity_code),
                 override_flag,
                 latest_ts
@@ -125,6 +159,37 @@ FROM
         argMax(
             tags_json,
             tuple(
+                multiIf(
+                    live_state IN ('stale', 'unknown')
+                    AND (
+                        metric_key LIKE 'ops.%'
+                        OR positionCaseInsensitive(metric_key, 'last_seen') > 0
+                        OR positionCaseInsensitive(metric_key, 'freshness') > 0
+                    ), 3,
+                    metric_key IN (
+                        'node.cpu_usage_pct',
+                        'node.memory_used_pct',
+                        'node.disk_used_pct',
+                        'node.disk_used_pct_max',
+                        'node.cpu_temperature_c',
+                        'node.network_utilization_pct',
+                        'node.network_receive_bytes_per_sec',
+                        'node.network_transmit_bytes_per_sec',
+                        'ops.collector_last_seen_at'
+                    ), 2,
+                    metric_key IN (
+                        'node.logical_cpu_count',
+                        'node.total_memory_bytes',
+                        'node.memory_total_bytes',
+                        'node.total_disk_bytes',
+                        'node.disk_total_bytes',
+                        'node.hostname',
+                        'node.kernel_version',
+                        'node.os_version',
+                        'node.platform'
+                    ), 0,
+                    1
+                ),
                 if(severity_code = 4, -1, severity_code),
                 override_flag,
                 latest_ts
@@ -134,6 +199,37 @@ FROM
         argMax(
             latest_value_numeric,
             tuple(
+                multiIf(
+                    live_state IN ('stale', 'unknown')
+                    AND (
+                        metric_key LIKE 'ops.%'
+                        OR positionCaseInsensitive(metric_key, 'last_seen') > 0
+                        OR positionCaseInsensitive(metric_key, 'freshness') > 0
+                    ), 3,
+                    metric_key IN (
+                        'node.cpu_usage_pct',
+                        'node.memory_used_pct',
+                        'node.disk_used_pct',
+                        'node.disk_used_pct_max',
+                        'node.cpu_temperature_c',
+                        'node.network_utilization_pct',
+                        'node.network_receive_bytes_per_sec',
+                        'node.network_transmit_bytes_per_sec',
+                        'ops.collector_last_seen_at'
+                    ), 2,
+                    metric_key IN (
+                        'node.logical_cpu_count',
+                        'node.total_memory_bytes',
+                        'node.memory_total_bytes',
+                        'node.total_disk_bytes',
+                        'node.disk_total_bytes',
+                        'node.hostname',
+                        'node.kernel_version',
+                        'node.os_version',
+                        'node.platform'
+                    ), 0,
+                    1
+                ),
                 if(severity_code = 4, -1, severity_code),
                 override_flag,
                 latest_ts
@@ -143,6 +239,37 @@ FROM
         argMax(
             latest_value_text,
             tuple(
+                multiIf(
+                    live_state IN ('stale', 'unknown')
+                    AND (
+                        metric_key LIKE 'ops.%'
+                        OR positionCaseInsensitive(metric_key, 'last_seen') > 0
+                        OR positionCaseInsensitive(metric_key, 'freshness') > 0
+                    ), 3,
+                    metric_key IN (
+                        'node.cpu_usage_pct',
+                        'node.memory_used_pct',
+                        'node.disk_used_pct',
+                        'node.disk_used_pct_max',
+                        'node.cpu_temperature_c',
+                        'node.network_utilization_pct',
+                        'node.network_receive_bytes_per_sec',
+                        'node.network_transmit_bytes_per_sec',
+                        'ops.collector_last_seen_at'
+                    ), 2,
+                    metric_key IN (
+                        'node.logical_cpu_count',
+                        'node.total_memory_bytes',
+                        'node.memory_total_bytes',
+                        'node.total_disk_bytes',
+                        'node.disk_total_bytes',
+                        'node.hostname',
+                        'node.kernel_version',
+                        'node.os_version',
+                        'node.platform'
+                    ), 0,
+                    1
+                ),
                 if(severity_code = 4, -1, severity_code),
                 override_flag,
                 latest_ts
@@ -187,6 +314,9 @@ ORDER BY
     bad_nodes DESC,
     silent_dead_nodes DESC,
     rack_id;
+
+-- get all rack summary
+SELECT * FROM telemetry_db.rack_current_summary;
 
 -- Test 2:
 -- Kiểm tra trực tiếp culprit node và culprit metric của một rack cụ thể
@@ -234,6 +364,37 @@ SELECT
     argMax(
         metric_key,
         tuple(
+            multiIf(
+                live_state IN ('stale', 'unknown')
+                AND (
+                    metric_key LIKE 'ops.%'
+                    OR positionCaseInsensitive(metric_key, 'last_seen') > 0
+                    OR positionCaseInsensitive(metric_key, 'freshness') > 0
+                ), 3,
+                metric_key IN (
+                    'node.cpu_usage_pct',
+                    'node.memory_used_pct',
+                    'node.disk_used_pct',
+                    'node.disk_used_pct_max',
+                    'node.cpu_temperature_c',
+                    'node.network_utilization_pct',
+                    'node.network_receive_bytes_per_sec',
+                    'node.network_transmit_bytes_per_sec',
+                    'ops.collector_last_seen_at'
+                ), 2,
+                metric_key IN (
+                    'node.logical_cpu_count',
+                    'node.total_memory_bytes',
+                    'node.memory_total_bytes',
+                    'node.total_disk_bytes',
+                    'node.disk_total_bytes',
+                    'node.hostname',
+                    'node.kernel_version',
+                    'node.os_version',
+                    'node.platform'
+                ), 0,
+                1
+            ),
             if(severity_code = 4, -1, severity_code),
             override_flag,
             latest_ts

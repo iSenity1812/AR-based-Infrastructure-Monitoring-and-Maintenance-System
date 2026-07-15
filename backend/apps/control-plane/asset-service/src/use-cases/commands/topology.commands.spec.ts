@@ -300,10 +300,18 @@ describe('asset lifecycle commands', () => {
       listAll: jest.fn(),
     };
 
-    const useCase = new UpdateNodeUseCase(nodeRepository, rackRepository, {
-      invalidateNodeContext: jest.fn(),
-      invalidateRackTopology: jest.fn(),
-    } as never);
+    const useCase = new UpdateNodeUseCase(
+      nodeRepository,
+      rackRepository,
+      {
+        findByAgentId: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      } as never,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+    );
 
     await expect(
       useCase.execute('node-1', {
@@ -355,10 +363,18 @@ describe('asset lifecycle commands', () => {
       listAll: jest.fn(),
     };
 
-    const useCase = new UpdateNodeUseCase(nodeRepository, rackRepository, {
-      invalidateNodeContext: jest.fn(),
-      invalidateRackTopology: jest.fn(),
-    } as never);
+    const useCase = new UpdateNodeUseCase(
+      nodeRepository,
+      rackRepository,
+      {
+        findByAgentId: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      } as never,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+    );
 
     await expect(
       useCase.execute('node-1', {
@@ -413,10 +429,18 @@ describe('asset lifecycle commands', () => {
       listAll: jest.fn(),
     };
 
-    const useCase = new UpdateNodeUseCase(nodeRepository, rackRepository, {
-      invalidateNodeContext: jest.fn(),
-      invalidateRackTopology: jest.fn(),
-    } as never);
+    const useCase = new UpdateNodeUseCase(
+      nodeRepository,
+      rackRepository,
+      {
+        findByAgentId: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      } as never,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+    );
 
     const result = await useCase.execute('node-msi-8ef8d6a7', {
       displayName: 'Updated Node',
@@ -481,6 +505,10 @@ describe('asset lifecycle commands', () => {
     const useCase = new UpdateNodeUseCase(
       nodeRepository,
       rackRepository,
+      {
+        findByAgentId: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      } as never,
       {
         invalidateNodeContext,
         invalidateRackTopology,
@@ -560,6 +588,10 @@ describe('asset lifecycle commands', () => {
       nodeRepository,
       rackRepository,
       {
+        findByAgentId: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      } as never,
+      {
         invalidateNodeContext,
         invalidateRackTopology,
       } as never,
@@ -582,6 +614,147 @@ describe('asset lifecycle commands', () => {
     expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
       'NODE-1',
       'rack-2',
+    );
+  });
+
+  it('blocks moving a node to a retired rack through PATCH updates', async () => {
+    const nodeUpdate = jest.fn();
+    const nodeRepository = {
+      create: jest.fn(),
+      update: nodeUpdate,
+      findById: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        positionCode: 'U08',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      findByRackIdAndPositionCode: jest.fn().mockResolvedValue(null),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
+    };
+    const rackRepository: RackRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn(),
+      findById: jest.fn().mockResolvedValue({
+        id: 'rack-2',
+        rackCode: 'RACK-B1',
+        displayName: 'Rack B1',
+        lifecycleState: RackLifecycleState.RETIRED,
+        capacityState: RackCapacityState.AVAILABLE,
+        capacityLimit: 12,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      listAll: jest.fn(),
+    };
+
+    const useCase = new UpdateNodeUseCase(
+      nodeRepository,
+      rackRepository,
+      {
+        findByAgentId: jest.fn().mockResolvedValue(null),
+        save: jest.fn(),
+      } as never,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+      nodeMappingPublisher,
+    );
+
+    await expect(
+      useCase.execute('node-1', {
+        rackId: 'rack-2',
+        positionCode: 'U03',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestUseCaseError);
+    expect(nodeUpdate).not.toHaveBeenCalled();
+  });
+
+  it('syncs discovered node state in Redis when PATCH unassigns a node', async () => {
+    const discoveredNodeRepository = {
+      findByAgentId: jest.fn().mockResolvedValue({
+        agentId: 'NODE-1',
+        hostname: 'Node 1',
+        deviceType: 'SERVER',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        logicalRackId: 'rack-1',
+        hardware: {},
+        createdAt: '2026-06-17T08:00:00.000Z',
+        updatedAt: '2026-06-17T08:00:00.000Z',
+      }),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    const nodeRepository = {
+      create: jest.fn(),
+      update: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        metadata: {},
+      }),
+      findById: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        positionCode: 'U08',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      findByRackIdAndPositionCode: jest.fn(),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
+    };
+    const rackRepository: RackRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn(),
+      findById: jest.fn(),
+      findByCode: jest.fn(),
+      listAll: jest.fn(),
+    };
+
+    const useCase = new UpdateNodeUseCase(
+      nodeRepository,
+      rackRepository,
+      discoveredNodeRepository as never,
+      {
+        invalidateNodeContext: jest.fn(),
+        invalidateRackTopology: jest.fn(),
+      } as never,
+      nodeMappingPublisher,
+    );
+
+    await useCase.execute('node-1', {
+      rackId: null,
+      positionCode: null,
+    });
+
+    expect(discoveredNodeRepository.findByAgentId).toHaveBeenCalledWith(
+      'NODE-1',
+    );
+    expect(discoveredNodeRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assignmentState: NodeAssignmentState.UNASSIGNED,
+        logicalRackId: null,
+        siteCode: undefined,
+      }),
     );
   });
 
@@ -859,7 +1032,7 @@ describe('asset lifecycle commands', () => {
     );
   });
 
-  it('publishes a null mapping when retiring a node', async () => {
+  it('does not publish a mapping change when retiring a node without unassigning it', async () => {
     const nodeRepository = {
       create: jest.fn(),
       update: jest.fn().mockResolvedValue({
@@ -929,10 +1102,7 @@ describe('asset lifecycle commands', () => {
         logicalRackId: null,
       }),
     );
-    expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
-      'NODE-1',
-      null,
-    );
+    expect(nodeMappingPublisher.publishNodeMapping).not.toHaveBeenCalled();
   });
 
   it('does not allow marker activation before validation', async () => {

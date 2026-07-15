@@ -28,6 +28,29 @@ function mapRack(
   };
 }
 
+function buildUpdateDocument(input: Partial<Omit<RackEntity, 'id'>>) {
+  const $set: Partial<Omit<RackEntity, 'id'>> = {};
+  const $unset: Record<string, 1> = {};
+
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) {
+      $unset[key] = 1;
+      continue;
+    }
+
+    ($set as Record<string, unknown>)[key] = value;
+  }
+
+  if (Object.keys($unset).length === 0) {
+    return $set;
+  }
+
+  return {
+    ...(Object.keys($set).length > 0 ? { $set } : {}),
+    $unset,
+  };
+}
+
 @Injectable()
 export class MongooseRackRepository implements RackRepositoryPort {
   private readonly logger = new Logger(MongooseRackRepository.name);
@@ -45,9 +68,13 @@ export class MongooseRackRepository implements RackRepositoryPort {
     id: string,
     input: Partial<Omit<RackEntity, 'id'>>,
   ): Promise<RackEntity | null> {
-    const document = await this.rackModel.findByIdAndUpdate(id, input, {
-      new: true,
-    });
+    const document = await this.rackModel.findByIdAndUpdate(
+      id,
+      buildUpdateDocument(input),
+      {
+        new: true,
+      },
+    );
     return document ? mapRack(document) : null;
   }
 

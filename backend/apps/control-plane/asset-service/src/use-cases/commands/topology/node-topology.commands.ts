@@ -154,6 +154,8 @@ export class UpdateNodeUseCase {
     private readonly nodeRepository: NodeRepositoryPort,
     @Inject(RACK_REPOSITORY)
     private readonly rackRepository: RackRepositoryPort,
+    @Inject(DISCOVERED_NODE_REPOSITORY)
+    private readonly discoveredNodeRepository: DiscoveredNodeRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
     @Inject(NODE_MAPPING_EVENT_PUBLISHER)
     @Optional()
@@ -211,6 +213,16 @@ export class UpdateNodeUseCase {
 
     if (nextRackId && nextPositionCode) {
       const rack = await this.getRequiredRack(nextRackId);
+      if (rack.lifecycleState === RackLifecycleState.RETIRED) {
+        throw new BadRequestUseCaseError(
+          'Cannot assign nodes to retired racks.',
+        );
+      }
+      if (rack.lifecycleState === RackLifecycleState.DRAINING) {
+        throw new BadRequestUseCaseError(
+          'Cannot assign nodes to a draining rack without explicit override.',
+        );
+      }
       this.ensurePositionWithinRackCapacity(
         rack.capacityLimit,
         nextPositionCode,
@@ -256,6 +268,11 @@ export class UpdateNodeUseCase {
     if (updated?.rackId && updated.rackId !== node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(updated.rackId);
     }
+
+    if (placementUpdateRequested) {
+      await this.syncDiscoveredNodePlacement(updated ?? node, node.nodeCode);
+    }
+
     if ((updated?.rackId ?? null) !== (node.rackId ?? null)) {
       await publishNodeMappingBestEffort(
         this.nodeMappingEventPublisher,
@@ -289,6 +306,32 @@ export class UpdateNodeUseCase {
     }
 
     return node.assignmentState;
+  }
+
+  private async syncDiscoveredNodePlacement(
+    node: {
+      rackId?: string | null;
+      assignmentState: NodeAssignmentState;
+    },
+    nodeCode: string,
+  ) {
+    const discoveredNode =
+      await this.discoveredNodeRepository.findByAgentId(nodeCode);
+    if (!discoveredNode) {
+      return;
+    }
+
+    const rack = node.rackId
+      ? await this.rackRepository.findById(node.rackId)
+      : null;
+
+    await this.discoveredNodeRepository.save({
+      ...discoveredNode,
+      assignmentState: node.assignmentState,
+      logicalRackId: node.rackId ?? null,
+      siteCode: rack?.siteCode,
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   private async getRequiredNode(nodeId: string) {
@@ -685,12 +728,6 @@ export class RetireNodeUseCase {
     if (node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(node.rackId);
     }
-    await publishNodeMappingBestEffort(
-      this.nodeMappingEventPublisher,
-      node.nodeCode,
-      null,
-      'retire node',
-    );
     return updated;
   }
 

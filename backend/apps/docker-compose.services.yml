@@ -80,6 +80,7 @@ services:
       ALERTMANAGER_ENABLED: "true"
       ALERTMANAGER_BASE_URL: http://alertmanager:9093
       ALERTMANAGER_TIMEOUT_MS: "5000"
+      MONITORING_ALERT_SYNC_SHARED_SECRET: ${MONITORING_ALERT_SYNC_SHARED_SECRET:-change-me-monitoring-sync-secret}
     expose:
       - "4003"
     extra_hosts:

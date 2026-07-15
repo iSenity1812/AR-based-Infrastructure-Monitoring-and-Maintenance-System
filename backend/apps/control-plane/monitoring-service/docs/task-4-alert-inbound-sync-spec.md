@@ -7,6 +7,8 @@
 4. `AlertCurrentState` from Task 3 is the persistence target for this sync flow.
 5. The inbound payload shape is the `Alertmanager` webhook envelope, not a raw Grafana rule-evaluation payload.
 6. We should support imperfect upstream payloads such as `"rack_id": "null"` by validating and normalizing them at the mapper boundary instead of persisting garbage as first-class identity.
+7. The inbound endpoint may bypass the normal dashboard JWT/permission guards, but it must still be protected by an internal shared-secret check at the controller boundary.
+8. For future-proofing, the sync flow should preserve raw upstream labels/annotations alongside mapped fields so later mapper revisions or migrations can recover full original context.
 
 ## Objective
 Define the inbound sync path that lets `Monitoring Service` receive externally-evaluated alerts from the `Grafana -> Alertmanager` stack and upsert them into the `AlertCurrentState` read model.
@@ -16,6 +18,7 @@ Success for Task 4 means:
 - the sync path handles `firing`, `resolved`, and repeated updates idempotently
 - invalid or low-quality payload identity is rejected or normalized consistently
 - the sync path remains read-side only and does not absorb incident or notification ownership
+- the sync flow preserves raw upstream alert metadata needed for future remapping or migration
 
 ## Tech Stack
 - `NestJS 11`
@@ -73,6 +76,7 @@ Conventions for this task:
 - normalize suspect string values such as `'null'`, `''`, and whitespace-only IDs before persistence
 - prefer one alert-at-a-time mapping inside a batch envelope, even when the HTTP payload contains multiple alerts
 - use explicit status semantics instead of overloading generic lifecycle flags
+- be conservative in what this service returns and liberal in what it accepts after normalization
 
 ## Testing Strategy
 - Unit tests for payload normalization and validation
@@ -83,6 +87,8 @@ Conventions for this task:
   - `resolved` transition
   - duplicate `resolved` replay
   - invalid identity payload such as `rack_id = "null"`
+  - auth/shared-secret failure at controller boundary
+  - raw labels and raw annotations being preserved on persistence input
 - Controller-level tests for accepting a batch webhook envelope and iterating each alert
 
 Priority concerns:
@@ -90,11 +96,13 @@ Priority concerns:
 - correct status transition semantics
 - preservation of human-useful annotations like `summary`, `description`, `current_value`
 - no accidental persistence of transport-only fields such as `receiver`, `groupKey`, or raw `commonLabels`
+- consistent distinction between `invalid`, `skipped`, and idempotent `noop`
 
 ## Boundaries
 - Always:
   - treat the webhook as an external integration boundary, not as a trusted domain object
   - persist only normalized `AlertCurrentState` data
+  - persist original upstream labels and annotations alongside mapped fields for recovery and future migration
   - keep Task 4 read-side only
   - support envelope batches with one or more alerts
 - Ask first:
@@ -124,6 +132,7 @@ Important interpretation rules:
 - the authoritative unit for persistence is each item in `alerts[]`, not the envelope as a whole
 - envelope-level `status` is useful for debugging but alert-level `status` should win for state transitions
 - `commonLabels` and `commonAnnotations` are fallback context only; they must not overwrite alert-specific values when the alert item already provides them
+- upstream transport data must be normalized/sanitized before it is trusted as `Record<string, string>` for mapping
 
 ## Current Problem
 After Task 3, `Monitoring Service` has a place to store current external alert state, but it still has no ingestion path.
@@ -137,12 +146,15 @@ The sample payload also reveals a data-quality risk:
 - `rack_id` may arrive as the literal string `"null"`
 - some fields are transport/debug-oriented such as `__values__`, `groupKey`, `receiver`
 - not every upstream label should become a first-class domain field
+- the service currently has global JWT and permission guards, so the internal webhook path needs an explicit bypass strategy plus its own authentication check
 
 ## Proposed Flow
 ### Step 1: Receive webhook envelope
 - expose a lab-first inbound endpoint in `Monitoring Service`
 - accept a batch payload from `Alertmanager`
 - validate that `alerts` is an array
+- bypass dashboard auth guards explicitly for this internal route only
+- require a shared-secret header before batch processing begins
 
 ### Step 2: Iterate each alert item
 - for each item in `alerts[]`, build a sync command
@@ -152,6 +164,8 @@ The sample payload also reveals a data-quality risk:
 - normalize strings:
   - trim whitespace
   - convert `''` and `'null'` to missing values
+- coerce unexpected scalar values into safe strings where possible
+- reject non-object `labels` or `annotations`
 - validate required identity keys by `scope_type`
 - reject or skip alerts that do not satisfy minimum identity requirements after normalization
 
@@ -176,6 +190,7 @@ The sample payload also reveals a data-quality risk:
   - `observed_window`
   - `dashboard_url`
   - `runbook_url`
+- preserve `rawLabels` and `rawAnnotations` for future remapping and migration safety
 
 ### Step 5: Apply idempotent sync semantics
 - lookup by `fingerprint`
@@ -192,16 +207,24 @@ The sample payload also reveals a data-quality risk:
   - update `lastReceivedAt` and `lastSyncedAt` conservatively if desired
   - do not create a second record
 
+### Step 6: Classify item result
+- `invalid`
+  - payload cannot be safely normalized into a minimally valid alert state
+- `skipped`
+  - payload is accepted at transport level but intentionally not persisted, for example because policy decides not to mutate state
+- `noop`
+  - payload is valid and processed, but produces no meaningful state change beyond optional timestamps/logging
+
 ## Identity And Normalization Rules
 ### Scope requirements
 - `scope_type = node`
   - requires `node_id`
-  - accepts `rack_id` when present
+  - accepts `rack_id` when present and should map it when available
 - `scope_type = rack`
   - requires `rack_id`
 - `scope_type = workload`
   - requires `workload_id`
-  - accepts `node_id` and `rack_id` when present
+  - accepts `node_id` and `rack_id` when present and should map them when available
 - `scope_type = service`
   - first slice may normalize upstream `workload_id` into internal `serviceId` if the service-scope contract still comes that way
 
@@ -216,6 +239,7 @@ The sample payload also reveals a data-quality risk:
 ### Unknown extra labels
 - keep them out of the main read model unless they are explicitly promoted
 - transport/debug labels like `__alert_rule_uid__`, `grafana_folder`, or `silent_dead_nodes_label` should not become primary domain fields in the first slice
+- even when not promoted, the original normalized labels/annotations should still be preserved as raw metadata
 
 ## Inbound Command Shape
 Task 4 should introduce an internal application command, for example:
@@ -230,6 +254,8 @@ Suggested fields:
 - `generatorUrl`
 - `labels`
 - `annotations`
+- `rawLabels`
+- `rawAnnotations`
 
 This command is transport-neutral and gives us room to later ingest from other adapters besides HTTP.
 
@@ -239,6 +265,7 @@ This command is transport-neutral and gives us room to later ingest from other a
 - records represent current state, not full history
 - resolved records remain queryable for later dashboard/API use
 - no deletion on resolve in the first slice
+- raw upstream label/annotation maps should remain attached so future mapper changes do not lose source fidelity
 
 ## HTTP Endpoint Direction
 Lab-first proposal:
@@ -254,6 +281,11 @@ Expected behavior:
   - invalid
 
 This response is mainly for observability and lab verification, not for upstream business workflow.
+
+Authentication direction:
+- route bypasses normal dashboard JWT/permission guards
+- route requires a shared-secret header such as `x-monitoring-sync-secret`
+- invalid or missing secret returns `401` or `403` according to the chosen guard/interceptor style
 
 ## Error Handling Direction
 - malformed envelope:
@@ -283,6 +315,8 @@ Recommended log keys:
 - `rackId`
 - `workloadId`
 - `serviceId`
+- `resultKind`
+- `invalidReason`
 
 ## Mermaid
 ```mermaid
@@ -315,10 +349,11 @@ flowchart TD
 - The spec defines normalization and validation rules for bad identity values such as `'null'`
 - The spec defines idempotent open/update/resolve behavior keyed by `fingerprint`
 - The spec preserves `Monitoring Service` as read-side only
+- The spec defines an internal auth strategy for the webhook route that bypasses global dashboard guards but still checks a shared secret
+- The spec preserves raw upstream metadata for future mapper evolution
 - The spec is concrete enough to implement controller, mapper, and use-case slices next
 
 ## Open Questions
-- When an alert is invalid after normalization, should the endpoint return `200` with a skipped count or `207`-like partial semantics through a normal JSON body?
 - Do we want to store a short-lived raw payload excerpt for debugging, or keep logs only in the first slice?
-- For `scope_type = service`, should Task 4 normalize `workload_id -> serviceId` immediately, or should infra emit `service_id` before we implement the mapper?
-- Should `commonLabels/commonAnnotations` be used as fallback in code from day one, or should the first slice trust only per-alert values to reduce ambiguity?
+- For `scope_type = service`, how long do we expect the temporary `workload_id -> serviceId` normalization to live before infra emits `service_id` directly?
+- Should raw payload preservation live directly in `AlertCurrentState`, or in a sibling embedded metadata object such as `externalSnapshot`?

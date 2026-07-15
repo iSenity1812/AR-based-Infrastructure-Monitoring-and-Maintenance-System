@@ -20,6 +20,12 @@ export class AlertCurrentStatePersistence {
   @Prop({ required: true, index: true })
   alertName!: string;
 
+  @Prop({ type: Object, required: true, default: {} })
+  rawLabels!: Record<string, string>;
+
+  @Prop({ type: Object, required: true, default: {} })
+  rawAnnotations!: Record<string, string>;
+
   @Prop({
     required: true,
     enum: ['node', 'rack', 'workload', 'service'],
@@ -74,17 +80,17 @@ export class AlertCurrentStatePersistence {
   @Prop({ required: true })
   description!: string;
 
-  @Prop({ required: true })
-  metricKey!: string;
+  @Prop({ type: String, required: false, default: null })
+  metricKey!: string | null;
 
-  @Prop({ required: true })
-  observedWindow!: string;
+  @Prop({ type: String, required: false, default: null })
+  observedWindow!: string | null;
 
-  @Prop({ required: true })
-  dashboardUrl!: string;
+  @Prop({ type: String, required: false, default: null })
+  dashboardUrl!: string | null;
 
-  @Prop({ required: true })
-  runbookUrl!: string;
+  @Prop({ type: String, required: false, default: null })
+  runbookUrl!: string | null;
 
   @Prop({ type: String, required: false, default: null })
   currentValue!: string | null;

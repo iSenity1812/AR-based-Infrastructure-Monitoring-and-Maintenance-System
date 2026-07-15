@@ -63,6 +63,8 @@ export type AlertCurrentStateScopeIdentity =
 export type AlertCurrentState = AlertCurrentStateScopeIdentity & {
   fingerprint: string;
   alertName: string;
+  rawLabels: Record<string, string>;
+  rawAnnotations: Record<string, string>;
   severity: AlertCurrentStateSeverity;
   status: AlertCurrentStateStatus;
   category: AlertCurrentStateCategory;
@@ -71,10 +73,10 @@ export type AlertCurrentState = AlertCurrentStateScopeIdentity & {
   source: 'grafana';
   summary: string;
   description: string;
-  metricKey: string;
-  observedWindow: string;
-  dashboardUrl: string;
-  runbookUrl: string;
+  metricKey: string | null;
+  observedWindow: string | null;
+  dashboardUrl: string | null;
+  runbookUrl: string | null;
   currentValue: string | null;
   threshold: string | null;
   startsAt: string;

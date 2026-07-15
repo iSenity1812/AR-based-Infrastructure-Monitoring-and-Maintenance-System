@@ -103,7 +103,7 @@ describe('asset lifecycle commands', () => {
 
   it('blocks assigning a node into a draining rack unless explicitly allowed', async () => {
     const nodeUpdate = jest.fn();
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: nodeUpdate,
       findById: jest.fn().mockResolvedValue({
@@ -119,6 +119,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const rackRepository: RackRepositoryPort = {
       create: jest.fn(),
@@ -151,7 +152,7 @@ describe('asset lifecycle commands', () => {
 
   it('blocks assigning two nodes to the same rack position', async () => {
     const nodeUpdate = jest.fn();
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: nodeUpdate,
       findById: jest.fn().mockResolvedValue({
@@ -177,6 +178,7 @@ describe('asset lifecycle commands', () => {
       }),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const rackRepository: RackRepositoryPort = {
       create: jest.fn(),
@@ -210,7 +212,7 @@ describe('asset lifecycle commands', () => {
 
   it('blocks assigning a node beyond the rack U capacity', async () => {
     const nodeUpdate = jest.fn();
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: nodeUpdate,
       findById: jest.fn().mockResolvedValue({
@@ -226,6 +228,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const rackRepository: RackRepositoryPort = {
       create: jest.fn(),
@@ -260,7 +263,7 @@ describe('asset lifecycle commands', () => {
 
   it('blocks updating a node position beyond the rack U capacity', async () => {
     const nodeUpdate = jest.fn();
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: nodeUpdate,
       findById: jest.fn().mockResolvedValue({
@@ -278,6 +281,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const rackRepository: RackRepositoryPort = {
       create: jest.fn(),
@@ -314,7 +318,7 @@ describe('asset lifecycle commands', () => {
       message:
         'E11000 duplicate key error collection: nodes index: rackId_1_positionCode_1 dup key',
     });
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: nodeUpdate,
       findById: jest.fn().mockResolvedValue({
@@ -332,6 +336,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn().mockResolvedValue(null),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const rackRepository: RackRepositoryPort = {
       create: jest.fn(),
@@ -371,7 +376,7 @@ describe('asset lifecycle commands', () => {
       assignmentState: NodeAssignmentState.ASSIGNED,
       metadata: {},
     });
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: nodeUpdate,
       findById: jest.fn(),
@@ -389,6 +394,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const rackRepository: RackRepositoryPort = {
       create: jest.fn(),
@@ -431,8 +437,155 @@ describe('asset lifecycle commands', () => {
     });
   });
 
+  it('supports unassigning a node through PATCH updates', async () => {
+    const invalidateNodeContext = jest.fn();
+    const invalidateRackTopology = jest.fn();
+    const nodeUpdate = jest.fn().mockResolvedValue({
+      id: 'node-1',
+      nodeCode: 'NODE-1',
+      displayName: 'Node 1',
+      source: 'collector',
+      lifecycleState: NodeLifecycleState.ACTIVE,
+      assignmentState: NodeAssignmentState.UNASSIGNED,
+      metadata: {},
+    });
+    const nodeRepository = {
+      create: jest.fn(),
+      update: nodeUpdate,
+      findById: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        positionCode: 'U08',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      findByRackIdAndPositionCode: jest.fn(),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
+    };
+    const rackRepository: RackRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn(),
+      findById: jest.fn(),
+      findByCode: jest.fn(),
+      listAll: jest.fn(),
+    };
+
+    const useCase = new UpdateNodeUseCase(
+      nodeRepository,
+      rackRepository,
+      {
+        invalidateNodeContext,
+        invalidateRackTopology,
+      } as never,
+      nodeMappingPublisher,
+    );
+
+    await useCase.execute('node-1', {
+      rackId: null,
+      positionCode: null,
+    });
+
+    expect(nodeUpdate).toHaveBeenCalledWith('node-1', {
+      rackId: null,
+      positionCode: null,
+      assignmentState: NodeAssignmentState.UNASSIGNED,
+    });
+    expect(invalidateNodeContext).toHaveBeenCalledWith('node-1');
+    expect(invalidateRackTopology).toHaveBeenCalledWith('rack-1');
+    expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
+      'NODE-1',
+      null,
+    );
+  });
+
+  it('supports moving a node to another rack through PATCH updates', async () => {
+    const invalidateNodeContext = jest.fn();
+    const invalidateRackTopology = jest.fn();
+    const nodeUpdate = jest.fn().mockResolvedValue({
+      id: 'node-1',
+      nodeCode: 'NODE-1',
+      displayName: 'Node 1',
+      rackId: 'rack-2',
+      positionCode: 'U03',
+      source: 'collector',
+      lifecycleState: NodeLifecycleState.ACTIVE,
+      assignmentState: NodeAssignmentState.MOVED,
+      metadata: {},
+    });
+    const nodeRepository = {
+      create: jest.fn(),
+      update: nodeUpdate,
+      findById: jest.fn().mockResolvedValue({
+        id: 'node-1',
+        nodeCode: 'NODE-1',
+        displayName: 'Node 1',
+        rackId: 'rack-1',
+        positionCode: 'U08',
+        source: 'collector',
+        lifecycleState: NodeLifecycleState.ACTIVE,
+        assignmentState: NodeAssignmentState.ASSIGNED,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      findByRackIdAndPositionCode: jest.fn().mockResolvedValue(null),
+      listAll: jest.fn(),
+      listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
+    };
+    const rackRepository: RackRepositoryPort = {
+      create: jest.fn(),
+      update: jest.fn(),
+      findById: jest.fn().mockResolvedValue({
+        id: 'rack-2',
+        rackCode: 'RACK-B1',
+        displayName: 'Rack B1',
+        lifecycleState: RackLifecycleState.READY,
+        capacityState: RackCapacityState.AVAILABLE,
+        capacityLimit: 12,
+        metadata: {},
+      }),
+      findByCode: jest.fn(),
+      listAll: jest.fn(),
+    };
+
+    const useCase = new UpdateNodeUseCase(
+      nodeRepository,
+      rackRepository,
+      {
+        invalidateNodeContext,
+        invalidateRackTopology,
+      } as never,
+      nodeMappingPublisher,
+    );
+
+    await useCase.execute('node-1', {
+      rackId: 'rack-2',
+      positionCode: 'U03',
+    });
+
+    expect(nodeUpdate).toHaveBeenCalledWith('node-1', {
+      rackId: 'rack-2',
+      positionCode: 'U03',
+      assignmentState: NodeAssignmentState.MOVED,
+    });
+    expect(invalidateNodeContext).toHaveBeenCalledWith('node-1');
+    expect(invalidateRackTopology).toHaveBeenCalledWith('rack-1');
+    expect(invalidateRackTopology).toHaveBeenCalledWith('rack-2');
+    expect(nodeMappingPublisher.publishNodeMapping).toHaveBeenCalledWith(
+      'NODE-1',
+      'rack-2',
+    );
+  });
+
   it('publishes a null mapping when normalizing a new node', async () => {
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn().mockResolvedValue({
         id: 'node-1',
         nodeCode: 'NODE-1',
@@ -448,6 +601,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
 
     const useCase = new NormalizeNodeUseCase(
@@ -471,7 +625,7 @@ describe('asset lifecycle commands', () => {
   });
 
   it('does not fail node normalization when mapping publish fails', async () => {
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn().mockResolvedValue({
         id: 'node-1',
         nodeCode: 'NODE-1',
@@ -487,6 +641,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     nodeMappingPublisher.publishNodeMapping.mockRejectedValueOnce(
       new Error('kafka unavailable'),
@@ -513,7 +668,7 @@ describe('asset lifecycle commands', () => {
   });
 
   it('skips mapping publish when normalization is called without publish enabled', async () => {
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn().mockResolvedValue({
         id: 'node-1',
         nodeCode: 'NODE-1',
@@ -529,6 +684,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
 
     const useCase = new NormalizeNodeUseCase(
@@ -554,7 +710,7 @@ describe('asset lifecycle commands', () => {
   });
 
   it('publishes the target rack mapping when assigning a node to a rack', async () => {
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: jest.fn().mockResolvedValue({
         id: 'node-1',
@@ -580,6 +736,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn().mockResolvedValue(null),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const rackRepository: RackRepositoryPort = {
       create: jest.fn(),
@@ -615,7 +772,7 @@ describe('asset lifecycle commands', () => {
   });
 
   it('publishes a null mapping when retiring a node', async () => {
-    const nodeRepository: NodeRepositoryPort = {
+    const nodeRepository = {
       create: jest.fn(),
       update: jest.fn().mockResolvedValue({
         id: 'node-1',
@@ -640,6 +797,7 @@ describe('asset lifecycle commands', () => {
       findByRackIdAndPositionCode: jest.fn(),
       listAll: jest.fn(),
       listByRackId: jest.fn(),
+      listUnassigned: jest.fn(),
     };
     const discoveredNodeRepository = {
       findByAgentId: jest.fn().mockResolvedValue({
@@ -671,9 +829,7 @@ describe('asset lifecycle commands', () => {
 
     expect(nodeRepository.update).toHaveBeenCalledWith('node-1', {
       lifecycleState: NodeLifecycleState.RETIRED,
-      rackId: null,
-      positionCode: null,
-      assignmentState: NodeAssignmentState.UNASSIGNED,
+      assignmentState: NodeAssignmentState.ASSIGNED,
     });
     expect(discoveredNodeRepository.findByAgentId).toHaveBeenCalledWith(
       'NODE-1',
@@ -681,7 +837,7 @@ describe('asset lifecycle commands', () => {
     expect(discoveredNodeRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
         lifecycleState: NodeLifecycleState.RETIRED,
-        assignmentState: NodeAssignmentState.UNASSIGNED,
+        assignmentState: NodeAssignmentState.ASSIGNED,
         logicalRackId: null,
       }),
     );
@@ -708,3 +864,7 @@ describe('asset lifecycle commands', () => {
     );
   });
 });
+
+
+
+

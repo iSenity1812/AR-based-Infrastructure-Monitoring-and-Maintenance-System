@@ -107,7 +107,13 @@ export type NodeDocument = HydratedDocument<NodeDocumentModel>;
 export const NodeSchema = SchemaFactory.createForClass(NodeDocumentModel);
 NodeSchema.index(
   { rackId: 1, positionCode: 1 },
-  { unique: true, sparse: true },
+  {
+    unique: true,
+    partialFilterExpression: {
+      rackId: { $exists: true, $gt: '' },
+      positionCode: { $exists: true, $gt: '' },
+    },
+  },
 );
 NodeSchema.index({ assignmentState: 1 });
 

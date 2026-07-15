@@ -155,6 +155,9 @@ export class UpdateNodeUseCase {
     @Inject(RACK_REPOSITORY)
     private readonly rackRepository: RackRepositoryPort,
     private readonly assetContextReadService: AssetContextReadService,
+    @Inject(NODE_MAPPING_EVENT_PUBLISHER)
+    @Optional()
+    private readonly nodeMappingEventPublisher?: NodeMappingEventPublisherPort,
   ) {}
 
   async execute(
@@ -163,19 +166,33 @@ export class UpdateNodeUseCase {
       nodeCode?: string;
       displayName?: string;
       hostname?: string;
+      rackId?: string | null;
       nodeType?: string;
       source?: string;
       serialNumber?: string;
       vendor?: string;
       model?: string;
       managementIp?: string;
-      positionCode?: string;
+      positionCode?: string | null;
       notes?: string;
       metadata?: Record<string, unknown>;
     },
   ) {
     const node = await this.getRequiredNode(nodeId);
     const resolvedNodeId = node.id;
+    const placementUpdateRequested =
+      Object.prototype.hasOwnProperty.call(input, 'rackId') ||
+      Object.prototype.hasOwnProperty.call(input, 'positionCode');
+    const nextRackId = Object.prototype.hasOwnProperty.call(input, 'rackId')
+      ? input.rackId
+      : node.rackId;
+    const nextPositionCode = Object.prototype.hasOwnProperty.call(
+      input,
+      'positionCode',
+    )
+      ? input.positionCode
+      : node.positionCode;
+
     if (input.nodeCode) {
       await this.assetContextReadService.ensureCodeAvailable(input.nodeCode, {
         type: AssetType.NODE,
@@ -183,28 +200,46 @@ export class UpdateNodeUseCase {
       });
     }
 
-    if (input.positionCode && node.rackId) {
-      const rack = await this.getRequiredRack(node.rackId);
+    if (
+      (nextRackId && !nextPositionCode) ||
+      (!nextRackId && nextPositionCode)
+    ) {
+      throw new BadRequestUseCaseError(
+        'rackId and positionCode must be updated together to keep node placement consistent.',
+      );
+    }
+
+    if (nextRackId && nextPositionCode) {
+      const rack = await this.getRequiredRack(nextRackId);
       this.ensurePositionWithinRackCapacity(
         rack.capacityLimit,
-        input.positionCode,
+        nextPositionCode,
       );
     }
 
     await this.ensurePositionAvailability(
       resolvedNodeId,
-      node.rackId,
-      input.positionCode ?? node.positionCode,
+      nextRackId,
+      nextPositionCode,
     );
+
+    const updatePayload: Parameters<NodeRepositoryPort['update']>[1] = { ...input };
+    if (placementUpdateRequested) {
+      updatePayload.assignmentState = this.resolveAssignmentState(
+        node,
+        nextRackId,
+        nextPositionCode,
+      );
+    }
 
     let updated: Awaited<ReturnType<NodeRepositoryPort['update']>>;
     try {
-      updated = await this.nodeRepository.update(resolvedNodeId, input);
+      updated = await this.nodeRepository.update(resolvedNodeId, updatePayload);
     } catch (error) {
       if (isMongoDuplicateKeyError(error)) {
         throw new ConflictUseCaseError(
-          node.rackId && (input.positionCode ?? node.positionCode)
-            ? `Rack ${node.rackId} already has a node at position ${input.positionCode ?? node.positionCode}.`
+          nextRackId && nextPositionCode
+            ? `Rack ${nextRackId} already has a node at position ${nextPositionCode}.`
             : 'Node update conflicts with an existing asset.',
         );
       }
@@ -219,7 +254,39 @@ export class UpdateNodeUseCase {
     if (updated?.rackId && updated.rackId !== node.rackId) {
       await this.assetContextReadService.invalidateRackTopology(updated.rackId);
     }
+    if ((updated?.rackId ?? null) !== (node.rackId ?? null)) {
+      await publishNodeMappingBestEffort(
+        this.nodeMappingEventPublisher,
+        node.nodeCode,
+        updated?.rackId ?? null,
+        'update node',
+      );
+    }
     return updated;
+  }
+
+  private resolveAssignmentState(
+    node: {
+      rackId?: string | null;
+      positionCode?: string | null;
+      assignmentState: NodeAssignmentState;
+    },
+    rackId: string | null | undefined,
+    positionCode: string | null | undefined,
+  ) {
+    if (!rackId || !positionCode) {
+      return NodeAssignmentState.UNASSIGNED;
+    }
+
+    if (!node.rackId || !node.positionCode) {
+      return NodeAssignmentState.ASSIGNED;
+    }
+
+    if (node.rackId !== rackId || node.positionCode !== positionCode) {
+      return NodeAssignmentState.MOVED;
+    }
+
+    return node.assignmentState;
   }
 
   private async getRequiredNode(nodeId: string) {
@@ -569,9 +636,9 @@ export class RetireNodeUseCase {
     const resolvedNodeId = node.id;
     const updated = await this.nodeRepository.update(resolvedNodeId, {
       lifecycleState: NodeLifecycleState.RETIRED,
-      rackId: null,
-      positionCode: null,
-      assignmentState: NodeAssignmentState.UNASSIGNED,
+      assignmentState: node.rackId
+        ? NodeAssignmentState.ASSIGNED
+        : NodeAssignmentState.UNASSIGNED,
     });
 
     const discoveredNode = await this.discoveredNodeRepository.findByAgentId(
@@ -581,7 +648,9 @@ export class RetireNodeUseCase {
       await this.discoveredNodeRepository.save({
         ...discoveredNode,
         lifecycleState: NodeLifecycleState.RETIRED,
-        assignmentState: NodeAssignmentState.UNASSIGNED,
+        assignmentState: node.rackId
+          ? NodeAssignmentState.ASSIGNED
+          : NodeAssignmentState.UNASSIGNED,
         logicalRackId: null,
         siteCode: undefined,
         updatedAt: new Date().toISOString(),

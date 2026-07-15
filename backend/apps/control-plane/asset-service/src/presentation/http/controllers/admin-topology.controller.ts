@@ -332,7 +332,9 @@ export class AdminTopologyController {
 
   @Post('nodes/:nodeId/retire')
   @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
-  @ApiOperation({ summary: 'Retire a node and release rack assignment.' })
+  @ApiOperation({
+    summary: 'Retire a node while preserving its current rack placement.',
+  })
   async retireNode(
     @Param('nodeId') nodeId: string,
     @Req() request: HeaderRequest,

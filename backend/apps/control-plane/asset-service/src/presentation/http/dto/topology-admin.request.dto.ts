@@ -211,6 +211,11 @@ export class UpdateNodeRequestDto {
   @IsString()
   hostname?: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  rackId?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -236,10 +241,10 @@ export class UpdateNodeRequestDto {
   @IsString()
   managementIp?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
-  positionCode?: string;
+  positionCode?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

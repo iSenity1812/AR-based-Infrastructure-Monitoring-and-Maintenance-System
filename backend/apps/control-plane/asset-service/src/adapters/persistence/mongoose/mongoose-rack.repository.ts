@@ -29,26 +29,37 @@ function mapRack(
 }
 
 function buildUpdateDocument(input: Partial<Omit<RackEntity, 'id'>>) {
-  const $set: Partial<Omit<RackEntity, 'id'>> = {};
+  const $set: Record<string, unknown> = {};
   const $unset: Record<string, 1> = {};
 
   for (const [key, value] of Object.entries(input)) {
+    // 1. Nếu không truyền (undefined), BỎ QUA hoàn toàn để giữ nguyên dữ liệu cũ trong DB
     if (value === undefined) {
+      continue;
+    }
+
+    // 2. Nếu chủ động truyền null, hiểu là muốn XÓA trường này khỏi DB (nếu DB cho phép nullable)
+    if (value === null) {
       $unset[key] = 1;
       continue;
     }
 
-    ($set as Record<string, unknown>)[key] = value;
+    // 3. Các trường có giá trị hợp lệ (bao gồm cả chuỗi rỗng "") thì cập nhật bình thường
+    $set[key] = value;
   }
 
-  if (Object.keys($unset).length === 0) {
-    return $set;
+  // Build object update cuối cùng cho Mongoose
+  const updateQuery: Record<string, any> = {};
+
+  if (Object.keys($set).length > 0) {
+    updateQuery.$set = $set;
   }
 
-  return {
-    ...(Object.keys($set).length > 0 ? { $set } : {}),
-    $unset,
-  };
+  if (Object.keys($unset).length > 0) {
+    updateQuery.$unset = $unset;
+  }
+
+  return updateQuery;
 }
 
 @Injectable()

@@ -73,10 +73,14 @@ services:
     env_file:
       - control-plane/monitoring-service/.env.example
     environment:
-      MONITORING_MONGODB_URI: mongodb://host.docker.internal:27017/monitoring_context_db
+      MONITORING_MONGODB_URI: mongodb://host.docker.internal:27017/monitoring_db
       REDIS_URL: redis://host.docker.internal:6379/0
       ASSET_SERVICE_GRPC_HOST: host.docker.internal
       ASSET_SERVICE_GRPC_PORT: 50052
+      ALERTMANAGER_ENABLED: "true"
+      ALERTMANAGER_BASE_URL: http://alertmanager:9093
+      ALERTMANAGER_TIMEOUT_MS: "5000"
+      MONITORING_ALERT_SYNC_SHARED_SECRET: ${MONITORING_ALERT_SYNC_SHARED_SECRET:-change-me-monitoring-sync-secret}
     expose:
       - "4003"
     extra_hosts:

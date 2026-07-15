@@ -1,0 +1,189 @@
+apiVersion: task-1
+kind: AlertRuleBaseline
+metadata:
+  name: monitoring-alerting-v1
+  description: >
+    Contract-first baseline for Grafana Alerting rule configuration.
+    This file is not mounted into Grafana provisioning yet. It exists to drive
+    Task 0.x implementation without re-deciding labels, grouping semantics, or
+    minimum query output fields.
+
+common_labels:
+  source: grafana
+  team: infra
+  environment: lab
+
+grouping_by_scope:
+  node: [alertname, node_id]
+  rack: [alertname, rack_id]
+  workload: [alertname, workload_id]
+
+rules:
+  - rule_name: NodeStale
+    scope_type: node
+    source_views:
+      - telemetry_db.node_current_summary
+    query_output_fields:
+      - node_id
+      - rack_id
+      - summary_ts
+    constant_labels:
+      severity: warning
+      category: availability
+    annotations:
+      - summary
+      - description
+      - metric_key
+      - observed_window
+      - dashboard_url
+      - runbook_url
+
+  - rule_name: NodeCpuTempCritical
+    scope_type: node
+    source_views:
+      - telemetry_db.node_summary_trend_1m
+    query_output_fields:
+      - node_id
+      - rack_id
+      - cpu_temperature_c_current
+      - summary_ts
+    constant_labels:
+      severity: critical
+      category: thermal
+    annotations:
+      - summary
+      - description
+      - metric_key
+      - current_value
+      - threshold
+      - observed_window
+      - dashboard_url
+      - runbook_url
+
+  - rule_name: NodeMemoryPressureHigh
+    scope_type: node
+    source_views:
+      - telemetry_db.node_summary_trend_1m
+    query_output_fields:
+      - node_id
+      - rack_id
+      - memory_used_pct_current
+      - summary_ts
+    constant_labels:
+      severity: critical
+      category: resource
+    annotations:
+      - summary
+      - description
+      - metric_key
+      - current_value
+      - threshold
+      - observed_window
+      - dashboard_url
+      - runbook_url
+
+  - rule_name: NodeDiskUsageHigh
+    scope_type: node
+    source_views:
+      - telemetry_db.node_summary_trend_1m
+      - telemetry_db.node_current_summary
+    query_output_fields:
+      - node_id
+      - rack_id
+      - disk_used_pct_max_current
+      - summary_ts
+    constant_labels:
+      severity: warning
+      category: resource
+    annotations:
+      - summary
+      - description
+      - metric_key
+      - current_value
+      - threshold
+      - observed_window
+      - dashboard_url
+      - runbook_url
+
+  - rule_name: ContainerUnhealthyPresent
+    scope_type: node
+    source_views:
+      - telemetry_db.container_current_summary
+    query_output_fields:
+      - node_id
+      - rack_id
+      - unhealthy_container_count
+    constant_labels:
+      severity: warning
+      category: runtime
+    annotations:
+      - summary
+      - description
+      - metric_key
+      - observed_window
+      - dashboard_url
+      - runbook_url
+
+  - rule_name: ContainerRestarting
+    scope_type: workload
+    source_views:
+      - telemetry_db.container_current_summary
+      - telemetry_db.container_summary_trend_1m
+    query_output_fields:
+      - workload_id
+      - node_id
+      - rack_id
+      - restart_count_current
+    constant_labels:
+      severity: warning
+      category: runtime
+    annotations:
+      - summary
+      - description
+      - metric_key
+      - current_value
+      - observed_window
+      - dashboard_url
+      - runbook_url
+
+  - rule_name: RackCritical
+    scope_type: rack
+    source_views:
+      - telemetry_db.rack_current_summary
+      - derived-node-aggregate
+    query_output_fields:
+      - rack_id
+      - critical_node_count
+      - stale_node_count
+    constant_labels:
+      severity: critical
+      category: availability
+    annotations:
+      - summary
+      - description
+      - observed_window
+      - dashboard_url
+      - runbook_url
+
+  - rule_name: NodeCpuUsageHigh
+    scope_type: node
+    source_views:
+      - telemetry_db.node_summary_trend_1m
+    query_output_fields:
+      - node_id
+      - rack_id
+      - cpu_usage_pct_current
+      - summary_ts
+    constant_labels:
+      severity: critical
+      category: resource
+    annotations:
+      - summary
+      - description
+      - metric_key
+      - current_value
+      - threshold
+      - observed_window
+      - dashboard_url
+      - runbook_url
+

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import type { MonitoringState } from '../../domain/monitoring-state';
 import { evaluateSummaryRuleInput } from '../../domain/summary-rule';
@@ -6,8 +6,18 @@ import { mapRackOverviewRecordToSummaryRuleInput } from '../mappers/rack-summary
 import { MonitoringStateRepository } from '../ports/monitoring-state.repository';
 import type { MonitoringTransition } from '../ports/monitoring-transition';
 import { RackOverviewReadRepository } from '../ports/rack-overview-read.repository';
+import { DispatchRackAlertTransitionUseCase } from './dispatch-rack-alert-transition.use-case';
 
 export interface PollRackMonitoringInput {
+  /**
+   * Phase-1 checkpoint strategy:
+   * - omitted => full poll, primarily for first-run bootstrap and manual debugging
+   * - provided => incremental poll since the given summary timestamp
+   *
+   * This checkpoint is caller-scoped optimization input only. Transition
+   * correctness still comes from persisted monitoring state + fingerprint logic,
+   * not from checkpoint continuity.
+   */
   changedSinceSummaryTs?: string;
 }
 
@@ -20,21 +30,29 @@ export interface PollRackMonitoringResult {
 
 @Injectable()
 export class PollRackMonitoringUseCase {
+  private readonly logger = new Logger(PollRackMonitoringUseCase.name);
+
   constructor(
     @Inject(RackOverviewReadRepository)
     private readonly rackOverviewReadRepository: RackOverviewReadRepository,
     @Inject(MonitoringStateRepository)
     private readonly monitoringStateRepository: MonitoringStateRepository,
+    private readonly dispatchRackAlertTransitionUseCase: DispatchRackAlertTransitionUseCase,
   ) {}
 
   async execute(
     input: PollRackMonitoringInput = {},
   ): Promise<PollRackMonitoringResult> {
+    const startedAt = Date.now();
     const rackRows = input.changedSinceSummaryTs
       ? await this.rackOverviewReadRepository.listCurrentRacksChangedSince(
           input.changedSinceSummaryTs,
         )
       : await this.rackOverviewReadRepository.listCurrentRacks();
+
+    this.logger.log(
+      `rack poll query completed (checkpoint=${input.changedSinceSummaryTs ?? 'none'}, fetchedRows=${rackRows.length})`,
+    );
 
     const transitions: MonitoringTransition[] = [];
     let processedRows = 0;
@@ -58,8 +76,19 @@ export class PollRackMonitoringUseCase {
         evaluation.scopeId,
       );
 
-      transitions.push(buildMonitoringTransition(evaluation, previousState));
+      const transition = buildMonitoringTransition(evaluation, previousState);
+      if (shouldDispatchTransition(transition)) {
+        await this.dispatchRackAlertTransitionUseCase.execute(transition);
+      } else if (shouldPersistTransition(transition)) {
+        await this.monitoringStateRepository.save(transition.nextState);
+      }
+
+      transitions.push(transition);
     }
+
+    this.logger.log(
+      `rack poll evaluated (checkpoint=${input.changedSinceSummaryTs ?? 'none'}, processedRows=${processedRows}, skippedRows=${skippedRows}, transitions=${transitions.length}, nextCheckpoint=${nextCheckpointSummaryTs ?? 'none'}, durationMs=${Date.now() - startedAt})`,
+    );
 
     return {
       transitions,
@@ -174,4 +203,15 @@ function maxTimestamp(current: string | null, candidate: string): string {
   }
 
   return candidate > current ? candidate : current;
+}
+
+function shouldDispatchTransition(transition: MonitoringTransition): boolean {
+  return (
+    transition.transitionKind === 'activate' ||
+    transition.transitionKind === 'resolve'
+  );
+}
+
+function shouldPersistTransition(transition: MonitoringTransition): boolean {
+  return transition.transitionKind === 'repeated_active';
 }

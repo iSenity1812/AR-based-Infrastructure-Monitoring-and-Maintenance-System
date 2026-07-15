@@ -1,0 +1,154 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: monitoring-lab-default
+  group_by:
+    - alertname
+    - scope_type
+  group_wait: 15s
+  group_interval: 2m
+  repeat_interval: 4h
+  routes:
+    - receiver: monitoring-rack-lab
+      matchers:
+        - scope_type="rack"
+        - environment="lab"
+      group_by:
+        - alertname
+        - rack_id
+      continue: false
+
+    - receiver: monitoring-node-critical-lab
+      matchers:
+        - scope_type="node"
+        - environment="lab"
+        - severity="critical"
+      group_by:
+        - alertname
+        - node_id
+      continue: false
+
+    - receiver: monitoring-node-warning-lab
+      matchers:
+        - scope_type="node"
+        - environment="lab"
+        - severity="warning"
+      group_by:
+        - alertname
+        - node_id
+      continue: false
+
+    - receiver: monitoring-workload-critical-lab
+      matchers:
+        - scope_type="workload"
+        - environment="lab"
+        - severity="critical"
+      group_by:
+        - alertname
+        - workload_id
+      continue: false
+
+    - receiver: monitoring-workload-warning-lab
+      matchers:
+        - scope_type="workload"
+        - environment="lab"
+        - severity="warning"
+      group_by:
+        - alertname
+        - workload_id
+      continue: false
+
+    - receiver: monitoring-service-critical-lab
+      matchers:
+        - scope_type="service"
+        - environment="lab"
+        - severity="critical"
+      group_by:
+        - alertname
+        - workload_id
+      continue: false
+
+    - receiver: monitoring-service-warning-lab
+      matchers:
+        - scope_type="service"
+        - environment="lab"
+        - severity="warning"
+      group_by:
+        - alertname
+        - workload_id
+      continue: false
+
+inhibit_rules:
+  - source_matchers:
+      - alertname="RackCritical"
+      - scope_type="rack"
+      - severity="critical"
+    target_matchers:
+      - alertname=~"NodeStale|ContainerUnhealthyPresent"
+    equal:
+      - rack_id
+
+  - source_matchers:
+      - severity="critical"
+      - scope_type="node"
+    target_matchers:
+      - severity="warning"
+      - scope_type="node"
+    equal:
+      - alertname
+      - node_id
+
+  - source_matchers:
+      - severity="critical"
+      - scope_type="workload"
+    target_matchers:
+      - severity="warning"
+      - scope_type="workload"
+    equal:
+      - alertname
+      - workload_id
+
+  - source_matchers:
+      - severity="critical"
+      - scope_type="service"
+    target_matchers:
+      - severity="warning"
+      - scope_type="service"
+    equal:
+      - alertname
+      - workload_id
+
+receivers:
+  - name: monitoring-lab-default
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/default
+        send_resolved: true
+  - name: monitoring-rack-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/critical
+        send_resolved: true
+  - name: monitoring-node-critical-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/critical
+        send_resolved: true
+  - name: monitoring-node-warning-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/warning
+        send_resolved: true
+  - name: monitoring-workload-critical-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/critical
+        send_resolved: true
+  - name: monitoring-workload-warning-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/warning
+        send_resolved: true
+  - name: monitoring-service-critical-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/critical
+        send_resolved: true
+  - name: monitoring-service-warning-lab
+    webhook_configs:
+      - url: http://alert-webhook-sink:8080/warning
+        send_resolved: true

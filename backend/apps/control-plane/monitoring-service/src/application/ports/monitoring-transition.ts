@@ -46,6 +46,8 @@ export interface AlertDeliveryCommand {
   scopeId: string;
   scopeKey: string;
   observedAt: string;
+  startsAt: string | null;
+  endsAt: string | null;
   severityCode: number;
   overrideFlag: boolean;
   lifecycleStatus: MonitoringLifecycleStatus;

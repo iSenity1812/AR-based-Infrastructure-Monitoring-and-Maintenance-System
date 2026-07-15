@@ -1,4 +1,8 @@
 networks:
+  edge:
+    external: true
+    name: edge
+
   redpanda-network:
     driver: bridge
 
@@ -193,43 +197,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # risingwave:
-  #   image: risingwavelabs/risingwave:v2.3.0
-  #   container_name: backend-shared-risingwave
-  #   restart: unless-stopped
-  #   command: single_node
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 8G
-  #   ports:
-  #     - "4566:4566"
-  #     - "5690:5690"
-  #     - "5691:5691"
-  #   environment:
-  #     # - RW_STATE_STORE=hummock+fs://risingwave
-  #     # - RW_DATA_DIRECTORY=risingwave_data
-  #     - RW_STATE_STORE=hummock+minio://admin:password123@minio:9000/risingwave
-  #     - RW_DATA_DIRECTORY=risingwave_data
-  #   volumes:
-  #     - backend-shared-risingwave-data:/risingwave_data
-  #   networks:
-  #     - redpanda-network
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #     mongo:
-  #       condition: service_healthy
-  #     redpanda:
-  #       condition: service_healthy
-  #     minio:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:5691/"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 10
-
   minio:
     image: minio/minio:latest
     container_name: backend-shared-minio
@@ -251,38 +218,108 @@ services:
       timeout: 5s
       retries: 10
 
-  # risingwave-console-db:
-  #   image: postgres:15-alpine
-  #   container_name: risingwave-console-db
-  #   restart: unless-stopped
-  #   environment:
-  #     - POSTGRES_USER=rcu
-  #     - POSTGRES_PASSWORD=123456
-  #     - POSTGRES_DB=rconsole
-  #   volumes:
-  #     - risingwave-console-db-data:/var/lib/postgresql/data
-  #   networks:
-  #     - redpanda-network
-  # risingwave-console:
-  #   image: risingwavelabs/risingwave-console:v0.5.1
-  #   container_name: risingwave-console
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8020:8020"
-  #   environment:
-  #     - RCONSOLE_ROOT_PASSWORD=123456
-  #     - RCONSOLE_SERVER_PG_DSN=postgres://rcu:123456@risingwave-console-db:5432/rconsole
-  #   networks:
-  #     - redpanda-network
-  #   depends_on:
-  #     - risingwave
-  #     - risingwave-console-db
+  grafana:
+    image: grafana/grafana
+    container_name: backend-shared-grafana
+    restart: unless-stopped
+    ports:
+      - "3010:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+
+      # clickhouse plugin
+      GF_PLUGINS_PREINSTALL: grafana-clickhouse-datasource
+
+      # public dashboards url
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3010}
+
+      # Chỉ cần bật nếu dùng email contact point
+      # GF_SMTP_ENABLED: "true"
+      # GF_SMTP_HOST: smtp.example.com:587
+      # GF_SMTP_USER: alerts@example.com
+      # GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD}
+      # GF_SMTP_FROM_ADDRESS: alerts@example.com
+      # GF_SMTP_FROM_NAME: Grafana Alerting
+      # GF_SMTP_STARTTLS_POLICY: MandatoryStartTLS
+
+    volumes:
+      - backend-shared-grafana-data:/var/lib/grafana
+      - ../../infra/grafana/provisioning:/etc/grafana/provisioning:ro
+
+    networks:
+      - redpanda-network
+
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      alertmanager:
+        condition: service_started
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://localhost:3000/api/health || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    container_name: backend-shared-alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --log.level=info
+    ports:
+      - "9093:9093"
+    volumes:
+      - ../../infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - edge
+      - redpanda-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://localhost:9093/-/ready || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  alert-webhook-sink:
+    image: python:3.12-alpine
+    container_name: backend-shared-alert-webhook-sink
+    command: ["python", "/app/server.py"]
+    restart: unless-stopped
+    ports:
+      - "18081:8080"
+    environment:
+      WEBHOOK_SINK_LOG_PATH: /data/requests.jsonl
+    volumes:
+      - ../../infra/alertmanager/lab-webhook-sink:/app:ro
+      - backend-shared-alert-webhook-sink-data:/data
+    networks:
+      - redpanda-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health').read()"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 volumes:
   backend-shared-redis-data:
   backend-shared-mongo-data:
   backend-shared-vector-data:
   backend-shared-clickhouse-data:
-  # risingwave-console-db-data:
   backend-shared-minio-data:
-  # backend-shared-risingwave-data:
+  backend-shared-grafana-data:
+  backend-shared-alert-webhook-sink-data:

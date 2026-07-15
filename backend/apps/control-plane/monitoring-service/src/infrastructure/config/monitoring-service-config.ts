@@ -33,6 +33,8 @@ export class MonitoringServiceConfig {
 
   readonly monitoringRackPollIntervalMs: number;
 
+  readonly externalAlertSyncSharedSecret: string;
+
   constructor(env: NodeJS.ProcessEnv) {
     this.port = Number(env.PORT ?? 4003);
     this.apiPrefix = env.API_PREFIX ?? 'api/v1';
@@ -63,5 +65,8 @@ export class MonitoringServiceConfig {
     this.monitoringRackPollIntervalMs = Number(
       env.MONITORING_RACK_POLL_INTERVAL_MS ?? 30000,
     );
+    this.externalAlertSyncSharedSecret =
+      env.MONITORING_ALERT_SYNC_SHARED_SECRET ??
+      'change-me-monitoring-sync-secret';
   }
 }

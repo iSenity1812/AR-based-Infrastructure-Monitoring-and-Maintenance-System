@@ -148,8 +148,8 @@ services:
 
   ingestion-worker:
     build:
-      context: ./ingestion-worker
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: backend/apps/ingestion-worker/Dockerfile
     container_name: backend-ingestion-worker
     restart: unless-stopped
     environment:

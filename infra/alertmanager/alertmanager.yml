@@ -124,31 +124,87 @@ receivers:
     webhook_configs:
       - url: http://alert-webhook-sink:8080/default
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret
   - name: monitoring-rack-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/critical
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret
   - name: monitoring-node-critical-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/critical
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret
   - name: monitoring-node-warning-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/warning
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret
   - name: monitoring-workload-critical-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/critical
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret
   - name: monitoring-workload-warning-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/warning
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret
   - name: monitoring-service-critical-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/critical
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret
   - name: monitoring-service-warning-lab
     webhook_configs:
       - url: http://alert-webhook-sink:8080/warning
         send_resolved: true
+      - url: http://host.docker.internal:4003/api/v1/internal/alerts/external/sync
+        send_resolved: true
+        http_config:
+          http_headers:
+            x-monitoring-sync-secret:
+              secrets:
+                - change-me-monitoring-sync-secret

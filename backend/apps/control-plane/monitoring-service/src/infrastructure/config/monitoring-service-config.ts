@@ -29,6 +29,10 @@ export class MonitoringServiceConfig {
 
   readonly alertmanagerTimeoutMs: number;
 
+  readonly incidentWorkflowBaseUrl: string;
+
+  readonly incidentWorkflowTimeoutMs: number;
+
   readonly monitoringRackPollEnabled: boolean;
 
   readonly monitoringRackPollIntervalMs: number;
@@ -60,6 +64,12 @@ export class MonitoringServiceConfig {
     this.alertmanagerBaseUrl =
       env.ALERTMANAGER_BASE_URL ?? 'http://127.0.0.1:9093';
     this.alertmanagerTimeoutMs = Number(env.ALERTMANAGER_TIMEOUT_MS ?? 5000);
+    this.incidentWorkflowBaseUrl = (
+      env.INCIDENT_WORKFLOW_BASE_URL ?? 'http://127.0.0.1:4004/api/v1'
+    ).replace(/\/+$/, '');
+    this.incidentWorkflowTimeoutMs = Number(
+      env.INCIDENT_WORKFLOW_TIMEOUT_MS ?? 5000,
+    );
     this.monitoringRackPollEnabled =
       env.MONITORING_RACK_POLL_ENABLED === 'true';
     this.monitoringRackPollIntervalMs = Number(

@@ -2,10 +2,12 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
 
 import type {
+  AlertIncidentSeverity,
   AlertCurrentStateCategory,
   AlertCurrentStateScopeType,
   AlertCurrentStateSeverity,
   AlertCurrentStateStatus,
+  AlertTriageStatus,
 } from '../../../domain/alert-current-state';
 
 @Schema({
@@ -116,6 +118,43 @@ export class AlertCurrentStatePersistence {
   @Prop({ required: true })
   lastStatusChangedAt!: string;
 
+  @Prop({
+    required: true,
+    enum: ['new', 'acknowledged', 'incident_created', 'suppressed'],
+    default: 'new',
+    index: true,
+  })
+  triageStatus!: AlertTriageStatus;
+
+  @Prop({ type: String, required: false, default: null })
+  incidentId!: string | null;
+
+  @Prop({ type: String, required: false, default: null, index: true })
+  incidentCode!: string | null;
+
+  @Prop({ type: String, required: false, default: null })
+  incidentStatus!: string | null;
+
+  @Prop({
+    type: String,
+    required: false,
+    enum: ['HIGH', 'CRITICAL', null],
+    default: null,
+  })
+  incidentSeverity!: AlertIncidentSeverity | null;
+
+  @Prop({ type: String, required: false, default: null })
+  incidentTitle!: string | null;
+
+  @Prop({ type: String, required: false, default: null })
+  incidentCreatedAt!: string | null;
+
+  @Prop({ type: String, required: false, default: null })
+  incidentLinkedAt!: string | null;
+
+  @Prop({ type: String, required: false, default: null })
+  lastEscalatedAt!: string | null;
+
   createdAt?: Date;
 
   updatedAt?: Date;
@@ -134,3 +173,4 @@ AlertCurrentStateSchema.index({ scopeType: 1, workloadId: 1, status: 1 });
 AlertCurrentStateSchema.index({ scopeType: 1, serviceId: 1, status: 1 });
 AlertCurrentStateSchema.index({ status: 1, severity: 1, lastReceivedAt: -1 });
 AlertCurrentStateSchema.index({ alertName: 1, status: 1, severity: 1 });
+AlertCurrentStateSchema.index({ triageStatus: 1, incidentCode: 1 });

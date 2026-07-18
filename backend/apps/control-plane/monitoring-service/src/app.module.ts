@@ -8,6 +8,7 @@ import { ApiResponseInterceptor } from './adapters/inbound/http/interceptors/api
 import { LoggingInterceptor } from './adapters/inbound/http/interceptors/logging.interceptor';
 import { JwtStrategy } from './adapters/inbound/http/strategies/jwt.strategy';
 import { DispatchRackAlertTransitionUseCase } from './application/use-cases/dispatch-rack-alert-transition.use-case';
+import { CreateIncidentFromAlertUseCase } from './application/use-cases/create-incident-from-alert.use-case';
 import { GetNodeMetricsUseCase } from './application/use-cases/get-node-metrics.use-case';
 import { GetNodeMonitoringStateUseCase } from './application/use-cases/get-node-monitoring-state.use-case';
 import { GetNodeOverviewUseCase } from './application/use-cases/get-node-overview.use-case';
@@ -19,16 +20,19 @@ import { SyncExternalAlertsUseCase } from './application/use-cases/sync-external
 import { SyncNodeOverviewRealtimeUseCase } from './application/use-cases/sync-node-overview-realtime.use-case';
 import { SyncNodeMetricsRealtimeUseCase } from './application/use-cases/sync-node-metrics-realtime.use-case';
 import { MonitoringRealtimePort } from './application/ports/monitoring-realtime.port';
+import { IncidentWorkflowClientPort } from './application/ports/incident-workflow-client.port';
 import { NodeMetricsComposerService } from './application/services/node-metrics-composer.service';
 import { NodeOverviewComposerService } from './application/services/node-overview-composer.service';
 import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
+import { IncidentWorkflowHttpClient } from './infrastructure/http/incident-workflow-http.client';
 import { MonitoringClickhouseModule } from './infrastructure/database/clickhouse/monitoring-clickhouse.module';
 import { AlertCurrentStateMongoModule } from './infrastructure/database/mongodb/alert-current-state-mongo.module';
 import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/monitoring-state-mongo.module';
 import { MonitoringServiceConfigModule } from './infrastructure/config/monitoring-service-config.module';
 import { MonitoringDatabaseModule } from './infrastructure/database/monitoring-database.module';
 import { HealthController } from './presentation/http/controllers/health.controller';
+import { AlertIncidentHandoffController } from './presentation/http/controllers/alert-incident-handoff.controller';
 import { NodeMetricsController } from './presentation/http/controllers/node-metrics.controller';
 import { NodeMonitoringStateController } from './presentation/http/controllers/node-monitoring-state.controller';
 import { NodeOverviewController } from './presentation/http/controllers/node-overview.controller';
@@ -51,6 +55,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
   ],
   controllers: [
     HealthController,
+    AlertIncidentHandoffController,
     NodeMetricsController,
     NodeMonitoringStateController,
     NodeOverviewController,
@@ -66,6 +71,11 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
       provide: MonitoringRealtimePort,
       useExisting: MonitoringRealtimeGateway,
     },
+    {
+      provide: IncidentWorkflowClientPort,
+      useClass: IncidentWorkflowHttpClient,
+    },
+    CreateIncidentFromAlertUseCase,
     DispatchRackAlertTransitionUseCase,
     NodeMetricsComposerService,
     GetNodeMetricsUseCase,

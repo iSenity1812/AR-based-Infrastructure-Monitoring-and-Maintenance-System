@@ -18,6 +18,19 @@ export const ALERT_CURRENT_STATE_STATUSES = ['firing', 'resolved'] as const;
 export type AlertCurrentStateStatus =
   (typeof ALERT_CURRENT_STATE_STATUSES)[number];
 
+export const ALERT_TRIAGE_STATUSES = [
+  'new',
+  'acknowledged',
+  'incident_created',
+  'suppressed',
+] as const;
+
+export type AlertTriageStatus = (typeof ALERT_TRIAGE_STATUSES)[number];
+
+export const ALERT_INCIDENT_SEVERITIES = ['HIGH', 'CRITICAL'] as const;
+
+export type AlertIncidentSeverity = (typeof ALERT_INCIDENT_SEVERITIES)[number];
+
 export const ALERT_CURRENT_STATE_CATEGORIES = [
   'availability',
   'resource',
@@ -60,6 +73,18 @@ export type AlertCurrentStateScopeIdentity =
       workloadId?: never;
     };
 
+export interface AlertIncidentLinkage {
+  triageStatus: AlertTriageStatus;
+  incidentId: string | null;
+  incidentCode: string | null;
+  incidentStatus: string | null;
+  incidentSeverity: AlertIncidentSeverity | null;
+  incidentTitle: string | null;
+  incidentCreatedAt: string | null;
+  incidentLinkedAt: string | null;
+  lastEscalatedAt: string | null;
+}
+
 export type AlertCurrentState = AlertCurrentStateScopeIdentity & {
   fingerprint: string;
   alertName: string;
@@ -85,4 +110,18 @@ export type AlertCurrentState = AlertCurrentStateScopeIdentity & {
   firstSyncedAt: string;
   lastSyncedAt: string;
   lastStatusChangedAt: string;
-};
+} & AlertIncidentLinkage;
+
+export function createDefaultAlertIncidentLinkage(): AlertIncidentLinkage {
+  return {
+    triageStatus: 'new',
+    incidentId: null,
+    incidentCode: null,
+    incidentStatus: null,
+    incidentSeverity: null,
+    incidentTitle: null,
+    incidentCreatedAt: null,
+    incidentLinkedAt: null,
+    lastEscalatedAt: null,
+  };
+}

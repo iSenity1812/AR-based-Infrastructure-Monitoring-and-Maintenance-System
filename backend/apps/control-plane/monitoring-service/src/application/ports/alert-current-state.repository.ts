@@ -1,5 +1,6 @@
 import type {
   AlertCurrentState,
+  AlertIncidentLinkage,
   AlertCurrentStateStatus,
 } from '../../domain/alert-current-state';
 
@@ -9,6 +10,11 @@ export abstract class AlertCurrentStateRepository {
   ): Promise<AlertCurrentState | null>;
 
   abstract upsert(state: AlertCurrentState): Promise<void>;
+
+  abstract updateIncidentLinkage(
+    fingerprint: string,
+    linkage: AlertIncidentLinkage,
+  ): Promise<AlertCurrentState | null>;
 
   abstract listByStatus(
     status: AlertCurrentStateStatus,
@@ -26,5 +32,7 @@ export abstract class AlertCurrentStateRepository {
     workloadId: string,
   ): Promise<AlertCurrentState[]>;
 
-  abstract listActiveByServiceId(serviceId: string): Promise<AlertCurrentState[]>;
+  abstract listActiveByServiceId(
+    serviceId: string,
+  ): Promise<AlertCurrentState[]>;
 }

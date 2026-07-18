@@ -4,8 +4,10 @@ import { Model } from 'mongoose';
 
 import type {
   AlertCurrentState,
+  AlertIncidentLinkage,
   AlertCurrentStateStatus,
 } from '../../../domain/alert-current-state';
+import { createDefaultAlertIncidentLinkage } from '../../../domain/alert-current-state';
 import { AlertCurrentStateRepository } from '../../../application/ports/alert-current-state.repository';
 import {
   AlertCurrentStatePersistence,
@@ -13,9 +15,7 @@ import {
 } from './alert-current-state.schema';
 
 @Injectable()
-export class AlertCurrentStateMongoRepository
-  implements AlertCurrentStateRepository
-{
+export class AlertCurrentStateMongoRepository implements AlertCurrentStateRepository {
   constructor(
     @InjectModel(AlertCurrentStatePersistence.name)
     private readonly alertCurrentStateModel: Model<AlertCurrentStateDocument>,
@@ -36,10 +36,25 @@ export class AlertCurrentStateMongoRepository
     await this.alertCurrentStateModel
       .updateOne(
         { fingerprint: state.fingerprint },
-        { $set: mapAlertCurrentStateToPersistence(state) },
+        {
+          $set: mapAlertCurrentStateCoreToPersistence(state),
+          $setOnInsert: createDefaultAlertIncidentLinkage(),
+        },
         { upsert: true },
       )
       .exec();
+  }
+
+  async updateIncidentLinkage(
+    fingerprint: string,
+    linkage: AlertIncidentLinkage,
+  ): Promise<AlertCurrentState | null> {
+    const document = await this.alertCurrentStateModel
+      .findOneAndUpdate({ fingerprint }, { $set: linkage }, { new: true })
+      .lean<AlertCurrentStatePersistence | null>()
+      .exec();
+
+    return document ? mapDocumentToAlertCurrentState(document) : null;
   }
 
   async listByStatus(
@@ -138,6 +153,23 @@ export class AlertCurrentStateMongoRepository
 export function mapAlertCurrentStateToPersistence(
   state: AlertCurrentState,
 ): AlertCurrentStatePersistence {
+  return {
+    ...mapAlertCurrentStateCoreToPersistence(state),
+    triageStatus: state.triageStatus,
+    incidentId: state.incidentId,
+    incidentCode: state.incidentCode,
+    incidentStatus: state.incidentStatus,
+    incidentSeverity: state.incidentSeverity,
+    incidentTitle: state.incidentTitle,
+    incidentCreatedAt: state.incidentCreatedAt,
+    incidentLinkedAt: state.incidentLinkedAt,
+    lastEscalatedAt: state.lastEscalatedAt,
+  };
+}
+
+function mapAlertCurrentStateCoreToPersistence(
+  state: AlertCurrentState,
+): Omit<AlertCurrentStatePersistence, keyof AlertIncidentLinkage> {
   const scopeFields = mapScopeIdentityToPersistence(state);
 
   return {
@@ -239,6 +271,15 @@ export function mapDocumentToAlertCurrentState(
     firstSyncedAt: document.firstSyncedAt,
     lastSyncedAt: document.lastSyncedAt,
     lastStatusChangedAt: document.lastStatusChangedAt,
+    triageStatus: document.triageStatus ?? 'new',
+    incidentId: document.incidentId ?? null,
+    incidentCode: document.incidentCode ?? null,
+    incidentStatus: document.incidentStatus ?? null,
+    incidentSeverity: document.incidentSeverity ?? null,
+    incidentTitle: document.incidentTitle ?? null,
+    incidentCreatedAt: document.incidentCreatedAt ?? null,
+    incidentLinkedAt: document.incidentLinkedAt ?? null,
+    lastEscalatedAt: document.lastEscalatedAt ?? null,
   } as const;
 
   switch (document.scopeType) {

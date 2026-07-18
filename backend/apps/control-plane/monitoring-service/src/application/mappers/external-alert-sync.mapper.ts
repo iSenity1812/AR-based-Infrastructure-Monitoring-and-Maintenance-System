@@ -2,6 +2,7 @@ import {
   ALERT_CURRENT_STATE_CATEGORIES,
   ALERT_CURRENT_STATE_SCOPE_TYPES,
   ALERT_CURRENT_STATE_SEVERITIES,
+  createDefaultAlertIncidentLinkage,
   type AlertCurrentState,
   type AlertCurrentStateCategory,
   type AlertCurrentStateSeverity,
@@ -208,13 +209,10 @@ export function mapExternalAlertToCurrentState(
     severity,
     status,
     category,
-    environment:
-      normalizeExternalAlertString(labels.environment) ?? 'unknown',
+    environment: normalizeExternalAlertString(labels.environment) ?? 'unknown',
     team: normalizeExternalAlertString(labels.team) ?? 'unknown',
     source: 'grafana' as const,
-    summary:
-      normalizeExternalAlertString(annotations.summary) ??
-      alertName,
+    summary: normalizeExternalAlertString(annotations.summary) ?? alertName,
     description:
       normalizeExternalAlertString(annotations.description) ??
       normalizeExternalAlertString(annotations.summary) ??
@@ -231,6 +229,7 @@ export function mapExternalAlertToCurrentState(
     firstSyncedAt: input.receivedAt,
     lastSyncedAt: input.receivedAt,
     lastStatusChangedAt: input.receivedAt,
+    ...createDefaultAlertIncidentLinkage(),
   } as const;
 
   switch (scopeType) {

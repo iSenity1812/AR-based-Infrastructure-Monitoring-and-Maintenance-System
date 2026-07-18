@@ -25,68 +25,64 @@ CREATE VIEW telemetry_db.container_current_summary AS
 WITH base AS (
     SELECT *
     FROM telemetry_db.container_current_live
-),
-worst_metric AS (
-    SELECT
-        container_id,
-        argMax(metric_key, tuple(severity_code, override_flag, latest_ts)) AS worst_metric_key,
-        argMax(tags_json, tuple(severity_code, override_flag, latest_ts)) AS worst_metric_tags_json,
-        argMax(latest_value_numeric, tuple(severity_code, override_flag, latest_ts)) AS worst_metric_numeric_value,
-        argMax(latest_value_text, tuple(severity_code, override_flag, latest_ts)) AS worst_metric_text_value
-    FROM base
-    GROUP BY container_id
 )
 SELECT
-    b.container_id,
-    max(b.latest_ts) AS summary_ts,
+    container_id,
+    max(latest_ts) AS summary_ts,
 
-    argMax(b.container_name, b.latest_ts) AS container_name,
-    argMax(b.service_name, b.latest_ts) AS service_name,
-    argMax(b.node_id, b.latest_ts) AS node_id,
+    argMax(container_name, latest_ts) AS container_name,
+    argMax(service_name, latest_ts) AS service_name,
+    argMax(node_id, latest_ts) AS node_id,
+    -- 1. TẦNG TRẠNG THÁI ĐỘNG
+    multiIf(
+        now() - max(latest_ts) > 300, 'unknown',
+        argMax(container_state, latest_ts)
+    ) AS container_state,
 
-    argMax(b.container_state, b.latest_ts) AS container_state,
-    argMax(b.container_health_status, b.latest_ts) AS container_health_status,
+    multiIf(
+        now() - max(latest_ts) > 300, 'unknown',
+        argMax(container_health_status, latest_ts)
+    ) AS container_health_status,
 
-    max(b.severity_code) AS max_severity_code,
-    max(b.override_flag) AS has_override_flag,
+    multiIf(
+        now() - max(latest_ts) > 300, 4,
+        max(severity_code)
+    ) AS max_severity_code,
 
-    max(b.is_stale) AS is_any_stale,
-    countIf(b.is_stale = 1) AS stale_metric_count,
-    countIf(b.severity_code = 3) AS critical_metric_count,
-    countIf(b.severity_code = 2) AS warning_metric_count,
+    max(override_flag) AS has_override_flag,
+    
+    if(now() - max(latest_ts) > 300, 1, max(is_stale)) AS is_any_stale,
+    countIf(is_stale = 1) AS stale_metric_count,
+    
+    if(now() - max(latest_ts) > 300, 0, countIf(severity_code = 3)) AS critical_metric_count,
+    if(now() - max(latest_ts) > 300, 0, countIf(severity_code = 2)) AS warning_metric_count,
+    -- 2. TẦNG TELEMETRY RÚT GỌN (Lưu ý: Đã đổi trường bốc trực tiếp từ cột có sẵn trong bảng live của bạn)
+    -- Nếu hệ thống của bạn có metric cpu riêng, hãy thay thế string 'container.cpu_usage_pct' cho đúng
+    if(now() - max(latest_ts) > 300, 0.0, maxIf(latest_value_numeric, metric_key = 'container.cpu_usage_pct')) AS cpu_usage_pct_current,
+    -- Phần trăm RAM: Bạn có thể tính trực tiếp bằng cách lấy cột memory_used_bytes chia cho limit ngay tại đây để tránh bị 0
+    if(now() - max(latest_ts) > 300, 0.0, round(max(memory_used_ratio) * 100, 2)) AS memory_used_pct_current,
+    
+    if(now() - max(latest_ts) > 300, 0, max(memory_used_bytes)) AS memory_used_bytes_current,
+    max(memory_limit_bytes) AS memory_limit_bytes_current,
+    if(now() - max(latest_ts) > 300, 0.0, max(memory_used_ratio)) AS memory_used_ratio_current,
+    -- Số lần restart và pid count
+    maxIf(latest_value_numeric, metric_key = 'container.restart_count') AS restart_count_current,
+    if(now() - max(latest_ts) > 300, 0, maxIf(latest_value_numeric, metric_key = 'container.pid_count')) AS pid_count_current,
+    -- Network & Block IO (Kiểm tra lại xem metric_key của Telegraf/Cadvisor gửi về tên là gì)
+    if(now() - max(latest_ts) > 300, 0.0, sumIf(latest_value_numeric, metric_key = 'container.network_rx_bytes_sec')) AS network_rx_bytes_sec_sum_current,
+    if(now() - max(latest_ts) > 300, 0.0, sumIf(latest_value_numeric, metric_key = 'container.network_tx_bytes_sec')) AS network_tx_bytes_sec_sum_current,
+    if(now() - max(latest_ts) > 300, 0.0, sumIf(latest_value_numeric, metric_key = 'container.block_read_bytes_sec')) AS block_read_bytes_sec_sum_current,
+    if(now() - max(latest_ts) > 300, 0.0, sumIf(latest_value_numeric, metric_key = 'container.block_write_bytes_sec')) AS block_write_bytes_sec_sum_current,
 
-    maxIf(b.latest_value_numeric, b.metric_key = 'container.cpu_usage_pct') AS cpu_usage_pct_current,
-    maxIf(b.latest_value_numeric, b.metric_key = 'container.memory_used_pct') AS memory_used_pct_current,
-    maxIf(b.latest_value_numeric, b.metric_key = 'container.memory_used_bytes') AS memory_used_bytes_current,
-    maxIf(b.latest_value_numeric, b.metric_key = 'container.memory_limit_bytes') AS memory_limit_bytes_current,
+    if(now() - max(latest_ts) > 300, 'UNKNOWN', maxIf(latest_value_text, metric_key = 'container.status')) AS container_status_current,
+    -- 3. TẦNG GIẢI THÍCH LỖI
+    if(now() - max(latest_ts) > 300, 'container.heartbeat.loss', argMax(metric_key, tuple(severity_code, override_flag, latest_ts))) AS worst_metric_key,
+    if(now() - max(latest_ts) > 300, '{}', argMax(tags_json, tuple(severity_code, override_flag, latest_ts))) AS worst_metric_tags_json,
+    if(now() - max(latest_ts) > 300, 0.0, argMax(latest_value_numeric, tuple(severity_code, override_flag, latest_ts))) AS worst_metric_numeric_value,
+    if(now() - max(latest_ts) > 300, 'NODE_TIMEOUT', argMax(latest_value_text, tuple(severity_code, override_flag, latest_ts))) AS worst_metric_text_value
 
-    maxIf(b.memory_used_ratio, b.metric_key = 'container.memory_used_bytes') AS memory_used_ratio_current,
-
-    maxIf(b.latest_value_numeric, b.metric_key = 'container.restart_count') AS restart_count_current,
-    maxIf(b.latest_value_numeric, b.metric_key = 'container.pid_count') AS pid_count_current,
-
-    sumIf(b.latest_value_numeric, b.metric_key = 'container.network_rx_bytes_sec') AS network_rx_bytes_sec_sum_current,
-    sumIf(b.latest_value_numeric, b.metric_key = 'container.network_tx_bytes_sec') AS network_tx_bytes_sec_sum_current,
-
-    sumIf(b.latest_value_numeric, b.metric_key = 'container.block_read_bytes_sec') AS block_read_bytes_sec_sum_current,
-    sumIf(b.latest_value_numeric, b.metric_key = 'container.block_write_bytes_sec') AS block_write_bytes_sec_sum_current,
-
-    maxIf(b.latest_value_text, b.metric_key = 'container.status') AS container_status_current,
-
-    w.worst_metric_key,
-    w.worst_metric_tags_json,
-    w.worst_metric_numeric_value,
-    w.worst_metric_text_value
-
-FROM base b
-LEFT JOIN worst_metric w
-    ON b.container_id = w.container_id
-GROUP BY
-    b.container_id,
-    w.worst_metric_key,
-    w.worst_metric_tags_json,
-    w.worst_metric_numeric_value,
-    w.worst_metric_text_value;
+FROM base
+GROUP BY container_id;
 
 -- =========================================================
 -- TEST GOI Y

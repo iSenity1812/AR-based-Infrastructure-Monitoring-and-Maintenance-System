@@ -27,24 +27,23 @@ SELECT
     bucket_start,
     node_id,
     max(last_ts) AS summary_ts,
+    -- 1. TẦNG CODES & COUNTERS: Chỉ tính dựa trên các metric được gán cờ Operational Profile
+    maxIf(severity_code, is_operational_metric_cfg = 1) AS node_severity_code,
+    maxIf(override_flag, is_operational_metric_cfg = 1) AS has_override_flag,
 
-    max(severity_code) AS node_severity_code,
-    max(override_flag) AS has_override_flag,
-
-    countIf(severity_code = 3) AS critical_metric_count,
-    countIf(severity_code = 2) AS warning_metric_count,
-
+    countIf(severity_code = 3 AND is_operational_metric_cfg = 1) AS critical_metric_count,
+    countIf(severity_code = 2 AND is_operational_metric_cfg = 1) AS warning_metric_count,
+    -- 2. TẦNG TELEMETRY KHÔNG BỊ CHẶN BỘ LỌC: Đảm bảo ra số đầy đủ
     maxIf(value_last, metric_key = 'node.cpu_usage_pct') AS cpu_usage_pct_current,
     maxIf(value_last, metric_key = 'node.memory_used_pct') AS memory_used_pct_current,
     maxIf(value_last, metric_key = 'node.uptime_seconds') AS uptime_seconds_current,
 
     maxIf(text_last, metric_key = 'node.primary_nic_status') AS primary_nic_status_current,
-
     maxIf(value_last, metric_key = 'node.cpu_temperature_c') AS cpu_temperature_c_current,
+    maxIf(value_last, metric_key = 'node.cpu_package_power_w') AS cpu_package_power_w_current,
 
     maxIf(value_last, metric_key = 'node.cpu_queue_length') AS cpu_queue_length_max_current,
     maxIf(value_last, metric_key = 'node.memory_page_faults_rate') AS memory_page_faults_rate_max_current,
-
     maxIf(value_last, metric_key = 'node.tcp_retransmit_pct') AS tcp_retransmit_pct_max_current,
 
     maxIf(value_last, metric_key = 'node.disk_used_pct') AS disk_used_pct_max_current,
@@ -55,22 +54,43 @@ SELECT
 
     maxIf(value_last, metric_key = 'node.ssd_temperature_c') AS ssd_temperature_c_max_current,
     minIf(value_last, metric_key = 'node.ssd_life_pct') AS ssd_life_pct_min_current,
-
-    argMax(
+    -- 2.1. UNIT MAPPING: v_agg_1m_by_scope_metric khong expose unit, nen
+    -- trend 1m dung unit constants da duoc xac thuc tu node_current_live.
+    '%' AS cpu_usage_pct_unit,
+    '%' AS memory_used_pct_unit,
+    'seconds' AS uptime_seconds_unit,
+    'state' AS primary_nic_status_unit,
+    'C' AS cpu_temperature_c_unit,
+    'W' AS cpu_package_power_w_unit,
+    'count' AS cpu_queue_length_unit,
+    'count/sec' AS memory_page_faults_rate_unit,
+    '%' AS tcp_retransmit_pct_unit,
+    '%' AS disk_used_pct_unit,
+    'count' AS disk_queue_length_unit,
+    'bytes/sec' AS network_rx_bytes_sec_unit,
+    'bytes/sec' AS network_tx_bytes_sec_unit,
+    'C' AS ssd_temperature_c_unit,
+    '%' AS ssd_life_pct_unit,
+    -- 3. TẦNG GIẢI THÍCH LỖI: Chỉ chắt lọc từ Operational Metrics để tránh nhiễu hệ thống
+    argMaxIf(
         metric_key,
-        tuple(severity_code, override_flag, last_ts)
+        tuple(severity_code, override_flag, last_ts),
+        is_operational_metric_cfg = 1
     ) AS worst_metric_key,
-    argMax(
+    argMaxIf(
         tags_json,
-        tuple(severity_code, override_flag, last_ts)
+        tuple(severity_code, override_flag, last_ts),
+        is_operational_metric_cfg = 1
     ) AS worst_metric_tags_json,
-    argMax(
+    argMaxIf(
         value_last,
-        tuple(severity_code, override_flag, last_ts)
+        tuple(severity_code, override_flag, last_ts),
+        is_operational_metric_cfg = 1
     ) AS worst_metric_value_numeric,
-    argMax(
+    argMaxIf(
         text_last,
-        tuple(severity_code, override_flag, last_ts)
+        tuple(severity_code, override_flag, last_ts),
+        is_operational_metric_cfg = 1
     ) AS worst_metric_value_text
 
 FROM
@@ -83,6 +103,7 @@ FROM
         last_ts,
         value_last,
         text_last,
+        is_operational_metric_cfg,
 
         multiIf(
             critical_match, 3,
@@ -191,7 +212,6 @@ FROM
         FROM telemetry_db.v_agg_1m_by_scope_metric AS src
         WHERE scope_type = 'node'
     ) AS metric_bucket
-    WHERE is_operational_metric_cfg = 1
 ) AS node_metric_bucket
 GROUP BY
     bucket_start,

@@ -182,17 +182,18 @@ FROM
         ) AS is_ranking_metric_cfg,
 
         lower(latest_value_text) AS latest_value_text_normalized,
-        dateDiff('second', latest_ts, now()) AS stale_age_sec_calc,
+        dateDiff('second', latest_ts_max, now()) AS stale_age_sec_calc,
+        least(stale_after_sec_cfg, toUInt32(300)) AS unknown_after_sec_cfg,
 
         multiIf(
             stale_age_sec_calc <= fresh_after_sec_cfg, 0,
-            stale_age_sec_calc <= stale_after_sec_cfg, 1,
+            stale_age_sec_calc <= unknown_after_sec_cfg, 1,
             2
         ) AS freshness_code_calc,
 
         multiIf(
             stale_age_sec_calc <= fresh_after_sec_cfg, 'fresh',
-            stale_age_sec_calc <= stale_after_sec_cfg, 'stale',
+            stale_age_sec_calc <= unknown_after_sec_cfg, 'stale',
             'unknown'
         ) AS live_state_calc,
 
@@ -241,6 +242,7 @@ FROM
             snapshot.container_health_status,
             snapshot.memory_used_bytes,
             snapshot.memory_limit_bytes,
+            snapshot.latest_ts_max,
 
             cls.metric_key,
             cls.series_key,
@@ -263,7 +265,7 @@ FROM
         (
             SELECT
                 container_id,
-
+                max(latest_ts) AS latest_ts_max,
                 coalesce(
                     nullIf(
                         argMaxIf(

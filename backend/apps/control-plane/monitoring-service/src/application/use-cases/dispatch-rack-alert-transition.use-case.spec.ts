@@ -23,7 +23,8 @@ describe('DispatchRackAlertTransitionUseCase', () => {
     };
     const monitoringRealtimePort: MonitoringRealtimePort = {
       emitRackStateChanged: jest.fn().mockResolvedValue(undefined),
-      emitNodeOverviewUpdated: jest.fn().mockResolvedValue(undefined),
+      emitRackOverviewUpdated: jest.fn().mockResolvedValue(undefined),
+      emitNodeOverviewChanged: jest.fn().mockResolvedValue(undefined),
       emitNodeMetricsUpdated: jest.fn().mockResolvedValue(undefined),
       emitNodeMetricsWorkloadsChanged: jest.fn().mockResolvedValue(undefined),
     };
@@ -74,6 +75,16 @@ describe('DispatchRackAlertTransitionUseCase', () => {
         }),
       }),
     );
+    expect(monitoringRealtimePort.emitRackOverviewUpdated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'monitoring.rack.overview.updated',
+        scope: 'rack',
+        view: 'operator_dashboard',
+        rack: expect.objectContaining({
+          id: 'rack-a1',
+        }),
+      }),
+    );
     expect(result.action).toBe('sent');
   });
 
@@ -101,7 +112,8 @@ describe('DispatchRackAlertTransitionUseCase', () => {
       emitRackStateChanged: jest.fn().mockImplementation(async () => {
         callOrder.push('emit');
       }),
-      emitNodeOverviewUpdated: jest.fn().mockResolvedValue(undefined),
+      emitRackOverviewUpdated: jest.fn().mockResolvedValue(undefined),
+      emitNodeOverviewChanged: jest.fn().mockResolvedValue(undefined),
       emitNodeMetricsUpdated: jest.fn().mockResolvedValue(undefined),
       emitNodeMetricsWorkloadsChanged: jest.fn().mockResolvedValue(undefined),
     };
@@ -172,7 +184,8 @@ describe('DispatchRackAlertTransitionUseCase', () => {
     };
     const monitoringRealtimePort: MonitoringRealtimePort = {
       emitRackStateChanged: jest.fn(),
-      emitNodeOverviewUpdated: jest.fn(),
+      emitRackOverviewUpdated: jest.fn(),
+      emitNodeOverviewChanged: jest.fn(),
       emitNodeMetricsUpdated: jest.fn(),
       emitNodeMetricsWorkloadsChanged: jest.fn(),
     };
@@ -210,7 +223,8 @@ describe('DispatchRackAlertTransitionUseCase', () => {
     };
     const monitoringRealtimePort: MonitoringRealtimePort = {
       emitRackStateChanged: jest.fn(),
-      emitNodeOverviewUpdated: jest.fn(),
+      emitRackOverviewUpdated: jest.fn(),
+      emitNodeOverviewChanged: jest.fn(),
       emitNodeMetricsUpdated: jest.fn(),
       emitNodeMetricsWorkloadsChanged: jest.fn(),
     };

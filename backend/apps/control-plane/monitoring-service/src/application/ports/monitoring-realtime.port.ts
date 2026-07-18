@@ -32,58 +32,61 @@ export interface RackMonitoringStateChangedEvent {
   };
 }
 
-export interface NodeOverviewRealtimeUpdatedEvent {
-  nodeId: string;
-  emittedAt: string;
-  node: {
-    nodeId: string;
-    status: 'healthy' | 'alerting' | 'unknown';
-    severity: 'none' | 'low' | 'medium' | 'high' | 'unknown';
-    lastSeenAt: string;
-    freshnessSec: number;
-  };
-  summaryMetrics: {
-    cpuUsagePct: number | null;
-    memoryUsagePct: number | null;
-    diskUsagePct: number | null;
-    cpuTemperatureC: number | null;
-    networkRxBytesSec: number | null;
-    networkTxBytesSec: number | null;
-    primaryNicStatus: string | null;
-    worstMetric: {
-      metricKey: string | null;
-      metricValueNumeric: number | null;
-      metricValueText: string | null;
-    };
-    alertCounters: {
-      criticalMetricCount: number;
-      warningMetricCount: number;
-      staleMetricCount: number;
-    };
-  };
-  workloadSummary: {
-    total: number;
-    unhealthy: number;
-    nonRunning: number;
-    highCpu: number;
-    highMemory: number;
-    returned: number;
-    selectionMode: 'abnormal_first_then_top_cpu';
-  };
-  workloads: Array<{
-    workloadId: string;
-    workloadType: 'container';
+export interface RackOverviewRealtimeUpdatedEvent {
+  event: 'monitoring.rack.overview.updated';
+  scope: 'rack';
+  view: 'operator_dashboard';
+  rack: {
+    id: string;
     name: string;
-    serviceName: string;
-    status: string;
-    healthStatus: string;
-    cpuUsagePct: number | null;
-    memoryUsagePct: number | null;
-    restartCount: number;
-    pidCount: number;
-    worstMetricKey: string | null;
-    isAbnormal: boolean;
-  }>;
+    code: string;
+  };
+  status: {
+    severity: 'normal' | 'warning' | 'critical';
+    override: boolean;
+    rackLevelFailure: boolean;
+    signalLoss: boolean;
+    staleNodes: number;
+  };
+  metrics: {
+    totalNodes: number;
+    badNodes: number;
+    criticalNodes: number;
+    warningNodes: number;
+    badNodeRatio: number;
+  };
+  culprit: {
+    nodeId: string;
+    metric: {
+      key: string;
+      tags: Record<string, unknown>;
+      value: {
+        numeric: number;
+        text: string;
+      };
+    };
+  };
+  trend: {
+    delta1m: number;
+    delta5m: number;
+    lastChangeAgeSec: number | null;
+  };
+  updatedAt: string;
+  location: {
+    site?: string;
+    room?: string;
+    zone?: string;
+    row?: string;
+    position?: string;
+  };
+}
+
+export interface NodeOverviewChangedEvent {
+  event: 'monitoring.node.overview.changed';
+  nodeId: string;
+  channel: string;
+  changedAt: string;
+  fingerprint: string;
 }
 
 export interface NodeMetricsUpdatedEvent {
@@ -136,8 +139,12 @@ export abstract class MonitoringRealtimePort {
     payload: RackMonitoringStateChangedEvent,
   ): Promise<void>;
 
-  abstract emitNodeOverviewUpdated(
-    payload: NodeOverviewRealtimeUpdatedEvent,
+  abstract emitRackOverviewUpdated(
+    payload: RackOverviewRealtimeUpdatedEvent,
+  ): Promise<void>;
+
+  abstract emitNodeOverviewChanged(
+    payload: NodeOverviewChangedEvent,
   ): Promise<void>;
 
   abstract emitNodeMetricsUpdated(

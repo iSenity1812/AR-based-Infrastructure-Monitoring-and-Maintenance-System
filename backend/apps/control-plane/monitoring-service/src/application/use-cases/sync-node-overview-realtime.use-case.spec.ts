@@ -13,15 +13,17 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
         .fn()
         .mockResolvedValue('2026-07-10 10:00:00'),
       listChangedNodeIdsSince: jest.fn(),
+      listNodeIdsForOverviewSync: jest.fn().mockResolvedValue([]),
     };
     const nodeOverviewComposerService = {
       buildOverview: jest.fn(),
     };
-    const monitoringRealtimePort: MonitoringRealtimePort = {
-      emitRackStateChanged: jest.fn(),
-      emitNodeOverviewUpdated: jest.fn(),
-      emitNodeMetricsUpdated: jest.fn(),
-      emitNodeMetricsWorkloadsChanged: jest.fn(),
+const monitoringRealtimePort: MonitoringRealtimePort = {
+  emitRackStateChanged: jest.fn(),
+  emitRackOverviewUpdated: jest.fn(),
+  emitNodeOverviewChanged: jest.fn(),
+  emitNodeMetricsUpdated: jest.fn(),
+  emitNodeMetricsWorkloadsChanged: jest.fn(),
     };
     const useCase = new SyncNodeOverviewRealtimeUseCase(
       nodeOverviewReadRepository,
@@ -37,7 +39,7 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
       nextCheckpointSummaryTs: '2026-07-10 10:00:00',
       initialized: true,
     });
-    expect(monitoringRealtimePort.emitNodeOverviewUpdated).not.toHaveBeenCalled();
+    expect(monitoringRealtimePort.emitNodeOverviewChanged).not.toHaveBeenCalled();
   });
 
   it('emits only when the composed overview fingerprint changes', async () => {
@@ -53,6 +55,10 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
         .fn()
         .mockResolvedValueOnce(['node-a1'])
         .mockResolvedValueOnce(['node-a1']),
+      listNodeIdsForOverviewSync: jest
+        .fn()
+        .mockResolvedValueOnce(['node-a1'])
+        .mockResolvedValueOnce(['node-a1']),
     };
     const buildOverview = jest
       .fn()
@@ -63,15 +69,21 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
           severity: 'high',
           lastSeenAt: '2026-07-10T10:01:00.000Z',
           freshnessSec: 1,
+          fingerprintSeenAt: '2026-07-10T10:00:30.000Z',
+          batteryModel: 'MS-158L',
+          cpuArchitecture: '386',
+          cpuModel: 'AMD Ryzen 7 5800H with Radeon Graphics',
+          gpuModelPrimary: 'AMD Radeon(TM) Graphics',
+          hardwareSerial: 'BSS-0123456789',
+          logicalCpuCount: 16,
+          macAddress: '50:C2:E8:0B:14:A5',
+          motherboardModel: 'MSI MS-158L',
+          osProduct: 'Windows 11',
+          primaryIpv4: '192.168.1.2',
+          ssdModelPrimary: 'KINGSTON SNV2S1000G',
         },
         summaryMetrics: {
-          cpuUsagePct: 10,
-          memoryUsagePct: 20,
-          diskUsagePct: 30,
-          cpuTemperatureC: 40,
-          networkRxBytesSec: 50,
-          networkTxBytesSec: 60,
-          primaryNicStatus: 'up',
+          primaryNicStatus: { value: 'up', unit: 'state' },
           worstMetric: {
             metricKey: 'node.cpu_usage_pct',
             metricValueNumeric: 10,
@@ -87,20 +99,19 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
           total: 1,
           unhealthy: 0,
           nonRunning: 0,
-          highCpu: 0,
-          highMemory: 0,
           returned: 1,
           selectionMode: 'abnormal_first_then_top_cpu',
         },
         workloads: [],
         realtime: {
-          channel: 'monitoring.node.overview.updated',
-          version: 1,
+          transport: 'socket.io',
+          channel: 'monitoring.node.node-a1.overview.changed',
         },
       });
     const monitoringRealtimePort: MonitoringRealtimePort = {
       emitRackStateChanged: jest.fn(),
-      emitNodeOverviewUpdated: jest.fn(),
+      emitRackOverviewUpdated: jest.fn(),
+      emitNodeOverviewChanged: jest.fn(),
       emitNodeMetricsUpdated: jest.fn(),
       emitNodeMetricsWorkloadsChanged: jest.fn(),
     };
@@ -116,7 +127,7 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
     await useCase.execute();
     const secondResult = await useCase.execute();
 
-    expect(monitoringRealtimePort.emitNodeOverviewUpdated).toHaveBeenCalledTimes(1);
+    expect(monitoringRealtimePort.emitNodeOverviewChanged).toHaveBeenCalledTimes(1);
     expect(secondResult.emittedEvents).toBe(0);
   });
 });

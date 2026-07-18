@@ -1,6 +1,18 @@
 export interface NodeOverviewSnapshotRecord {
   nodeId: string;
   summaryTs: string;
+  fingerprintSeenAt: string | null;
+  batteryModel: string | null;
+  cpuArchitecture: string | null;
+  cpuModel: string | null;
+  gpuModelPrimary: string | null;
+  hardwareSerial: string | null;
+  logicalCpuCount: number | null;
+  macAddress: string | null;
+  motherboardModel: string | null;
+  osProduct: string | null;
+  primaryIpv4: string | null;
+  ssdModelPrimary: string | null;
   maxSeverityCode: number;
   hasOverrideFlag: number;
   isAnyStale: number;
@@ -8,12 +20,21 @@ export interface NodeOverviewSnapshotRecord {
   criticalMetricCount: number;
   warningMetricCount: number;
   cpuUsagePctCurrent: number | null;
+  cpuUsagePctUnit: string | null;
   memoryUsagePctCurrent: number | null;
+  memoryUsagePctUnit: string | null;
   diskUsagePctCurrent: number | null;
+  diskUsagePctUnit: string | null;
   cpuTemperatureCCurrent: number | null;
+  cpuTemperatureCUnit: string | null;
+  cpuPackagePowerWCurrent: number | null;
+  cpuPackagePowerWUnit: string | null;
   networkRxBytesSecCurrent: number | null;
+  networkRxBytesSecUnit: string | null;
   networkTxBytesSecCurrent: number | null;
+  networkTxBytesSecUnit: string | null;
   primaryNicStatusCurrent: string | null;
+  primaryNicStatusUnit: string | null;
   worstMetricKey: string | null;
   worstMetricValueNumeric: number | null;
   worstMetricValueText: string | null;
@@ -48,4 +69,6 @@ export abstract class NodeOverviewReadRepository {
   abstract getLatestNodeChangeSummaryTs(): Promise<string | null>;
 
   abstract listChangedNodeIdsSince(summaryTs: string): Promise<string[]>;
+
+  abstract listNodeIdsForOverviewSync(): Promise<string[]>;
 }

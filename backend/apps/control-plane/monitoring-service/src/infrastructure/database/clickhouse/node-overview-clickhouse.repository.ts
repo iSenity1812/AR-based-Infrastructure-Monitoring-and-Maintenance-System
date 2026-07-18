@@ -11,6 +11,18 @@ import { CLICKHOUSE_CLIENT } from './clickhouse.constants';
 type NodeOverviewSnapshotRow = {
   nodeId: string;
   summaryTs: string;
+  fingerprintSeenAt: string | null;
+  batteryModel: string | null;
+  cpuArchitecture: string | null;
+  cpuModel: string | null;
+  gpuModelPrimary: string | null;
+  hardwareSerial: string | null;
+  logicalCpuCount: number | string | null;
+  macAddress: string | null;
+  motherboardModel: string | null;
+  osProduct: string | null;
+  primaryIpv4: string | null;
+  ssdModelPrimary: string | null;
   maxSeverityCode: number | string;
   hasOverrideFlag: number | string;
   isAnyStale: number | string;
@@ -18,12 +30,21 @@ type NodeOverviewSnapshotRow = {
   criticalMetricCount: number | string;
   warningMetricCount: number | string;
   cpuUsagePctCurrent: number | string | null;
+  cpuUsagePctUnit: string | null;
   memoryUsagePctCurrent: number | string | null;
+  memoryUsagePctUnit: string | null;
   diskUsagePctCurrent: number | string | null;
+  diskUsagePctUnit: string | null;
   cpuTemperatureCCurrent: number | string | null;
+  cpuTemperatureCUnit: string | null;
+  cpuPackagePowerWCurrent: number | string | null;
+  cpuPackagePowerWUnit: string | null;
   networkRxBytesSecCurrent: number | string | null;
+  networkRxBytesSecUnit: string | null;
   networkTxBytesSecCurrent: number | string | null;
+  networkTxBytesSecUnit: string | null;
   primaryNicStatusCurrent: string | null;
+  primaryNicStatusUnit: string | null;
   worstMetricKey: string | null;
   worstMetricValueNumeric: number | string | null;
   worstMetricValueText: string | null;
@@ -55,9 +76,7 @@ type ChangedNodeIdRow = {
 };
 
 @Injectable()
-export class NodeOverviewClickhouseRepository
-  implements NodeOverviewReadRepository
-{
+export class NodeOverviewClickhouseRepository implements NodeOverviewReadRepository {
   constructor(
     @Inject(CLICKHOUSE_CLIENT)
     private readonly clickhouseClient: ClickHouseClient,
@@ -69,26 +88,49 @@ export class NodeOverviewClickhouseRepository
     const result = await this.clickhouseClient.query({
       query: `
         SELECT
-          node_id AS nodeId,
-          toString(summary_ts) AS summaryTs,
-          max_severity_code AS maxSeverityCode,
-          has_override_flag AS hasOverrideFlag,
-          is_any_stale AS isAnyStale,
-          stale_metric_count AS staleMetricCount,
-          critical_metric_count AS criticalMetricCount,
-          warning_metric_count AS warningMetricCount,
-          cpu_usage_pct_current AS cpuUsagePctCurrent,
-          memory_used_pct_current AS memoryUsagePctCurrent,
-          disk_used_pct_max_current AS diskUsagePctCurrent,
-          cpu_temperature_c_current AS cpuTemperatureCCurrent,
-          network_rx_bytes_sec_sum_current AS networkRxBytesSecCurrent,
-          network_tx_bytes_sec_sum_current AS networkTxBytesSecCurrent,
-          primary_nic_status_current AS primaryNicStatusCurrent,
-          worst_metric_key AS worstMetricKey,
-          worst_metric_numeric_value AS worstMetricValueNumeric,
-          worst_metric_text_value AS worstMetricValueText
-        FROM telemetry_db.node_current_summary
-        WHERE node_id = {nodeId: String}
+          summary.node_id AS nodeId,
+          toString(summary.summary_ts) AS summaryTs,
+          toString(fingerprint.latest_ts) AS fingerprintSeenAt,
+          fingerprint.battery_model AS batteryModel,
+          fingerprint.cpu_architecture AS cpuArchitecture,
+          fingerprint.cpu_model AS cpuModel,
+          fingerprint.gpu_model_primary AS gpuModelPrimary,
+          fingerprint.hardware_serial AS hardwareSerial,
+          fingerprint.logical_cpu_count AS logicalCpuCount,
+          fingerprint.mac_address AS macAddress,
+          fingerprint.motherboard_model AS motherboardModel,
+          fingerprint.os_product AS osProduct,
+          fingerprint.primary_ipv4 AS primaryIpv4,
+          fingerprint.ssd_model_primary AS ssdModelPrimary,
+          summary.overall_health_code AS maxSeverityCode,
+          summary.has_override_flag AS hasOverrideFlag,
+          summary.is_any_stale AS isAnyStale,
+          summary.stale_metric_count AS staleMetricCount,
+          summary.critical_metric_count AS criticalMetricCount,
+          summary.warning_metric_count AS warningMetricCount,
+          summary.cpu_usage_pct_current AS cpuUsagePctCurrent,
+          summary.cpu_usage_pct_unit AS cpuUsagePctUnit,
+          summary.memory_used_pct_current AS memoryUsagePctCurrent,
+          summary.memory_used_pct_unit AS memoryUsagePctUnit,
+          summary.disk_used_pct_max_current AS diskUsagePctCurrent,
+          summary.disk_used_pct_unit AS diskUsagePctUnit,
+          summary.cpu_temperature_c_max_current AS cpuTemperatureCCurrent,
+          summary.cpu_temperature_c_unit AS cpuTemperatureCUnit,
+          summary.cpu_package_power_w_current AS cpuPackagePowerWCurrent,
+          summary.cpu_package_power_w_unit AS cpuPackagePowerWUnit,
+          summary.network_rx_bytes_sec_sum_current AS networkRxBytesSecCurrent,
+          summary.network_rx_bytes_sec_unit AS networkRxBytesSecUnit,
+          summary.network_tx_bytes_sec_sum_current AS networkTxBytesSecCurrent,
+          summary.network_tx_bytes_sec_unit AS networkTxBytesSecUnit,
+          summary.primary_nic_status_current AS primaryNicStatusCurrent,
+          summary.primary_nic_status_unit AS primaryNicStatusUnit,
+          summary.worst_metric_key AS worstMetricKey,
+          summary.worst_metric_numeric_value AS worstMetricValueNumeric,
+          summary.worst_metric_text_value AS worstMetricValueText
+        FROM telemetry_db.node_current_summary AS summary
+        LEFT JOIN telemetry_db.node_fingerprint_latest AS fingerprint
+          ON summary.node_id = fingerprint.node_id
+        WHERE summary.node_id = {nodeId: String}
         LIMIT 1
       `,
       query_params: { nodeId },
@@ -99,7 +141,9 @@ export class NodeOverviewClickhouseRepository
     return rows[0] ? mapNodeOverviewSnapshotRow(rows[0]) : null;
   }
 
-  async listNodeWorkloads(nodeId: string): Promise<NodeOverviewWorkloadRecord[]> {
+  async listNodeWorkloads(
+    nodeId: string,
+  ): Promise<NodeOverviewWorkloadRecord[]> {
     const result = await this.clickhouseClient.query({
       query: `
         SELECT
@@ -140,14 +184,32 @@ export class NodeOverviewClickhouseRepository
       query: `
         WITH
           ifNull(
-            (SELECT max(summary_ts) FROM telemetry_db.node_current_summary),
+            (
+              SELECT max(toTimeZone(summary_ts, 'UTC'))
+              FROM telemetry_db.node_current_summary
+            ),
             toDateTime(0)
           ) AS nodeMaxSummaryTs,
           ifNull(
-            (SELECT max(summary_ts) FROM telemetry_db.container_current_summary),
+            (
+              SELECT max(toTimeZone(summary_ts, 'UTC'))
+              FROM telemetry_db.container_current_summary
+            ),
             toDateTime(0)
-          ) AS workloadMaxSummaryTs
-        SELECT toString(greatest(nodeMaxSummaryTs, workloadMaxSummaryTs)) AS latestSummaryTs
+          ) AS workloadMaxSummaryTs,
+          ifNull(
+            (SELECT max(latest_ts) FROM telemetry_db.node_fingerprint_latest),
+            toDateTime(0)
+          ) AS fingerprintMaxSummaryTs
+        SELECT formatDateTime(
+          greatest(
+            nodeMaxSummaryTs,
+            workloadMaxSummaryTs,
+            fingerprintMaxSummaryTs
+          ),
+          '%F %T',
+          'UTC'
+        ) AS latestSummaryTs
       `,
       format: 'JSONEachRow',
     });
@@ -164,17 +226,24 @@ export class NodeOverviewClickhouseRepository
   async listChangedNodeIdsSince(summaryTs: string): Promise<string[]> {
     const result = await this.clickhouseClient.query({
       query: `
+        WITH parseDateTimeBestEffort({changedSinceSummaryTs: String}, 'UTC') AS changedSinceSummaryTsUtc
         SELECT DISTINCT nodeId
         FROM (
           SELECT node_id AS nodeId
           FROM telemetry_db.node_current_summary
-          WHERE summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})
+          WHERE toTimeZone(summary_ts, 'UTC') > changedSinceSummaryTsUtc
 
           UNION DISTINCT
 
           SELECT node_id AS nodeId
           FROM telemetry_db.container_current_summary
-          WHERE summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})
+          WHERE toTimeZone(summary_ts, 'UTC') > changedSinceSummaryTsUtc
+
+          UNION DISTINCT
+
+          SELECT node_id AS nodeId
+          FROM telemetry_db.node_fingerprint_latest
+          WHERE latest_ts > changedSinceSummaryTsUtc
         )
         WHERE nodeId IS NOT NULL
           AND nodeId != ''
@@ -191,6 +260,37 @@ export class NodeOverviewClickhouseRepository
     const rows = await result.json<ChangedNodeIdRow>();
     return rows.map((row) => row.nodeId);
   }
+
+  async listNodeIdsForOverviewSync(): Promise<string[]> {
+    const result = await this.clickhouseClient.query({
+      query: `
+        SELECT DISTINCT nodeId
+        FROM (
+          SELECT node_id AS nodeId
+          FROM telemetry_db.node_current_summary
+
+          UNION DISTINCT
+
+          SELECT node_id AS nodeId
+          FROM telemetry_db.container_current_summary
+
+          UNION DISTINCT
+
+          SELECT node_id AS nodeId
+          FROM telemetry_db.node_fingerprint_latest
+        )
+        WHERE nodeId IS NOT NULL
+          AND nodeId != ''
+          AND lower(trim(nodeId)) != 'null'
+          AND lower(trim(nodeId)) != 'undefined'
+        ORDER BY nodeId ASC
+      `,
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<ChangedNodeIdRow>();
+    return rows.map((row) => row.nodeId);
+  }
 }
 
 export function mapNodeOverviewSnapshotRow(
@@ -199,6 +299,18 @@ export function mapNodeOverviewSnapshotRow(
   return {
     nodeId: row.nodeId,
     summaryTs: row.summaryTs,
+    fingerprintSeenAt: toNullableString(row.fingerprintSeenAt),
+    batteryModel: toNullableString(row.batteryModel),
+    cpuArchitecture: toNullableString(row.cpuArchitecture),
+    cpuModel: toNullableString(row.cpuModel),
+    gpuModelPrimary: toNullableString(row.gpuModelPrimary),
+    hardwareSerial: toNullableString(row.hardwareSerial),
+    logicalCpuCount: toNullableNumber(row.logicalCpuCount),
+    macAddress: toNullableString(row.macAddress),
+    motherboardModel: toNullableString(row.motherboardModel),
+    osProduct: toNullableString(row.osProduct),
+    primaryIpv4: toNullableString(row.primaryIpv4),
+    ssdModelPrimary: toNullableString(row.ssdModelPrimary),
     maxSeverityCode: toNumber(row.maxSeverityCode),
     hasOverrideFlag: toNumber(row.hasOverrideFlag),
     isAnyStale: toNumber(row.isAnyStale),
@@ -206,12 +318,21 @@ export function mapNodeOverviewSnapshotRow(
     criticalMetricCount: toNumber(row.criticalMetricCount),
     warningMetricCount: toNumber(row.warningMetricCount),
     cpuUsagePctCurrent: toNullableNumber(row.cpuUsagePctCurrent),
+    cpuUsagePctUnit: toNullableString(row.cpuUsagePctUnit),
     memoryUsagePctCurrent: toNullableNumber(row.memoryUsagePctCurrent),
+    memoryUsagePctUnit: toNullableString(row.memoryUsagePctUnit),
     diskUsagePctCurrent: toNullableNumber(row.diskUsagePctCurrent),
+    diskUsagePctUnit: toNullableString(row.diskUsagePctUnit),
     cpuTemperatureCCurrent: toNullableNumber(row.cpuTemperatureCCurrent),
+    cpuTemperatureCUnit: toNullableString(row.cpuTemperatureCUnit),
+    cpuPackagePowerWCurrent: toNullableNumber(row.cpuPackagePowerWCurrent),
+    cpuPackagePowerWUnit: toNullableString(row.cpuPackagePowerWUnit),
     networkRxBytesSecCurrent: toNullableNumber(row.networkRxBytesSecCurrent),
+    networkRxBytesSecUnit: toNullableString(row.networkRxBytesSecUnit),
     networkTxBytesSecCurrent: toNullableNumber(row.networkTxBytesSecCurrent),
+    networkTxBytesSecUnit: toNullableString(row.networkTxBytesSecUnit),
     primaryNicStatusCurrent: toNullableString(row.primaryNicStatusCurrent),
+    primaryNicStatusUnit: toNullableString(row.primaryNicStatusUnit),
     worstMetricKey: toNullableString(row.worstMetricKey),
     worstMetricValueNumeric: toNullableNumber(row.worstMetricValueNumeric),
     worstMetricValueText: toNullableString(row.worstMetricValueText),

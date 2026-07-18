@@ -3,7 +3,8 @@ import { describe, expect, it, jest } from '@jest/globals';
 import {
   MONITORING_NODE_METRICS_UPDATED_EVENT,
   MONITORING_NODE_METRICS_WORKLOADS_CHANGED_EVENT,
-  MONITORING_NODE_OVERVIEW_UPDATED_EVENT,
+  MONITORING_NODE_OVERVIEW_CHANGED_EVENT,
+  MONITORING_RACK_OVERVIEW_UPDATED_EVENT,
   MONITORING_RACK_STATE_CHANGED_EVENT,
   MonitoringRealtimeGateway,
 } from './monitoring-realtime.gateway';
@@ -54,7 +55,7 @@ describe('MonitoringRealtimeGateway', () => {
     );
   });
 
-  it('emits node overview updates on the expected event channel', async () => {
+  it('emits rack overview updates on the expected event channel', async () => {
     const emit = jest.fn();
     const gateway = new MonitoringRealtimeGateway();
 
@@ -64,51 +65,94 @@ describe('MonitoringRealtimeGateway', () => {
       },
     });
 
-    await gateway.emitNodeOverviewUpdated({
-      nodeId: 'node-a1',
-      emittedAt: '2026-07-10T10:00:00.000Z',
-      node: {
-        nodeId: 'node-a1',
-        status: 'alerting',
-        severity: 'high',
-        lastSeenAt: '2026-07-10T09:59:59.000Z',
-        freshnessSec: 1,
+    await gateway.emitRackOverviewUpdated({
+      event: 'monitoring.rack.overview.updated',
+      scope: 'rack',
+      view: 'operator_dashboard',
+      rack: {
+        id: 'rack-a1',
+        name: 'Rack A1',
+        code: 'RACK-A1',
       },
-      summaryMetrics: {
-        cpuUsagePct: 90,
-        memoryUsagePct: 80,
-        diskUsagePct: 70,
-        cpuTemperatureC: 92,
-        networkRxBytesSec: 1000,
-        networkTxBytesSec: 900,
-        primaryNicStatus: 'up',
-        worstMetric: {
-          metricKey: 'node.cpu_temperature_c',
-          metricValueNumeric: 92,
-          metricValueText: '92',
+      status: {
+        severity: 'critical',
+        override: true,
+        rackLevelFailure: true,
+        signalLoss: true,
+        staleNodes: 1,
+      },
+      metrics: {
+        totalNodes: 24,
+        badNodes: 13,
+        criticalNodes: 4,
+        warningNodes: 8,
+        badNodeRatio: 0.5417,
+      },
+      culprit: {
+        nodeId: 'node-17',
+        metric: {
+          key: 'node.memory_used_pct',
+          tags: {
+            host: 'node-17',
+          },
+          value: {
+            numeric: 98.4,
+            text: '98.4',
+          },
         },
-        alertCounters: {
-          criticalMetricCount: 1,
-          warningMetricCount: 1,
-          staleMetricCount: 0,
-        },
       },
-      workloadSummary: {
-        total: 2,
-        unhealthy: 1,
-        nonRunning: 0,
-        highCpu: 1,
-        highMemory: 0,
-        returned: 2,
-        selectionMode: 'abnormal_first_then_top_cpu',
+      trend: {
+        delta1m: 0,
+        delta5m: 0,
+        lastChangeAgeSec: 0,
       },
-      workloads: [],
+      updatedAt: '2026-07-08T10:00:00.000Z',
+      location: {
+        site: 'DC01',
+        room: 'ROOM-A',
+        row: 'ROW-03',
+        position: 'POS-12',
+      },
     });
 
     expect(emit).toHaveBeenCalledWith(
-      MONITORING_NODE_OVERVIEW_UPDATED_EVENT,
+      MONITORING_RACK_OVERVIEW_UPDATED_EVENT,
+      expect.objectContaining({
+        rack: expect.objectContaining({
+          id: 'rack-a1',
+        }),
+      }),
+    );
+  });
+
+  it('emits node overview change signals on the expected event channels', async () => {
+    const emit = jest.fn();
+    const gateway = new MonitoringRealtimeGateway();
+
+    Object.assign(gateway as object, {
+      server: {
+        emit,
+      },
+    });
+
+    await gateway.emitNodeOverviewChanged({
+      event: 'monitoring.node.overview.changed',
+      nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.overview.changed',
+      changedAt: '2026-07-10T10:00:00.000Z',
+      fingerprint: 'fingerprint-a1',
+    });
+
+    expect(emit).toHaveBeenCalledWith(
+      MONITORING_NODE_OVERVIEW_CHANGED_EVENT,
       expect.objectContaining({
         nodeId: 'node-a1',
+      }),
+    );
+    expect(emit).toHaveBeenCalledWith(
+      'monitoring.node.node-a1.overview.changed',
+      expect.objectContaining({
+        fingerprint: 'fingerprint-a1',
       }),
     );
   });

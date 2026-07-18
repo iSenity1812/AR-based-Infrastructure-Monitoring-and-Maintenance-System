@@ -83,6 +83,10 @@ COPY --from=build \
   /app/control-plane/monitoring-service/dist \
   ./control-plane/monitoring-service/dist
 
+COPY --from=build \
+  /app/control-plane/monitoring-service/src/infrastructure/grpc/proto \
+  ./control-plane/monitoring-service/src/infrastructure/grpc/proto
+
 
 COPY control-plane/monitoring-service/.env.example \
   ./control-plane/monitoring-service/.env.example

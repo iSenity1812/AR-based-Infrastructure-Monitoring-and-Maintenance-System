@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { Module } from '@nestjs/common';
@@ -21,16 +22,7 @@ import { AssetRackContextGrpcProvider } from './asset-rack-context-grpc.provider
           options: {
             url: config.url,
             package: 'asset_context.v1',
-            protoPath: join(
-              process.cwd(),
-              '..',
-              'asset-service',
-              'src',
-              'infrastructure',
-              'grpc',
-              'proto',
-              'rack-context.proto',
-            ),
+            protoPath: resolveRackContextProtoPath(),
           },
         }),
       },
@@ -46,3 +38,28 @@ import { AssetRackContextGrpcProvider } from './asset-rack-context-grpc.provider
   exports: [RackContextProvider],
 })
 export class AssetServiceGrpcModule {}
+
+function resolveRackContextProtoPath(): string {
+  const localSourceProtoPath = join(
+    process.cwd(),
+    'src',
+    'infrastructure',
+    'grpc',
+    'proto',
+    'rack-context.proto',
+  );
+  if (existsSync(localSourceProtoPath)) {
+    return localSourceProtoPath;
+  }
+
+  return join(
+    process.cwd(),
+    '..',
+    'asset-service',
+    'src',
+    'infrastructure',
+    'grpc',
+    'proto',
+    'rack-context.proto',
+  );
+}

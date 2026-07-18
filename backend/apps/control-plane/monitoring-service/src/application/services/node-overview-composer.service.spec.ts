@@ -5,6 +5,7 @@ import type {
   NodeOverviewWorkloadRecord,
 } from '../ports/node-overview-read.repository';
 import {
+  buildNodeOverviewChangedChannel,
   deriveNodeOverviewSeverity,
   deriveNodeOverviewStatus,
   selectOverviewWorkloads,
@@ -21,12 +22,21 @@ describe('deriveNodeOverviewStatus', () => {
     criticalMetricCount: 0,
     warningMetricCount: 0,
     cpuUsagePctCurrent: 10,
+    cpuUsagePctUnit: '%',
     memoryUsagePctCurrent: 20,
+    memoryUsagePctUnit: '%',
     diskUsagePctCurrent: 30,
+    diskUsagePctUnit: '%',
     cpuTemperatureCCurrent: 40,
+    cpuTemperatureCUnit: 'C',
+    cpuPackagePowerWCurrent: 75,
+    cpuPackagePowerWUnit: 'W',
     networkRxBytesSecCurrent: 50,
+    networkRxBytesSecUnit: 'bytes/sec',
     networkTxBytesSecCurrent: 60,
+    networkTxBytesSecUnit: 'bytes/sec',
     primaryNicStatusCurrent: 'up',
+    primaryNicStatusUnit: 'state',
     worstMetricKey: null,
     worstMetricValueNumeric: null,
     worstMetricValueText: null,
@@ -34,7 +44,7 @@ describe('deriveNodeOverviewStatus', () => {
 
   it('returns healthy for non-stale snapshots without warnings', () => {
     expect(deriveNodeOverviewStatus(baseSnapshot, 1)).toBe('healthy');
-    expect(deriveNodeOverviewSeverity(baseSnapshot, 1)).toBe('none');
+    expect(deriveNodeOverviewSeverity(baseSnapshot, 1)).toBe('healthy');
   });
 
   it('returns alerting/high for critical snapshots', () => {
@@ -47,25 +57,37 @@ describe('deriveNodeOverviewStatus', () => {
     expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('high');
   });
 
-  it('returns alerting/medium for warning-only snapshots', () => {
+  it('returns alerting/warning for warning-only snapshots', () => {
     const snapshot = {
       ...baseSnapshot,
       warningMetricCount: 2,
     };
 
     expect(deriveNodeOverviewStatus(snapshot, 1)).toBe('alerting');
-    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('medium');
+    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('warning');
   });
 
-  it('returns unknown for stale-only snapshots', () => {
+  it('returns unknown/stale for stale-only snapshots', () => {
     const snapshot = {
       ...baseSnapshot,
+      maxSeverityCode: 1,
       isAnyStale: 1,
       staleMetricCount: 4,
     };
 
     expect(deriveNodeOverviewStatus(snapshot, 1)).toBe('unknown');
-    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('unknown');
+    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('stale');
+  });
+
+  it('returns critical severity when the node has fully lost observability', () => {
+    const snapshot = {
+      ...baseSnapshot,
+      maxSeverityCode: 4,
+      isAnyStale: 1,
+      staleMetricCount: 2,
+    };
+
+    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('critical');
   });
 });
 
@@ -127,5 +149,13 @@ describe('selectOverviewWorkloads', () => {
       '2',
       '1',
     ]);
+  });
+});
+
+describe('buildNodeOverviewChangedChannel', () => {
+  it('builds a node-specific overview changed channel', () => {
+    expect(buildNodeOverviewChangedChannel('node-a1')).toBe(
+      'monitoring.node.node-a1.overview.changed',
+    );
   });
 });

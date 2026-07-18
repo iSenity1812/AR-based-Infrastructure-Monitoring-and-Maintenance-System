@@ -70,7 +70,8 @@ function createRepository(input: {
 function createRealtimePort(): MonitoringRealtimePort {
   return {
     emitRackStateChanged: jest.fn(),
-    emitNodeOverviewUpdated: jest.fn(),
+    emitRackOverviewUpdated: jest.fn(),
+    emitNodeOverviewChanged: jest.fn(),
     emitNodeMetricsUpdated: jest.fn(),
     emitNodeMetricsWorkloadsChanged: jest.fn(),
   };

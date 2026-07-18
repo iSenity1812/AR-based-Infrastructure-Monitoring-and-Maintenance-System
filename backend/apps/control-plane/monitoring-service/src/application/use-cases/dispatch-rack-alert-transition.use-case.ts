@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { applyAlertDeliveryResultToState, mapMonitoringTransitionToAlertDeliveryCommand } from '../mappers/alert-delivery-command.mapper';
+import { mapTransitionToRackOverviewRealtimeEvent } from '../mappers/rack-overview-realtime-event.mapper';
 import { mapTransitionToRackMonitoringStateChangedEvent } from '../mappers/rack-monitoring-realtime-event.mapper';
 import { MonitoringRealtimePort } from '../ports/monitoring-realtime.port';
 import { MonitoringStateRepository } from '../ports/monitoring-state.repository';
@@ -72,13 +73,24 @@ export class DispatchRackAlertTransitionUseCase {
       const rackContextMap = await this.rackContextProvider.batchGetRacks([
         transition.scopeId,
       ]);
+      const rackContext = rackContextMap.get(transition.scopeId);
       const realtimePayload = mapTransitionToRackMonitoringStateChangedEvent(
         nextTransition,
-        rackContextMap.get(transition.scopeId),
+        rackContext,
+      );
+      const overviewRealtimePayload = mapTransitionToRackOverviewRealtimeEvent(
+        nextTransition,
+        rackContext,
       );
 
       if (realtimePayload) {
         await this.monitoringRealtimePort.emitRackStateChanged(realtimePayload);
+      }
+
+      if (overviewRealtimePayload) {
+        await this.monitoringRealtimePort.emitRackOverviewUpdated(
+          overviewRealtimePayload,
+        );
       }
     }
 

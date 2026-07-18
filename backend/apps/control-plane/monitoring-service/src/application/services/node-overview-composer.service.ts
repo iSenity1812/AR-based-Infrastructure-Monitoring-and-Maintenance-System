@@ -8,11 +8,16 @@ import {
 
 export type NodeOverviewStatus = 'healthy' | 'alerting' | 'unknown';
 export type NodeOverviewSeverity =
-  | 'none'
-  | 'low'
-  | 'medium'
+  | 'healthy'
+  | 'stale'
+  | 'warning'
   | 'high'
-  | 'unknown';
+  | 'critical';
+
+type NodeOverviewTextMetricView = {
+  value: string | null;
+  unit: string | null;
+};
 
 export type NodeOverviewResponseView = {
   node: {
@@ -21,15 +26,21 @@ export type NodeOverviewResponseView = {
     severity: NodeOverviewSeverity;
     lastSeenAt: string;
     freshnessSec: number;
+    fingerprintSeenAt: string | null;
+    batteryModel: string | null;
+    cpuArchitecture: string | null;
+    cpuModel: string | null;
+    gpuModelPrimary: string | null;
+    hardwareSerial: string | null;
+    logicalCpuCount: number | null;
+    macAddress: string | null;
+    motherboardModel: string | null;
+    osProduct: string | null;
+    primaryIpv4: string | null;
+    ssdModelPrimary: string | null;
   };
   summaryMetrics: {
-    cpuUsagePct: number | null;
-    memoryUsagePct: number | null;
-    diskUsagePct: number | null;
-    cpuTemperatureC: number | null;
-    networkRxBytesSec: number | null;
-    networkTxBytesSec: number | null;
-    primaryNicStatus: string | null;
+    primaryNicStatus: NodeOverviewTextMetricView;
     worstMetric: {
       metricKey: string | null;
       metricValueNumeric: number | null;
@@ -45,8 +56,6 @@ export type NodeOverviewResponseView = {
     total: number;
     unhealthy: number;
     nonRunning: number;
-    highCpu: number;
-    highMemory: number;
     returned: number;
     selectionMode: 'abnormal_first_then_top_cpu';
   };
@@ -57,21 +66,16 @@ export type NodeOverviewResponseView = {
     serviceName: string;
     status: string;
     healthStatus: string;
-    cpuUsagePct: number | null;
-    memoryUsagePct: number | null;
     restartCount: number;
-    pidCount: number;
     worstMetricKey: string | null;
     isAbnormal: boolean;
   }>;
   realtime: {
-    channel: 'monitoring.node.overview.updated';
-    version: 1;
+    transport: 'socket.io';
+    channel: string;
   };
 };
 
-const HIGH_CPU_THRESHOLD_PCT = 80;
-const HIGH_MEMORY_THRESHOLD_PCT = 80;
 const MAX_OVERVIEW_WORKLOADS = 5;
 
 @Injectable()
@@ -103,15 +107,24 @@ export class NodeOverviewComposerService {
         severity: deriveNodeOverviewSeverity(snapshot, freshnessSec),
         lastSeenAt,
         freshnessSec,
+        fingerprintSeenAt: toOptionalIsoString(snapshot.fingerprintSeenAt),
+        batteryModel: snapshot.batteryModel,
+        cpuArchitecture: snapshot.cpuArchitecture,
+        cpuModel: snapshot.cpuModel,
+        gpuModelPrimary: snapshot.gpuModelPrimary,
+        hardwareSerial: snapshot.hardwareSerial,
+        logicalCpuCount: snapshot.logicalCpuCount,
+        macAddress: snapshot.macAddress,
+        motherboardModel: snapshot.motherboardModel,
+        osProduct: snapshot.osProduct,
+        primaryIpv4: snapshot.primaryIpv4,
+        ssdModelPrimary: snapshot.ssdModelPrimary,
       },
       summaryMetrics: {
-        cpuUsagePct: snapshot.cpuUsagePctCurrent,
-        memoryUsagePct: snapshot.memoryUsagePctCurrent,
-        diskUsagePct: snapshot.diskUsagePctCurrent,
-        cpuTemperatureC: snapshot.cpuTemperatureCCurrent,
-        networkRxBytesSec: snapshot.networkRxBytesSecCurrent,
-        networkTxBytesSec: snapshot.networkTxBytesSecCurrent,
-        primaryNicStatus: snapshot.primaryNicStatusCurrent,
+        primaryNicStatus: {
+          value: snapshot.primaryNicStatusCurrent,
+          unit: snapshot.primaryNicStatusUnit,
+        },
         worstMetric: {
           metricKey: snapshot.worstMetricKey,
           metricValueNumeric: snapshot.worstMetricValueNumeric,
@@ -127,11 +140,6 @@ export class NodeOverviewComposerService {
         total: workloads.length,
         unhealthy: workloads.filter((workload) => isUnhealthy(workload)).length,
         nonRunning: workloads.filter((workload) => !isRunning(workload)).length,
-        highCpu: workloads.filter((workload) => isHighCpuWorkload(workload))
-          .length,
-        highMemory: workloads.filter((workload) =>
-          isHighMemoryWorkload(workload),
-        ).length,
         returned: selectedWorkloads.length,
         selectionMode: 'abnormal_first_then_top_cpu',
       },
@@ -142,19 +150,20 @@ export class NodeOverviewComposerService {
         serviceName: workload.serviceName,
         status: workload.status,
         healthStatus: workload.healthStatus,
-        cpuUsagePct: workload.cpuUsagePct,
-        memoryUsagePct: workload.memoryUsagePct,
         restartCount: workload.restartCount,
-        pidCount: workload.pidCount,
         worstMetricKey: workload.worstMetricKey,
         isAbnormal: isAbnormalWorkload(workload),
       })),
       realtime: {
-        channel: 'monitoring.node.overview.updated',
-        version: 1,
+        transport: 'socket.io',
+        channel: buildNodeOverviewChangedChannel(snapshot.nodeId),
       },
     };
   }
+}
+
+export function buildNodeOverviewChangedChannel(nodeId: string): string {
+  return `monitoring.node.${nodeId}.overview.changed`;
 }
 
 export function deriveNodeOverviewStatus(
@@ -174,21 +183,25 @@ export function deriveNodeOverviewStatus(
 
 export function deriveNodeOverviewSeverity(
   snapshot: NodeOverviewSnapshotRecord,
-  freshnessSec: number,
+  _freshnessSec: number,
 ): NodeOverviewSeverity {
-  if (isSnapshotUnknown(snapshot, freshnessSec)) {
-    return 'unknown';
+  if (snapshot.maxSeverityCode >= 4) {
+    return 'critical';
   }
 
-  if (snapshot.criticalMetricCount > 0) {
+  if (snapshot.maxSeverityCode >= 3 || snapshot.criticalMetricCount > 0) {
     return 'high';
   }
 
-  if (snapshot.warningMetricCount > 0) {
-    return 'medium';
+  if (snapshot.maxSeverityCode >= 2 || snapshot.warningMetricCount > 0) {
+    return 'warning';
   }
 
-  return 'none';
+  if (snapshot.maxSeverityCode >= 1 || snapshot.isAnyStale >= 1 || snapshot.staleMetricCount > 0) {
+    return 'stale';
+  }
+
+  return 'healthy';
 }
 
 export function selectOverviewWorkloads(
@@ -249,6 +262,19 @@ function toIsoString(summaryTs: string): string {
   return summaryDate.toISOString();
 }
 
+function toOptionalIsoString(summaryTs: string | null): string | null {
+  if (!summaryTs) {
+    return null;
+  }
+
+  const summaryDate = parseSummaryDate(summaryTs);
+  if (!summaryDate) {
+    return null;
+  }
+
+  return summaryDate.toISOString();
+}
+
 function parseSummaryDate(summaryTs: string): Date | null {
   if (!summaryTs || typeof summaryTs !== 'string') {
     return null;
@@ -279,10 +305,3 @@ function isRunning(workload: NodeOverviewWorkloadRecord): boolean {
   return workload.status.trim().toLowerCase() === 'running';
 }
 
-function isHighCpuWorkload(workload: NodeOverviewWorkloadRecord): boolean {
-  return (workload.cpuUsagePct ?? -1) >= HIGH_CPU_THRESHOLD_PCT;
-}
-
-function isHighMemoryWorkload(workload: NodeOverviewWorkloadRecord): boolean {
-  return (workload.memoryUsagePct ?? -1) >= HIGH_MEMORY_THRESHOLD_PCT;
-}

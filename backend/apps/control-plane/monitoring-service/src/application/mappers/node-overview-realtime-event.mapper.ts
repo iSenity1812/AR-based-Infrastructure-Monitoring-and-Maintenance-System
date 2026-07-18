@@ -1,17 +1,20 @@
 import type {
-  NodeOverviewRealtimeUpdatedEvent,
+  NodeOverviewChangedEvent,
 } from '../ports/monitoring-realtime.port';
-import type { NodeOverviewResponseView } from '../services/node-overview-composer.service';
+import {
+  buildNodeOverviewChangedChannel,
+  type NodeOverviewResponseView,
+} from '../services/node-overview-composer.service';
 
-export function mapNodeOverviewToRealtimeEvent(
+export function mapNodeOverviewToChangedEvent(
   overview: NodeOverviewResponseView,
-): NodeOverviewRealtimeUpdatedEvent {
+  fingerprint: string,
+): NodeOverviewChangedEvent {
   return {
+    event: 'monitoring.node.overview.changed',
     nodeId: overview.node.nodeId,
-    emittedAt: new Date().toISOString(),
-    node: overview.node,
-    summaryMetrics: overview.summaryMetrics,
-    workloadSummary: overview.workloadSummary,
-    workloads: overview.workloads,
+    channel: buildNodeOverviewChangedChannel(overview.node.nodeId),
+    changedAt: new Date().toISOString(),
+    fingerprint,
   };
 }

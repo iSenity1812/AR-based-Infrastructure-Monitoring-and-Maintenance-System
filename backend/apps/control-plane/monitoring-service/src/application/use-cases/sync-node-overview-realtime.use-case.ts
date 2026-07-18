@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { mapNodeOverviewToRealtimeEvent } from '../mappers/node-overview-realtime-event.mapper';
+import { mapNodeOverviewToChangedEvent } from '../mappers/node-overview-realtime-event.mapper';
 import { MonitoringRealtimePort } from '../ports/monitoring-realtime.port';
 import { NodeOverviewReadRepository } from '../ports/node-overview-read.repository';
 import {
@@ -46,9 +46,11 @@ export class SyncNodeOverviewRealtimeUseCase {
       await this.nodeOverviewReadRepository.listChangedNodeIdsSince(
         this.checkpointSummaryTs,
       );
+    const candidateNodeIds =
+      await this.nodeOverviewReadRepository.listNodeIdsForOverviewSync();
 
     let emittedEvents = 0;
-    for (const nodeId of changedNodeIds) {
+    for (const nodeId of candidateNodeIds) {
       let overview: NodeOverviewResponseView;
       try {
         overview = await this.nodeOverviewComposerService.buildOverview(nodeId);
@@ -66,8 +68,8 @@ export class SyncNodeOverviewRealtimeUseCase {
 
       this.fingerprintsByNodeId.set(nodeId, fingerprint);
       emittedEvents += 1;
-      await this.monitoringRealtimePort.emitNodeOverviewUpdated(
-        mapNodeOverviewToRealtimeEvent(overview),
+      await this.monitoringRealtimePort.emitNodeOverviewChanged(
+        mapNodeOverviewToChangedEvent(overview, fingerprint),
       );
     }
 

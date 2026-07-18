@@ -5,6 +5,8 @@ import type {
   AlertCurrentStateCategory,
   AlertCurrentStateSeverity,
   AlertCurrentStateStatus,
+  AlertIncidentSeverity,
+  AlertTriageStatus,
 } from '../../domain/alert-current-state';
 import { AlertCurrentStateRepository } from '../ports/alert-current-state.repository';
 
@@ -37,6 +39,8 @@ export type NodePrimaryAlertView = {
   endsAt: string | null;
   dashboardUrl: string | null;
   runbookUrl: string | null;
+  triageStatus: AlertTriageStatus;
+  incident: AlertIncidentLinkageView | null;
 };
 
 export type NodeActiveAlertView = {
@@ -47,6 +51,18 @@ export type NodeActiveAlertView = {
   status: AlertCurrentStateStatus;
   summary: string;
   startsAt: string;
+  triageStatus: AlertTriageStatus;
+  incident: AlertIncidentLinkageView | null;
+};
+
+export type AlertIncidentLinkageView = {
+  incidentId: string;
+  incidentCode: string;
+  status: string;
+  severity: AlertIncidentSeverity;
+  title: string;
+  createdAt: string;
+  linkedAt: string | null;
 };
 
 export type NodeMonitoringStateResponseView = {
@@ -145,6 +161,8 @@ function mapPrimaryAlert(alert: AlertCurrentState): NodePrimaryAlertView {
     endsAt: alert.endsAt,
     dashboardUrl: alert.dashboardUrl,
     runbookUrl: alert.runbookUrl,
+    triageStatus: alert.triageStatus,
+    incident: mapIncidentLinkage(alert),
   };
 }
 
@@ -157,6 +175,33 @@ function mapActiveAlert(alert: AlertCurrentState): NodeActiveAlertView {
     status: alert.status,
     summary: alert.summary,
     startsAt: alert.startsAt,
+    triageStatus: alert.triageStatus,
+    incident: mapIncidentLinkage(alert),
+  };
+}
+
+function mapIncidentLinkage(
+  alert: AlertCurrentState,
+): AlertIncidentLinkageView | null {
+  if (
+    alert.triageStatus !== 'incident_created' ||
+    !alert.incidentId ||
+    !alert.incidentCode ||
+    !alert.incidentSeverity ||
+    !alert.incidentTitle ||
+    !alert.incidentCreatedAt
+  ) {
+    return null;
+  }
+
+  return {
+    incidentId: alert.incidentId,
+    incidentCode: alert.incidentCode,
+    status: alert.incidentStatus ?? 'UNKNOWN',
+    severity: alert.incidentSeverity,
+    title: alert.incidentTitle,
+    createdAt: alert.incidentCreatedAt,
+    linkedAt: alert.incidentLinkedAt,
   };
 }
 

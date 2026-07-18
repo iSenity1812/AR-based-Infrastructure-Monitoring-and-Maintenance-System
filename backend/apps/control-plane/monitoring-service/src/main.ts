@@ -1,15 +1,35 @@
-import 'dotenv/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import dotenv from 'dotenv';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { MonitoringServiceConfig } from './infrastructure/config/monitoring-service-config';
 
+function loadBootstrapEnv(): void {
+  const envFileName =
+    process.env.NODE_ENV === 'production' ? '.env' : '.env.example';
+  const envFilePath = resolve(process.cwd(), envFileName);
+
+  if (!existsSync(envFilePath)) {
+    return;
+  }
+
+  dotenv.config({
+    path: envFilePath,
+    override: false,
+  });
+}
+
 async function bootstrap() {
+  loadBootstrapEnv();
+
   const app = await NestFactory.create(AppModule);
   const config = app.get(MonitoringServiceConfig);
+  const publicApiBasePath = process.env.PUBLIC_API_BASE_PATH ?? '';
 
   app.use((request: Request, response: Response, next: NextFunction) => {
     const requestId =
@@ -50,7 +70,7 @@ async function bootstrap() {
       )
       .setVersion('1.0.0')
       .addBearerAuth()
-      // .addServer()
+      .addServer(publicApiBasePath)
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup(`${config.apiPrefix}/docs`, app, document, {

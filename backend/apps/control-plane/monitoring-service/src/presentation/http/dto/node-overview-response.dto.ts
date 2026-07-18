@@ -18,10 +18,10 @@ export class NodeOverviewStatusDto {
 
   @ApiProperty({
     description: 'Operator-facing severity level for the node snapshot.',
-    enum: ['none', 'low', 'medium', 'high', 'unknown'],
+    enum: ['healthy', 'stale', 'warning', 'high', 'critical'],
     example: 'high',
   })
-  severity!: 'none' | 'low' | 'medium' | 'high' | 'unknown';
+  severity!: 'healthy' | 'stale' | 'warning' | 'high' | 'critical';
 
   @ApiProperty({
     description: 'Timestamp of the latest node summary used by the overview.',
@@ -34,6 +34,49 @@ export class NodeOverviewStatusDto {
     example: 3,
   })
   freshnessSec!: number;
+
+  @ApiProperty({
+    description: 'Timestamp of the latest hardware fingerprint observed for the node.',
+    nullable: true,
+    example: '2026-07-17T18:04:34.000Z',
+  })
+  fingerprintSeenAt!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'MS-158L' })
+  batteryModel!: string | null;
+
+  @ApiProperty({ nullable: true, example: '386' })
+  cpuArchitecture!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: 'AMD Ryzen 7 5800H with Radeon Graphics',
+  })
+  cpuModel!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'AMD Radeon(TM) Graphics' })
+  gpuModelPrimary!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'BSS-0123456789' })
+  hardwareSerial!: string | null;
+
+  @ApiProperty({ nullable: true, example: 16 })
+  logicalCpuCount!: number | null;
+
+  @ApiProperty({ nullable: true, example: '50:C2:E8:0B:14:A5' })
+  macAddress!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'MSI MS-158L' })
+  motherboardModel!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'Windows 11' })
+  osProduct!: string | null;
+
+  @ApiProperty({ nullable: true, example: '192.168.1.2' })
+  primaryIpv4!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'KINGSTON SNV2S1000G' })
+  ssdModelPrimary!: string | null;
 }
 
 export class NodeOverviewWorstMetricDto {
@@ -79,27 +122,17 @@ export class NodeOverviewAlertCountersDto {
   staleMetricCount!: number;
 }
 
-export class NodeOverviewSummaryMetricsDto {
-  @ApiProperty({ nullable: true, example: 35.239 })
-  cpuUsagePct!: number | null;
-
-  @ApiProperty({ nullable: true, example: 85.107 })
-  memoryUsagePct!: number | null;
-
-  @ApiProperty({ nullable: true, example: 85.731 })
-  diskUsagePct!: number | null;
-
-  @ApiProperty({ nullable: true, example: 92 })
-  cpuTemperatureC!: number | null;
-
-  @ApiProperty({ nullable: true, example: 247041.397 })
-  networkRxBytesSec!: number | null;
-
-  @ApiProperty({ nullable: true, example: 7752.464 })
-  networkTxBytesSec!: number | null;
-
+export class NodeOverviewTextMetricDto {
   @ApiProperty({ nullable: true, example: 'dormant' })
-  primaryNicStatus!: string | null;
+  value!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'state' })
+  unit!: string | null;
+}
+
+export class NodeOverviewSummaryMetricsDto {
+  @ApiProperty({ type: NodeOverviewTextMetricDto })
+  primaryNicStatus!: NodeOverviewTextMetricDto;
 
   @ApiProperty({
     type: NodeOverviewWorstMetricDto,
@@ -121,12 +154,6 @@ export class NodeOverviewWorkloadSummaryDto {
 
   @ApiProperty({ example: 1 })
   nonRunning!: number;
-
-  @ApiProperty({ example: 3 })
-  highCpu!: number;
-
-  @ApiProperty({ example: 4 })
-  highMemory!: number;
 
   @ApiProperty({ example: 5 })
   returned!: number;
@@ -162,17 +189,8 @@ export class NodeOverviewWorkloadDto {
   @ApiProperty({ example: 'unhealthy' })
   healthStatus!: string;
 
-  @ApiProperty({ nullable: true, example: 1.1 })
-  cpuUsagePct!: number | null;
-
-  @ApiProperty({ nullable: true, example: 0.62 })
-  memoryUsagePct!: number | null;
-
   @ApiProperty({ example: 0 })
   restartCount!: number;
-
-  @ApiProperty({ example: 17 })
-  pidCount!: number;
 
   @ApiProperty({ nullable: true, example: 'container.runtime_id' })
   worstMetricKey!: string | null;
@@ -183,14 +201,15 @@ export class NodeOverviewWorkloadDto {
 
 export class NodeOverviewRealtimeChannelDto {
   @ApiProperty({
-    example: 'monitoring.node.overview.updated',
+    enum: ['socket.io'],
+    example: 'socket.io',
   })
-  channel!: 'monitoring.node.overview.updated';
+  transport!: 'socket.io';
 
   @ApiProperty({
-    example: 1,
+    example: 'monitoring.node.node-msi-341b683e.overview.changed',
   })
-  version!: 1;
+  channel!: string;
 }
 
 export class MonitoringNodeOverviewResponseDto {

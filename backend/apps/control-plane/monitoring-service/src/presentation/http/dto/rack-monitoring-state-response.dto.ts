@@ -4,7 +4,8 @@ import { ResponseMetaDto } from './health-response.dto';
 
 export class RackMonitoringOperationalStateDto {
   @ApiProperty({
-    description: 'Current backend-owned operational severity code for the rack.',
+    description:
+      'Current backend-owned operational severity code for the rack.',
     example: 3,
   })
   severityCode!: number;
@@ -23,14 +24,16 @@ export class RackMonitoringOperationalStateDto {
   lifecycleStatus!: 'active' | 'resolved';
 
   @ApiProperty({
-    description: 'Deduplication fingerprint for the current monitoring posture.',
+    description:
+      'Deduplication fingerprint for the current monitoring posture.',
     example:
       'rack:rack-a1|source:rack_current_summary|severity:3|override:1|culprit:node-17|metric:cpu_usage_pct',
   })
   fingerprint!: string;
 
   @ApiProperty({
-    description: 'First timestamp when this rack was observed in the current state lineage.',
+    description:
+      'First timestamp when this rack was observed in the current state lineage.',
     example: '2026-07-08T09:55:00.000Z',
   })
   firstObservedAt!: string;
@@ -48,14 +51,16 @@ export class RackMonitoringOperationalStateDto {
   lastStateChangedAt!: string;
 
   @ApiProperty({
-    description: 'Timestamp when the current active lifecycle opened. Null when resolved.',
+    description:
+      'Timestamp when the current active lifecycle opened. Null when resolved.',
     nullable: true,
     example: '2026-07-08T09:55:00.000Z',
   })
   openedAt!: string | null;
 
   @ApiProperty({
-    description: 'Timestamp when the lifecycle resolved. Null when still active.',
+    description:
+      'Timestamp when the lifecycle resolved. Null when still active.',
     nullable: true,
     example: null,
   })
@@ -64,7 +69,8 @@ export class RackMonitoringOperationalStateDto {
 
 export class RackMonitoringNotificationStateDto {
   @ApiProperty({
-    description: 'Synchronization status between backend monitoring state and Alertmanager.',
+    description:
+      'Synchronization status between backend monitoring state and Alertmanager.',
     enum: [
       'idle',
       'pending_open',
@@ -100,21 +106,24 @@ export class RackMonitoringNotificationStateDto {
 
 export class RackAlertStateDto {
   @ApiProperty({
-    description: 'Operator-facing rack alert status derived from active external alerts.',
+    description:
+      'Operator-facing rack alert status derived from active external alerts.',
     enum: ['healthy', 'alerting'],
     example: 'alerting',
   })
   status!: 'healthy' | 'alerting';
 
   @ApiProperty({
-    description: 'Highest external alert severity currently affecting this rack.',
+    description:
+      'Highest external alert severity currently affecting this rack.',
     enum: ['none', 'warning', 'critical'],
     example: 'critical',
   })
   highestSeverity!: 'none' | 'warning' | 'critical';
 
   @ApiProperty({
-    description: 'Number of active rack-scoped alerts currently firing for this rack.',
+    description:
+      'Number of active rack-scoped alerts currently firing for this rack.',
     example: 2,
   })
   activeAlertCount!: number;
@@ -139,6 +148,52 @@ export class RackAlertSummaryDto {
     example: 1,
   })
   warning!: number;
+}
+
+export class RackAlertIncidentLinkageDto {
+  @ApiProperty({
+    description: 'Incident identifier linked from manual alert escalation.',
+    example: 'incident-1',
+  })
+  incidentId!: string;
+
+  @ApiProperty({
+    description: 'Human-readable incident code from Incident Workflow Service.',
+    example: 'MON-ALERT-7A3265D5F6A9C1D2E3F4B5A6C7D8E9F0',
+  })
+  incidentCode!: string;
+
+  @ApiProperty({
+    description: 'Latest incident status snapshot known to Monitoring.',
+    example: 'OPEN',
+  })
+  status!: string;
+
+  @ApiProperty({
+    description: 'Incident severity snapshot mapped from alert severity.',
+    enum: ['HIGH', 'CRITICAL'],
+    example: 'CRITICAL',
+  })
+  severity!: 'HIGH' | 'CRITICAL';
+
+  @ApiProperty({
+    description: 'Incident title snapshot for dashboard display.',
+    example: '[rack] RackSignalLossPresent: Rack A1 signal loss',
+  })
+  title!: string;
+
+  @ApiProperty({
+    description: 'Timestamp when the incident was created.',
+    example: '2026-07-16T01:00:00.000Z',
+  })
+  createdAt!: string;
+
+  @ApiProperty({
+    description: 'Timestamp when Monitoring linked this alert to the incident.',
+    nullable: true,
+    example: '2026-07-16T01:00:01.000Z',
+  })
+  linkedAt!: string | null;
 }
 
 export class RackPrimaryAlertDto {
@@ -226,6 +281,20 @@ export class RackPrimaryAlertDto {
     example: '/docs/runbooks/alerting/rack-signal-loss-present',
   })
   runbookUrl!: string | null;
+
+  @ApiProperty({
+    description: 'Read-side triage status for the alert.',
+    enum: ['new', 'acknowledged', 'incident_created', 'suppressed'],
+    example: 'incident_created',
+  })
+  triageStatus!: 'new' | 'acknowledged' | 'incident_created' | 'suppressed';
+
+  @ApiProperty({
+    description: 'Incident linkage created from manual alert escalation.',
+    nullable: true,
+    type: RackAlertIncidentLinkageDto,
+  })
+  incident!: RackAlertIncidentLinkageDto | null;
 }
 
 export class RackActiveAlertDto {
@@ -286,6 +355,20 @@ export class RackActiveAlertDto {
     example: '2026-07-15T14:20:00.000Z',
   })
   startsAt!: string;
+
+  @ApiProperty({
+    description: 'Read-side triage status for the active alert.',
+    enum: ['new', 'acknowledged', 'incident_created', 'suppressed'],
+    example: 'new',
+  })
+  triageStatus!: 'new' | 'acknowledged' | 'incident_created' | 'suppressed';
+
+  @ApiProperty({
+    description: 'Incident linkage created from manual alert escalation.',
+    nullable: true,
+    type: RackAlertIncidentLinkageDto,
+  })
+  incident!: RackAlertIncidentLinkageDto | null;
 }
 
 export class RackMonitoringStateItemDto {
@@ -296,7 +379,8 @@ export class RackMonitoringStateItemDto {
   rackId!: string;
 
   @ApiProperty({
-    description: 'Human-friendly rack label. Falls back to rackId when enrichment is unavailable.',
+    description:
+      'Human-friendly rack label. Falls back to rackId when enrichment is unavailable.',
     example: 'Rack A1',
   })
   rackName!: string;
@@ -320,7 +404,8 @@ export class RackMonitoringStateItemDto {
   notification!: RackMonitoringNotificationStateDto;
 
   @ApiProperty({
-    description: 'Consumer-first rack alert state derived from active external alerts.',
+    description:
+      'Consumer-first rack alert state derived from active external alerts.',
     type: RackAlertStateDto,
   })
   state!: RackAlertStateDto;
@@ -347,7 +432,8 @@ export class RackMonitoringStateItemDto {
 
 export class MonitoringRackStateResponseDto {
   @ApiProperty({
-    description: 'Timestamp when the rack monitoring state payload was generated.',
+    description:
+      'Timestamp when the rack monitoring state payload was generated.',
     example: '2026-07-08T10:00:00.000Z',
   })
   generatedAt!: string;

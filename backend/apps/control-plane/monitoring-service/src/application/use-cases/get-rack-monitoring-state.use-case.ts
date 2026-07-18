@@ -5,6 +5,8 @@ import type {
   AlertCurrentStateCategory,
   AlertCurrentStateSeverity,
   AlertCurrentStateStatus,
+  AlertIncidentSeverity,
+  AlertTriageStatus,
 } from '../../domain/alert-current-state';
 import { AlertCurrentStateRepository } from '../ports/alert-current-state.repository';
 import {
@@ -60,6 +62,8 @@ export type RackMonitoringStateItemView = {
     endsAt: string | null;
     dashboardUrl: string | null;
     runbookUrl: string | null;
+    triageStatus: AlertTriageStatus;
+    incident: AlertIncidentLinkageView | null;
   } | null;
   activeAlerts: Array<{
     fingerprint: string;
@@ -69,7 +73,19 @@ export type RackMonitoringStateItemView = {
     status: AlertCurrentStateStatus;
     summary: string;
     startsAt: string;
+    triageStatus: AlertTriageStatus;
+    incident: AlertIncidentLinkageView | null;
   }>;
+};
+
+export type AlertIncidentLinkageView = {
+  incidentId: string;
+  incidentCode: string;
+  status: string;
+  severity: AlertIncidentSeverity;
+  title: string;
+  createdAt: string;
+  linkedAt: string | null;
 };
 
 export type RackMonitoringStateResponseView = {
@@ -177,6 +193,8 @@ export class GetRackMonitoringStateUseCase {
             endsAt: primaryAlert.endsAt,
             dashboardUrl: primaryAlert.dashboardUrl,
             runbookUrl: primaryAlert.runbookUrl,
+            triageStatus: primaryAlert.triageStatus,
+            incident: mapIncidentLinkage(primaryAlert),
           }
         : null,
       activeAlerts: sortedAlerts.map((alert) => ({
@@ -187,6 +205,8 @@ export class GetRackMonitoringStateUseCase {
         status: alert.status,
         summary: alert.summary,
         startsAt: alert.startsAt,
+        triageStatus: alert.triageStatus,
+        incident: mapIncidentLinkage(alert),
       })),
     };
   }
@@ -224,6 +244,31 @@ function compareAlertsForPrimarySelection(
     right.startsAt.localeCompare(left.startsAt) ||
     left.alertName.localeCompare(right.alertName)
   );
+}
+
+function mapIncidentLinkage(
+  alert: AlertCurrentState,
+): AlertIncidentLinkageView | null {
+  if (
+    alert.triageStatus !== 'incident_created' ||
+    !alert.incidentId ||
+    !alert.incidentCode ||
+    !alert.incidentSeverity ||
+    !alert.incidentTitle ||
+    !alert.incidentCreatedAt
+  ) {
+    return null;
+  }
+
+  return {
+    incidentId: alert.incidentId,
+    incidentCode: alert.incidentCode,
+    status: alert.incidentStatus ?? 'UNKNOWN',
+    severity: alert.incidentSeverity,
+    title: alert.incidentTitle,
+    createdAt: alert.incidentCreatedAt,
+    linkedAt: alert.incidentLinkedAt,
+  };
 }
 
 function compareRackItems(

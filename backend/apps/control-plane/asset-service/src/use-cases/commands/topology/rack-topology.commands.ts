@@ -161,7 +161,7 @@ export class ActivateRackUseCase {
 
   async execute(rackId: string) {
     const rack = await this.getRequiredRack(rackId);
-    if (rack.lifecycleState !== RackLifecycleState.ACTIVE) {
+    if (rack.lifecycleState === RackLifecycleState.ACTIVE) {
       throw new BadRequestUseCaseError('Rack is already active');
     }
 

@@ -28,6 +28,12 @@ type RackOverviewCurrentRackRow = {
   worstMetricTagsJson: string;
   worstMetricValueNumeric: number | string;
   worstMetricValueText: string;
+  avgCpuUsagePct: number | string | null;
+  avgMemoryUsedPct: number | string | null;
+  maxDiskUsedPct: number | string | null;
+  maxCpuTemperatureC: number | string | null;
+  sumNetworkRxBytesSec: number | string | null;
+  sumNetworkTxBytesSec: number | string | null;
 };
 
 type RackOverviewCurrentSummaryRow = {
@@ -194,7 +200,13 @@ export class RackOverviewClickhouseRepository
           worst_metric_key AS worstMetricKey,
           worst_metric_tags_json AS worstMetricTagsJson,
           worst_metric_value_numeric AS worstMetricValueNumeric,
-          worst_metric_value_text AS worstMetricValueText
+          worst_metric_value_text AS worstMetricValueText,
+          avg_cpu_usage_pct AS avgCpuUsagePct,
+          avg_memory_used_pct AS avgMemoryUsedPct,
+          max_disk_used_pct AS maxDiskUsedPct,
+          max_cpu_temperature_c AS maxCpuTemperatureC,
+          sum_network_rx_bytes_sec AS sumNetworkRxBytesSec,
+          sum_network_tx_bytes_sec AS sumNetworkTxBytesSec
         FROM telemetry_db.rack_current_summary
         WHERE rack_id IS NOT NULL
           AND rack_id != ''
@@ -237,6 +249,12 @@ export function mapRackOverviewCurrentRackRow(
     worstMetricTagsJson: row.worstMetricTagsJson,
     worstMetricValueNumeric: toNumber(row.worstMetricValueNumeric),
     worstMetricValueText: row.worstMetricValueText,
+    avgCpuUsagePct: toNullableNumber(row.avgCpuUsagePct),
+    avgMemoryUsedPct: toNullableNumber(row.avgMemoryUsedPct),
+    maxDiskUsedPct: toNullableNumber(row.maxDiskUsedPct),
+    maxCpuTemperatureC: toNullableNumber(row.maxCpuTemperatureC),
+    sumNetworkRxBytesSec: toNullableNumber(row.sumNetworkRxBytesSec),
+    sumNetworkTxBytesSec: toNullableNumber(row.sumNetworkTxBytesSec),
   };
 }
 
@@ -274,6 +292,16 @@ function toNumber(value: number | string | null | undefined): number {
   }
 
   return 0;
+}
+
+function toNullableNumber(
+  value: number | string | null | undefined,
+): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  return toNumber(value);
 }
 
 function isUsableRackId(rackId: string | null | undefined): rackId is string {

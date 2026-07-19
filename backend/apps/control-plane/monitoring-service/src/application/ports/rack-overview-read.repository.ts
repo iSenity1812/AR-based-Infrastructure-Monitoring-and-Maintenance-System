@@ -17,6 +17,12 @@ export interface RackOverviewCurrentRackRecord {
   worstMetricTagsJson: string;
   worstMetricValueNumeric: number;
   worstMetricValueText: string;
+  avgCpuUsagePct: number | null;
+  avgMemoryUsedPct: number | null;
+  maxDiskUsedPct: number | null;
+  maxCpuTemperatureC: number | null;
+  sumNetworkRxBytesSec: number | null;
+  sumNetworkTxBytesSec: number | null;
 }
 
 export interface RackOverviewCurrentRackSummary {

@@ -9,48 +9,37 @@ import type {
 } from '../ports/rack-overview-read.repository';
 
 describe('GetRackOverviewUseCase', () => {
-  it('filters placeholder rack ids out of the response and enriches the consumer-first schema', async () => {
+  it('filters placeholder rack ids, preserves null aggregate metrics, and enriches flattened V2 response', async () => {
     const currentRacks: RackOverviewCurrentRackRecord[] = [
-      {
+      createRack({
         rackId: 'rack-a1',
-        summaryTs: '2026-07-01 10:15:00',
-        rackSeverityCode: 3,
+        summaryTs: '2026-07-19 11:35:59',
+        rackSeverityCode: 4,
         hasOverrideFlag: 1,
-        totalNodes: 24,
-        badNodes: 13,
-        criticalNodes: 5,
-        warningNodes: 8,
-        staleNodes: 2,
-        silentDeadNodes: 1,
-        badNodeRatio: 0.5417,
-        isRackLevelFailure: 1,
-        hasSignalLoss: 1,
-        worstNodeId: 'node-17',
-        worstMetricKey: 'cpu_usage_pct',
-        worstMetricTagsJson: '{"host":"node-17"}',
-        worstMetricValueNumeric: 98.4,
-        worstMetricValueText: '98.4',
-      },
-      {
-        rackId: 'null',
-        summaryTs: '2026-07-01 10:15:00',
-        rackSeverityCode: 0,
-        hasOverrideFlag: 0,
-        totalNodes: 1,
+        totalNodes: 2,
         badNodes: 0,
         criticalNodes: 0,
         warningNodes: 0,
-        staleNodes: 0,
-        silentDeadNodes: 0,
+        staleNodes: 2,
+        silentDeadNodes: 2,
         badNodeRatio: 0,
         isRackLevelFailure: 0,
-        hasSignalLoss: 0,
-        worstNodeId: '',
-        worstMetricKey: '',
+        hasSignalLoss: 1,
+        worstNodeId: 'rack.signal.loss',
+        worstMetricKey: 'rack.heartbeat.loss',
         worstMetricTagsJson: '{}',
         worstMetricValueNumeric: 0,
-        worstMetricValueText: '0',
-      },
+        worstMetricValueText: 'RACK_DISCONNECTED',
+        avgCpuUsagePct: null,
+        avgMemoryUsedPct: null,
+        maxDiskUsedPct: null,
+        maxCpuTemperatureC: null,
+        sumNetworkRxBytesSec: null,
+        sumNetworkTxBytesSec: null,
+      }),
+      createRack({
+        rackId: 'null',
+      }),
     ];
     const history: RackOverviewHistoryRecord[] = [];
     const rackOverviewReadRepository: RackOverviewReadRepository = {
@@ -62,7 +51,7 @@ describe('GetRackOverviewUseCase', () => {
         warningRacks: 0,
         staleRacks: 1,
         signalLossRacks: 1,
-        rackLevelFailureRacks: 1,
+        rackLevelFailureRacks: 0,
       }),
       listRecentRackHistory: jest.fn().mockResolvedValue(history),
     };
@@ -72,91 +61,211 @@ describe('GetRackOverviewUseCase', () => {
           'rack-a1',
           {
             id: 'rack-a1',
-            rackCode: 'RACK-A1',
-            displayName: 'Rack A1',
+            rackCode: 'LOCAL-LAB-01',
+            displayName: 'Local Lab 01',
             lifecycleState: 'ACTIVE',
             capacityState: 'AVAILABLE',
-            metadata: {},
+            siteCode: 'MY-HOME',
+            roomCode: 'ROOM-01',
+            rowCode: 'ROW-1',
+            positionCode: 'P-1',
+            capacityLimit: 42,
+            notes: '',
+            vendor: 'DELL',
+            metadata: { seeded: true },
           },
         ],
       ]),
     );
-    const rackContextProvider: RackContextProvider = {
-      batchGetRacks,
-    };
-
+    const rackContextProvider: RackContextProvider = { batchGetRacks };
     const useCase = new GetRackOverviewUseCase(
       rackOverviewReadRepository,
       rackContextProvider,
     );
 
-    const result = await useCase.execute();
+    const result = await useCase.execute({
+      severity: 'critical,high',
+      sortBy: 'severity',
+      sortOrder: 'desc',
+      page: 1,
+      limit: 50,
+    });
 
     expect(batchGetRacks).toHaveBeenCalledWith(['rack-a1']);
-    expect(result.overview.counts).toEqual({
-      total: 2,
-      critical: 1,
-      warning: 0,
-      stale: 1,
-      signalLoss: 1,
-      rackLevelFailure: 1,
+    expect(result.globalCounters).toEqual({
+      totalRacks: 1,
+      criticalCount: 1,
+      highCount: 0,
+      warningCount: 0,
+      staleCount: 0,
+      healthyCount: 0,
+      globalRackLevelFailures: 0,
     });
-    expect(result.riskCards).toHaveLength(1);
-    expect(result.riskCards[0]).toMatchObject({
-      rack: {
+    expect(result.racks).toHaveLength(1);
+    expect(result.racks[0]).toMatchObject({
+      rackInfo: {
         id: 'rack-a1',
-        name: 'Rack A1',
-        code: 'RACK-A1',
+        rackCode: 'LOCAL-LAB-01',
+        displayName: 'Local Lab 01',
+        lifecycleState: 'ACTIVE',
+        capacityState: 'AVAILABLE',
+        siteCode: 'MY-HOME',
+        roomCode: 'ROOM-01',
+        rowCode: 'ROW-1',
+        positionCode: 'P-1',
+        capacityLimit: 42,
+        notes: null,
+        vendor: 'DELL',
+        metadata: { seeded: true },
       },
-      status: {
-        severity: 'critical',
-        override: true,
-        rackLevelFailure: true,
-        signalLoss: true,
+      healthStatus: {
+        severityCode: 4,
+        severityText: 'CRITICAL',
+        isRackLevelFailure: false,
+        hasSignalLoss: true,
+        hasOverrideFlag: true,
+      },
+      blastRadius: {
+        totalNodes: 2,
+        badNodes: 0,
+        criticalNodes: 0,
+        warningNodes: 0,
         staleNodes: 2,
+        silentDeadNodes: 2,
+        badNodeRatio: 0,
       },
-      metrics: {
-        totalNodes: 24,
-        badNodes: 13,
-        criticalNodes: 5,
-        warningNodes: 8,
-        badNodeRatio: 0.5417,
+      aggregateMetrics: {
+        avgCpuUsagePct: null,
+        avgMemoryUsedPct: null,
+        maxDiskUsedPct: null,
+        maxCpuTemperatureC: null,
+        sumNetworkRxBytesSec: null,
+        sumNetworkTxBytesSec: null,
       },
       culprit: {
-        nodeId: 'node-17',
-        metric: {
-          key: 'cpu_usage_pct',
-          tags: {
-            host: 'node-17',
-          },
-          value: {
-            numeric: 98.4,
-            text: '98.4',
-          },
-        },
+        worstNodeId: 'rack.signal.loss',
+        worstMetricKey: 'rack.heartbeat.loss',
+        worstMetricTags: {},
+        worstMetricValueNumeric: 0,
+        worstMetricValueText: 'RACK_DISCONNECTED',
       },
       trend: {
         delta1m: 0,
         delta5m: 0,
         lastChangeAgeSec: null,
       },
-      updatedAt: '2026-07-01 10:15:00',
-      location: {
-        site: undefined,
-        room: undefined,
-        zone: undefined,
-        row: undefined,
-        position: undefined,
+    });
+    expect(result.paginationAndSort).toEqual({
+      currentPage: 1,
+      pageSize: 50,
+      totalPages: 1,
+      totalItems: 1,
+      currentSortBy: 'severity',
+      currentSortOrder: 'desc',
+      activeFilters: {
+        severity: ['critical', 'high'],
+        onlyFailure: false,
+        onlySignalLoss: false,
+        search: '',
       },
     });
-    expect(result.rackList.sort).toEqual([
-      'severity',
-      'rackLevelFailure',
-      'signalLoss',
-      'badNodeRatio',
-      'staleNodes',
-      'updatedAt',
-      'rackId',
-    ]);
+  });
+
+  it('falls back to rackId labels when asset enrichment is unavailable and applies search on fallback values', async () => {
+    const rackOverviewReadRepository: RackOverviewReadRepository = {
+      listCurrentRacks: jest.fn().mockResolvedValue([
+        createRack({
+          rackId: '6a5771e5931033f3bd53fb87',
+          rackSeverityCode: 3,
+        }),
+      ]),
+      listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
+      getCurrentRackSummary: jest.fn(),
+      listRecentRackHistory: jest.fn().mockResolvedValue([]),
+    };
+    const rackContextProvider: RackContextProvider = {
+      batchGetRacks: jest.fn().mockResolvedValue(new Map()),
+    };
+    const useCase = new GetRackOverviewUseCase(
+      rackOverviewReadRepository,
+      rackContextProvider,
+    );
+
+    const result = await useCase.execute({
+      search: '6a5771e5931033f3bd53fb87',
+      page: 1,
+      limit: 50,
+    });
+
+    expect(result.racks[0].rackInfo).toMatchObject({
+      id: '6a5771e5931033f3bd53fb87',
+      rackCode: '6a5771e5931033f3bd53fb87',
+      displayName: '6a5771e5931033f3bd53fb87',
+    });
+  });
+
+  it('supports severity filter by numeric codes and paginates after sorting', async () => {
+    const rackOverviewReadRepository: RackOverviewReadRepository = {
+      listCurrentRacks: jest.fn().mockResolvedValue([
+        createRack({ rackId: 'rack-a', rackSeverityCode: 4, badNodeRatio: 0.9 }),
+        createRack({ rackId: 'rack-b', rackSeverityCode: 3, badNodeRatio: 0.5 }),
+        createRack({ rackId: 'rack-c', rackSeverityCode: 2, badNodeRatio: 0.7 }),
+      ]),
+      listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
+      getCurrentRackSummary: jest.fn(),
+      listRecentRackHistory: jest.fn().mockResolvedValue([]),
+    };
+    const rackContextProvider: RackContextProvider = {
+      batchGetRacks: jest.fn().mockResolvedValue(new Map()),
+    };
+    const useCase = new GetRackOverviewUseCase(
+      rackOverviewReadRepository,
+      rackContextProvider,
+    );
+
+    const result = await useCase.execute({
+      severity: '4,3',
+      sortBy: 'badNodeRatio',
+      sortOrder: 'asc',
+      page: 2,
+      limit: 1,
+    });
+
+    expect(result.globalCounters.totalRacks).toBe(2);
+    expect(result.paginationAndSort.totalPages).toBe(2);
+    expect(result.racks).toHaveLength(1);
+    expect(result.racks[0].rackInfo.id).toBe('rack-a');
   });
 });
+
+function createRack(
+  overrides: Partial<RackOverviewCurrentRackRecord> = {},
+): RackOverviewCurrentRackRecord {
+  return {
+    rackId: 'rack-a1',
+    summaryTs: '2026-07-19 11:35:59',
+    rackSeverityCode: 0,
+    hasOverrideFlag: 0,
+    totalNodes: 1,
+    badNodes: 0,
+    criticalNodes: 0,
+    warningNodes: 0,
+    staleNodes: 0,
+    silentDeadNodes: 0,
+    badNodeRatio: 0,
+    isRackLevelFailure: 0,
+    hasSignalLoss: 0,
+    worstNodeId: '',
+    worstMetricKey: '',
+    worstMetricTagsJson: '{}',
+    worstMetricValueNumeric: 0,
+    worstMetricValueText: '0',
+    avgCpuUsagePct: 10,
+    avgMemoryUsedPct: 20,
+    maxDiskUsedPct: 30,
+    maxCpuTemperatureC: 40,
+    sumNetworkRxBytesSec: 50,
+    sumNetworkTxBytesSec: 60,
+    ...overrides,
+  };
+}

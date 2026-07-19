@@ -2,259 +2,297 @@
 
 ## Node Overview Snapshot + Realtime
 
-This document defines the public contract for the current `node overview` scope in `monitoring-service`.
+This document defines the public contract for the current node overview scope in `monitoring-service`.
 
 Scope covered:
 
 - `GET /api/v1/monitoring/nodes/:nodeId/overview`
-- WebSocket event `monitoring.node.overview.updated`
+- Socket.IO event `monitoring.node.overview.changed`
 
-This contract is intentionally snapshot-first:
+This contract is snapshot-first:
 
-- overview is a shallow drill-down
-- deep insight and trend analysis are out of scope for this document
-- workload list is condensed and not a full listing
-- realtime payload mirrors the REST payload so the frontend can reuse the same mapper
-
-## Design Goals
-
-The overview response should answer these operator questions quickly:
-
-- Is this node healthy right now?
-- What is the most important evidence on the node?
-- Which workloads on this node are worth attention first?
-- Is the data fresh enough to trust for action?
-
-## Non-Goals
-
-The following are not part of this contract:
-
-- deep diagnosis or root-cause analysis
-- historical trend queries such as `node_summary_trend_1m`
-- full workload inventory for a node
-- physical asset metadata such as rack position or serial number
+- the REST endpoint is the source of truth for node overview state
+- realtime is a lightweight change signal
+- the workload list is intentionally condensed, not a full inventory
+- deep diagnosis and history queries are out of scope
 
 ## REST API
 
 ### `GET /api/v1/monitoring/nodes/:nodeId/overview`
 
-Returns a snapshot overview for a single node.
-
-#### Path Parameters
-
-- `nodeId` - string, required
+Returns an operator-facing node overview snapshot for a single node.
 
 #### Authorization
 
-Uses the existing monitoring-service auth and permission pattern already used by rack endpoints.
+- Bearer authentication is required
+- the endpoint is protected by `JwtAuthGuard`
+- the caller must have permission `DASHBOARD_READ`
+
+#### Path Parameters
+
+- `nodeId` - string, required, stable node identifier from monitoring scope
 
 #### Success Response `200`
 
+The OpenAPI contract for this endpoint is an envelope with `data` and `meta`.
+
 ```json
 {
-  "node": {
-    "nodeId": "node-msi-8bc4df0d",
-    "status": "alerting",
-    "severity": "high",
-    "lastSeenAt": "2026-07-10T09:12:30Z",
-    "freshnessSec": 3
-  },
-  "summaryMetrics": {
-    "cpuUsagePct": 82.4,
-    "memoryUsagePct": 67.1,
-    "diskUsagePct": 91.2,
-    "cpuTemperatureC": 80.0,
-    "networkRxBytesSec": 1843200,
-    "networkTxBytesSec": 902144,
-    "primaryNicStatus": "up",
-    "worstMetric": "cpuTemperatureC",
-    "alertCounters": {
-      "criticalMetricCount": 1,
-      "warningMetricCount": 2,
-      "staleMetricCount": 0
-    }
-  },
-  "workloadSummary": {
-    "total": 52,
-    "unhealthy": 2,
-    "nonRunning": 1,
-    "highCpu": 7,
-    "highMemory": 4,
-    "returned": 5,
-    "selectionMode": "abnormal_first_then_top_cpu"
-  },
-  "workloads": [
-    {
-      "workloadId": "container-nginx-01",
-      "workloadType": "container",
-      "name": "nginx",
-      "status": "running",
-      "cpuUsagePct": 18.2,
-      "memoryUsagePct": 12.4
+  "data": {
+    "node": {
+      "nodeId": "node-msi-341b683e",
+      "status": "alerting",
+      "severity": "high",
+      "lastSeenAt": "2026-07-17T18:04:29.000Z",
+      "freshnessSec": 3,
+      "fingerprintSeenAt": "2026-07-17T18:04:34.000Z",
+      "batteryModel": "MS-158L",
+      "cpuArchitecture": "386",
+      "cpuModel": "AMD Ryzen 7 5800H with Radeon Graphics",
+      "gpuModelPrimary": "AMD Radeon(TM) Graphics",
+      "hardwareSerial": "BSS-0123456789",
+      "logicalCpuCount": 16,
+      "macAddress": "50:C2:E8:0B:14:A5",
+      "motherboardModel": "MSI MS-158L",
+      "osProduct": "Windows 11",
+      "primaryIpv4": "192.168.1.2",
+      "ssdModelPrimary": "KINGSTON SNV2S1000G"
     },
-    {
-      "workloadId": "container-api-01",
-      "workloadType": "container",
-      "name": "control-plane-api",
-      "status": "running",
-      "cpuUsagePct": 46.1,
-      "memoryUsagePct": 38.7
+    "summaryMetrics": {
+      "primaryNicStatus": {
+        "value": "dormant",
+        "unit": "state"
+      },
+      "worstMetric": {
+        "metricKey": "node.tcp_retransmit_pct",
+        "metricValueNumeric": 19.604,
+        "metricValueText": "19.604"
+      },
+      "alertCounters": {
+        "criticalMetricCount": 2,
+        "warningMetricCount": 4,
+        "staleMetricCount": 0
+      }
+    },
+    "workloadSummary": {
+      "total": 50,
+      "unhealthy": 2,
+      "nonRunning": 1,
+      "returned": 5,
+      "selectionMode": "abnormal_first_then_top_cpu"
+    },
+    "workloads": [
+      {
+        "workloadId": "db8559e332ec64dfa558917710d5afb621c0a7ea8b5f91193c5c288ba28d663d",
+        "workloadType": "container",
+        "name": "backend-shared-vector",
+        "serviceName": "vector",
+        "status": "running",
+        "healthStatus": "unhealthy",
+        "restartCount": 0,
+        "worstMetricKey": "container.runtime_id",
+        "isAbnormal": true
+      }
+    ],
+    "realtime": {
+      "transport": "socket.io",
+      "channel": "monitoring.node.node-msi-341b683e.overview.changed"
     }
-  ]
+  },
+  "meta": {
+    "version": "v1",
+    "timestamp": "2026-07-19T10:00:00.000Z"
+  }
 }
 ```
 
 #### Response Semantics
 
-- `node.nodeId` is the requested node identifier.
-- `node.status` is derived from current snapshot semantics and is a public UI state.
-- `node.severity` is derived from the latest severity signal and is a public UI state.
-- `node.lastSeenAt` is the snapshot timestamp returned by the serving row.
-- `node.freshnessSec` is derived from `lastSeenAt` at response time.
-- `summaryMetrics` contains only the snapshot metrics currently exposed by the service.
-- any metric that has no available value must be returned as `null`, not fabricated.
-- `workloadSummary.total` reflects the full node population, not just the returned top five.
-- `workloads` is a condensed attention list, not the full workload inventory.
+- `data.node.nodeId` echoes the requested node identifier.
+- `data.node.lastSeenAt` is derived from the snapshot summary timestamp and normalized to ISO-8601.
+- `data.node.freshnessSec` is computed at response time as the non-negative age in seconds of `lastSeenAt`.
+- `data.node.fingerprintSeenAt` is normalized to ISO-8601 when present, otherwise `null`.
+- the remaining `data.node.*` fingerprint fields are passthrough hardware and identity context fields.
+- `data.summaryMetrics` contains a small triage-oriented subset only.
+- unavailable values in metric fields should be returned as `null`.
+- `data.workloadSummary.total` counts all workloads for the node.
+- `data.workloadSummary.returned` counts only the selected overview subset.
+- `data.workloads` is a capped attention list, not the full workload inventory.
+- `data.realtime.channel` is the node-specific Socket.IO event name for change notifications.
 
-#### Summary Metrics Schema
+#### `data.node` Schema
 
-`summaryMetrics` should contain the following fields:
+- `nodeId` - string
+- `status` - `"healthy" | "alerting" | "unknown"`
+- `severity` - `"healthy" | "stale" | "warning" | "high" | "critical"`
+- `lastSeenAt` - ISO-8601 datetime string
+- `freshnessSec` - non-negative integer
+- `fingerprintSeenAt` - ISO-8601 datetime string or `null`
+- `batteryModel` - string or `null`
+- `cpuArchitecture` - string or `null`
+- `cpuModel` - string or `null`
+- `gpuModelPrimary` - string or `null`
+- `hardwareSerial` - string or `null`
+- `logicalCpuCount` - number or `null`
+- `macAddress` - string or `null`
+- `motherboardModel` - string or `null`
+- `osProduct` - string or `null`
+- `primaryIpv4` - string or `null`
+- `ssdModelPrimary` - string or `null`
 
-- `cpuUsagePct` - number or `null`
-- `memoryUsagePct` - number or `null`
-- `diskUsagePct` - number or `null`
-- `cpuTemperatureC` - number or `null`
-- `networkRxBytesSec` - number or `null`
-- `networkTxBytesSec` - number or `null`
-- `primaryNicStatus` - string or `null`
-- `worstMetric` - string or `null`
-- `alertCounters.criticalMetricCount` - integer
-- `alertCounters.warningMetricCount` - integer
-- `alertCounters.staleMetricCount` - integer
+#### `data.summaryMetrics` Schema
 
-#### Workload Summary Schema
+- `primaryNicStatus.value` - string or `null`
+- `primaryNicStatus.unit` - string or `null`
+- `worstMetric.metricKey` - string or `null`
+- `worstMetric.metricValueNumeric` - number or `null`
+- `worstMetric.metricValueText` - string or `null`
+- `alertCounters.criticalMetricCount` - number
+- `alertCounters.warningMetricCount` - number
+- `alertCounters.staleMetricCount` - number
 
-`workloadSummary` should contain:
+#### `data.workloadSummary` Schema
 
-- `total` - integer
-- `unhealthy` - integer
-- `nonRunning` - integer
-- `highCpu` - integer
-- `highMemory` - integer
-- `returned` - integer
+- `total` - number
+- `unhealthy` - number
+- `nonRunning` - number
+- `returned` - number
 - `selectionMode` - `"abnormal_first_then_top_cpu"`
 
-#### Workload Item Schema
-
-Each workload item contains:
+#### `data.workloads[]` Schema
 
 - `workloadId` - string
 - `workloadType` - `"container"`
 - `name` - string
+- `serviceName` - string
 - `status` - string
-- `cpuUsagePct` - number or `null`
-- `memoryUsagePct` - number or `null`
+- `healthStatus` - string
+- `restartCount` - number
+- `worstMetricKey` - string or `null`
+- `isAbnormal` - boolean
 
-### Selection Rules for `workloads`
+### Workload Selection Rules
 
-The overview workload list is intentionally capped to keep the payload small and operator-focused.
+The overview workload list is capped to `5` items.
 
 Selection order:
 
 1. abnormal workloads first
-2. then highest CPU usage
-3. then highest memory usage
-4. limit to 5 items
+2. then higher `cpuUsagePct`
+3. then higher `memoryUsagePct`
+4. then lexical `name` as a stable tiebreaker
 
-For this contract, a workload is treated as abnormal when the backend decides it is not in a clean operating state.
+A workload is considered abnormal when at least one of the following is true:
 
-#### Filtering Behavior
+- `healthStatus` is `unhealthy` after trim/lowercase normalization
+- `status` is not `running` after trim/lowercase normalization
+- `restartCount > 0`
 
-- if a node has only a small number of workloads, all of them may be returned
-- if a node has many workloads, only the most relevant five are returned
-- if a node has workloads but none are abnormal, the list falls back to the highest CPU consumers
-- if no workloads are found, return an empty array and `workloadSummary.total = 0`
+Derived counters:
 
-### Node Derivation Rules
+- `unhealthy` counts workloads where `healthStatus === "unhealthy"` after normalization
+- `nonRunning` counts workloads where `status !== "running"` after normalization
 
-Public node state is derived from snapshot semantics, not exposed directly from raw internal codes.
+### Node Status Derivation
 
-Recommended public mapping:
+`status` is derived from snapshot signals:
 
-- `healthy` / `none` when there is no warning, no critical signal, and no severe staleness
-- `alerting` / `medium` when warning signals exist but no critical signal exists
-- `alerting` / `high` when a critical signal exists
-- `unknown` when the snapshot is too stale or current truth is not available
+- `unknown` when the snapshot is considered unknown
+- `alerting` when `criticalMetricCount > 0` or `warningMetricCount > 0`
+- `healthy` otherwise
 
-The service must not expose raw internal severity codes in the public API.
+The snapshot is considered unknown when either:
+
+- `freshnessSec < 0`
+- `isAnyStale >= 1` and `staleMetricCount > 0` and `criticalMetricCount === 0` and `warningMetricCount === 0`
+
+In current implementation, `freshnessSec` is clamped to a non-negative value before this check, so the effective unknown case is the stale-only condition above.
+
+### Node Severity Derivation
+
+`severity` is derived from snapshot severity and counter signals:
+
+- `critical` when `maxSeverityCode >= 4`
+- `high` when `maxSeverityCode >= 3` or `criticalMetricCount > 0`
+- `warning` when `maxSeverityCode >= 2` or `warningMetricCount > 0`
+- `stale` when `maxSeverityCode >= 1` or `isAnyStale >= 1` or `staleMetricCount > 0`
+- `healthy` otherwise
+
+`severity` does not directly use `freshnessSec` in the current implementation.
 
 ### Error Responses
 
-The endpoint should follow the existing monitoring-service error envelope and behavior.
-
 Expected error conditions:
 
-- `400 Bad Request` - invalid `nodeId`
-- `401 Unauthorized` - missing authentication
-- `403 Forbidden` - missing monitoring access permission
-- `404 Not Found` - node snapshot not found
+- `401 Unauthorized` - missing or invalid bearer token
+- `403 Forbidden` - authenticated caller lacks `DASHBOARD_READ`
+- `404 Not Found` - no current node snapshot exists for `nodeId`
 - `500 Internal Server Error` - unexpected backend failure
 
-## WebSocket Contract
+The current controller does not define explicit path validation for `nodeId`; any `400 Bad Request` behavior would have to come from framework-level validation added elsewhere.
 
-### Event: `monitoring.node.overview.updated`
+## Realtime Contract
 
-Realtime event emitted when the public overview snapshot for a node changes.
+### Socket.IO Transport
 
-#### Delivery Shape
+- namespace: `/monitoring`
+- broadcast event: `monitoring.node.overview.changed`
+- node-specific event: `monitoring.node.{nodeId}.overview.changed`
 
-The websocket event should reuse the same business payload shape as the REST endpoint:
+The gateway emits both the shared event name and the node-specific channel using the same payload.
+
+### Event Payload
+
+```json
+{
+  "event": "monitoring.node.overview.changed",
+  "nodeId": "node-msi-341b683e",
+  "channel": "monitoring.node.node-msi-341b683e.overview.changed",
+  "changedAt": "2026-07-19T10:00:00.000Z",
+  "fingerprint": "{\"node\":{\"nodeId\":\"node-msi-341b683e\"}}"
+}
+```
+
+Fields:
+
+- `event` - fixed string `monitoring.node.overview.changed`
+- `nodeId` - affected node identifier
+- `channel` - node-specific channel name
+- `changedAt` - ISO-8601 emission timestamp
+- `fingerprint` - JSON string fingerprint of the normalized public overview subset used for change detection
+
+### Realtime Emission Rules
+
+The polling sync use case maintains an in-memory checkpoint and an in-memory fingerprint map.
+
+Current behavior:
+
+- on the first sync run after process start, the use case initializes `checkpointSummaryTs` and emits nothing
+- on later runs, it queries changed node ids since the checkpoint for reporting, then iterates the current overview-sync candidate node ids
+- for each candidate node, it rebuilds the overview snapshot
+- if overview composition fails for a node, that node is skipped and a warning is logged
+- if the computed fingerprint matches the previous fingerprint for that node, no event is emitted
+- if the fingerprint changed or the node has not been seen before in memory, one event is emitted
+- after the sync loop finishes, the checkpoint is updated to the latest node change summary timestamp
+
+The fingerprint currently includes only:
 
 - `node`
 - `summaryMetrics`
 - `workloadSummary`
 - `workloads`
 
-This keeps frontend rendering logic consistent between initial load and subsequent updates.
+The `realtime` block is intentionally excluded from change detection.
 
-#### Subscription Model
+### Consumer Flow
 
-Current implementation uses namespace-wide delivery with client-side filtering.
+1. The client calls `GET /api/v1/monitoring/nodes/:nodeId/overview`.
+2. The client renders the snapshot from the REST response.
+3. The client connects to Socket.IO namespace `/monitoring`.
+4. The client listens to either `monitoring.node.overview.changed` or `data.realtime.channel`.
+5. When a matching event arrives, the client refetches `GET /api/v1/monitoring/nodes/:nodeId/overview`.
 
-Rules:
+## Notes
 
-- the event payload always includes `node.nodeId`
-- the client decides whether to render it for the currently open node panel
-- there is no requirement for a room-per-node design in this phase
-
-#### Emission Rules
-
-Emit the event when any public overview field changes:
-
-- `node.status`
-- `node.severity`
-- `node.lastSeenAt`
-- `node.freshnessSec`
-- any `summaryMetrics` field
-- any `workloadSummary` field
-- the top-5 workload list
-
-Do not emit when the normalized public overview snapshot is unchanged.
-
-## Example Consumer Flow
-
-1. Frontend opens a node overview panel.
-2. Frontend requests `GET /api/v1/monitoring/nodes/:nodeId/overview`.
-3. Frontend renders the snapshot immediately.
-4. Frontend listens for `monitoring.node.overview.updated`.
-5. If the event matches the open `nodeId`, frontend replaces the visible overview state.
-
-## Implementation Notes
-
-The contract currently reflects the snapshot-only overview implementation:
-
-- node snapshot source: `telemetry_db.node_current_summary`
-- workload source: `telemetry_db.container_current_summary`
-- realtime sync is driven from the existing poll cycle
-- deep insight should be designed separately in a later contract
-
+- The controller is mounted at `monitoring/nodes`, so the public route is `GET /api/v1/monitoring/nodes/:nodeId/overview` when the service is served under `/api/v1`.
+- The documented contract reflects the current DTOs, controller annotations, composer logic, and realtime sync implementation as of July 19, 2026.

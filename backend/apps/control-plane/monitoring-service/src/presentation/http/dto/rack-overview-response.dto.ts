@@ -3,376 +3,344 @@ import {
   ApiPropertyOptional,
   getSchemaPath,
 } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import {
+  IsBooleanString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 import { ResponseMetaDto } from './health-response.dto';
 
-export class RackOverviewCountsDto {
-  @ApiProperty({
-    description: 'Total number of racks visible to the caller.',
-    example: 48,
-  })
-  total!: number;
-
-  @ApiProperty({
-    description: 'Number of racks currently in critical severity.',
-    example: 6,
-  })
-  critical!: number;
-
-  @ApiProperty({
-    description: 'Number of racks currently in warning severity.',
-    example: 11,
-  })
-  warning!: number;
-
-  @ApiProperty({
+export class RackOverviewQueryDto {
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({
     description:
-      'Number of racks that currently show stale nodes or signal-loss symptoms.',
-    example: 3,
+      'Comma-separated severity filters. Accepts labels or numeric codes.',
+    example: 'critical,high',
   })
-  stale!: number;
+  severity?: string;
 
-  @ApiProperty({
-    description: 'Number of racks currently flagged with signal loss.',
-    example: 2,
-  })
-  signalLoss!: number;
-
-  @ApiProperty({
-    description: 'Number of racks currently flagged as rack-level failures.',
-    example: 4,
-  })
-  rackLevelFailure!: number;
-}
-
-export class RackOverviewOverviewDto {
-  @ApiProperty({
-    description: 'Top-level rack counters for the current overview.',
-    type: RackOverviewCountsDto,
-  })
-  counts!: RackOverviewCountsDto;
-}
-
-export class RackOverviewRiskCardRackDto {
-  @ApiProperty({
-    description: 'Stable rack identifier from topology.',
-    example: 'rack-a1',
-  })
-  id!: string;
-
-  @ApiProperty({
-    description:
-      'Human-friendly rack label. Falls back to the rack identifier when enrichment is unavailable.',
-    example: 'Local Lab 01',
-  })
-  name!: string;
-
-  @ApiProperty({
-    description: 'Rack code from asset context or fallback identifier.',
-    example: 'LOCAL-LAB-01',
-  })
-  code!: string;
-}
-
-export class RackOverviewRiskCardStatusDto {
-  @ApiProperty({
-    description: 'Consumer-friendly rack severity label.',
-    enum: ['normal', 'warning', 'critical'],
-    example: 'critical',
-  })
-  severity!: 'normal' | 'warning' | 'critical';
-
-  @ApiProperty({
-    description:
-      'Whether the rack contains an override-worthy critical condition.',
-    example: true,
-  })
-  override!: boolean;
-
-  @ApiProperty({
-    description:
-      'Whether the current blast radius is broad enough to classify a rack-level failure.',
-    example: true,
-  })
-  rackLevelFailure!: boolean;
-
-  @ApiProperty({
-    description:
-      'Whether the rack currently exhibits silent-death or signal-loss symptoms.',
+  @IsOptional()
+  @IsBooleanString()
+  @ApiPropertyOptional({
+    description: 'Restrict results to racks currently flagged with signal loss.',
     example: false,
   })
-  signalLoss!: boolean;
+  onlySignalLoss?: boolean | string;
 
-  @ApiProperty({
+  @IsOptional()
+  @IsBooleanString()
+  @ApiPropertyOptional({
     description:
-      'Number of nodes currently considered stale or missing recent telemetry.',
-    example: 0,
+      'Restrict results to racks currently flagged as rack-level failures.',
+    example: false,
   })
-  staleNodes!: number;
+  onlyFailure?: boolean | string;
+
+  @IsOptional()
+  @IsString()
+  @ApiPropertyOptional({
+    description: 'Partial match against rackCode or displayName.',
+    example: 'LOCAL-LAB',
+  })
+  search?: string;
+
+  @IsOptional()
+  @IsEnum(['severity', 'badNodeRatio', 'updatedAt'])
+  @ApiPropertyOptional({
+    description: 'Allowlisted sort field.',
+    enum: ['severity', 'badNodeRatio', 'updatedAt'],
+    example: 'severity',
+  })
+  sortBy?: 'severity' | 'badNodeRatio' | 'updatedAt';
+
+  @IsOptional()
+  @IsEnum(['asc', 'desc'])
+  @ApiPropertyOptional({
+    description: 'Sort direction.',
+    enum: ['asc', 'desc'],
+    example: 'desc',
+  })
+  sortOrder?: 'asc' | 'desc';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @ApiPropertyOptional({
+    description: '1-based page index.',
+    example: 1,
+  })
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  @ApiPropertyOptional({
+    description: 'Page size limit.',
+    example: 50,
+  })
+  limit?: number;
 }
 
-export class RackOverviewRiskCardMetricsDto {
+export class RackOverviewGlobalCountersDto {
+  @ApiProperty({ example: 2 })
+  totalRacks!: number;
+
+  @ApiProperty({ example: 2 })
+  criticalCount!: number;
+
+  @ApiProperty({ example: 0 })
+  highCount!: number;
+
+  @ApiProperty({ example: 0 })
+  warningCount!: number;
+
+  @ApiProperty({ example: 0 })
+  staleCount!: number;
+
+  @ApiProperty({ example: 0 })
+  healthyCount!: number;
+
+  @ApiProperty({ example: 0 })
+  globalRackLevelFailures!: number;
+}
+
+export class RackOverviewRackInfoDto {
+  @ApiProperty({ example: '6a5771e5931033f3bd53fb87' })
+  id!: string;
+
+  @ApiProperty({ example: 'LOCAL-LAB-01' })
+  rackCode!: string;
+
+  @ApiProperty({ example: 'Local Lab 01' })
+  displayName!: string;
+
+  @ApiProperty({ nullable: true, example: 'ACTIVE' })
+  lifecycleState!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'AVAILABLE' })
+  capacityState!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'MY-HOME' })
+  siteCode!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'ROOM-01' })
+  roomCode!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'ROW-1' })
+  rowCode!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'P-1' })
+  positionCode!: string | null;
+
+  @ApiProperty({ nullable: true, example: 42 })
+  capacityLimit!: number | null;
+
+  @ApiProperty({ nullable: true, example: '' })
+  notes!: string | null;
+
+  @ApiProperty({ nullable: true, example: 'DELL' })
+  vendor!: string | null;
+
   @ApiProperty({
-    description: 'Total number of nodes currently mapped to the rack.',
-    example: 24,
+    type: 'object',
+    additionalProperties: true,
+    example: { seeded: true },
   })
+  metadata!: Record<string, unknown>;
+
+  @ApiProperty({ example: '2026-07-16T11:35:59.000Z' })
+  updatedAt!: string;
+}
+
+export class RackOverviewHealthStatusDto {
+  @ApiProperty({ example: 4 })
+  severityCode!: number;
+
+  @ApiProperty({
+    enum: ['HEALTHY', 'STALE', 'WARNING', 'HIGH', 'CRITICAL'],
+    example: 'CRITICAL',
+  })
+  severityText!: 'HEALTHY' | 'STALE' | 'WARNING' | 'HIGH' | 'CRITICAL';
+
+  @ApiProperty({ example: false })
+  isRackLevelFailure!: boolean;
+
+  @ApiProperty({ example: true })
+  hasSignalLoss!: boolean;
+
+  @ApiProperty({ example: true })
+  hasOverrideFlag!: boolean;
+}
+
+export class RackOverviewBlastRadiusDto {
+  @ApiProperty({ example: 2 })
   totalNodes!: number;
 
-  @ApiProperty({
-    description:
-      'Number of nodes with severity >= 2 in the current rack snapshot.',
-    example: 13,
-  })
+  @ApiProperty({ example: 0 })
   badNodes!: number;
 
-  @ApiProperty({
-    description: 'Number of nodes currently in critical severity.',
-    example: 5,
-  })
+  @ApiProperty({ example: 0 })
   criticalNodes!: number;
 
-  @ApiProperty({
-    description: 'Number of nodes currently in warning severity.',
-    example: 8,
-  })
+  @ApiProperty({ example: 0 })
   warningNodes!: number;
 
-  @ApiProperty({
-    description: 'Current ratio of bad nodes over total nodes in the rack.',
-    example: 0.5417,
-  })
+  @ApiProperty({ example: 2 })
+  staleNodes!: number;
+
+  @ApiProperty({ example: 2 })
+  silentDeadNodes!: number;
+
+  @ApiProperty({ example: 0 })
   badNodeRatio!: number;
 }
 
-export class RackOverviewRiskCardMetricValueDto {
-  @ApiProperty({
-    description: 'Numeric value of the culprit metric when available.',
-    example: 98.4,
-  })
-  numeric!: number;
+export class RackOverviewAggregateMetricsDto {
+  @ApiProperty({ nullable: true, example: null })
+  avgCpuUsagePct!: number | null;
 
-  @ApiProperty({
-    description: 'Text representation of the culprit metric value.',
-    example: '98.4',
-  })
-  text!: string;
+  @ApiProperty({ nullable: true, example: null })
+  avgMemoryUsedPct!: number | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  maxDiskUsedPct!: number | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  maxCpuTemperatureC!: number | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  sumNetworkRxBytesSec!: number | null;
+
+  @ApiProperty({ nullable: true, example: null })
+  sumNetworkTxBytesSec!: number | null;
 }
 
-export class RackOverviewRiskCardMetricDto {
-  @ApiProperty({
-    description: 'Metric key currently driving the rack risk posture.',
-    example: 'node.memory_used_pct',
-  })
-  key!: string;
+export class RackOverviewCulpritDto {
+  @ApiProperty({ example: 'rack.signal.loss' })
+  worstNodeId!: string;
+
+  @ApiProperty({ example: 'rack.heartbeat.loss' })
+  worstMetricKey!: string;
 
   @ApiProperty({
-    description: 'Parsed metric tags associated with the culprit metric.',
     type: 'object',
     additionalProperties: true,
-    example: { host: 'node-17' },
+    example: {},
   })
-  tags!: Record<string, unknown>;
+  worstMetricTags!: Record<string, unknown>;
 
-  @ApiProperty({
-    description: 'Current culprit metric value.',
-    type: RackOverviewRiskCardMetricValueDto,
-  })
-  value!: RackOverviewRiskCardMetricValueDto;
+  @ApiProperty({ nullable: true, example: 0 })
+  worstMetricValueNumeric!: number | null;
+
+  @ApiProperty({ nullable: true, example: 'RACK_DISCONNECTED' })
+  worstMetricValueText!: string | null;
 }
 
-export class RackOverviewRiskCardCulpritDto {
-  @ApiProperty({
-    description: 'Node identifier currently considered the rack-level culprit.',
-    example: 'node-17',
-  })
-  nodeId!: string;
-
-  @ApiProperty({
-    description: 'Metric details associated with the rack-level culprit.',
-    type: RackOverviewRiskCardMetricDto,
-  })
-  metric!: RackOverviewRiskCardMetricDto;
-}
-
-export class RackOverviewRiskCardTrendDto {
-  @ApiProperty({
-    description:
-      'Current severity minus the latest previous 1-minute severity snapshot.',
-    example: 1,
-  })
+export class RackOverviewTrendDto {
+  @ApiProperty({ example: 0 })
   delta1m!: number;
 
-  @ApiProperty({
-    description:
-      'Current severity minus the latest previous 5-minute severity snapshot.',
-    example: 2,
-  })
+  @ApiProperty({ example: 0 })
   delta5m!: number;
 
-  @ApiPropertyOptional({
-    description:
-      'Seconds since the current rack risk posture began. Null when history is unavailable.',
-    example: 42,
-  })
-  lastChangeAgeSec?: number | null;
+  @ApiProperty({ nullable: true, example: null })
+  lastChangeAgeSec!: number | null;
 }
 
-export class RackOverviewRiskCardLocationDto {
-  @ApiPropertyOptional({
-    description: 'Physical site code of the rack.',
-    example: 'MY-HOME',
-  })
-  site?: string;
+export class RackOverviewRackItemDto {
+  @ApiProperty({ type: RackOverviewRackInfoDto })
+  rackInfo!: RackOverviewRackInfoDto;
 
-  @ApiPropertyOptional({
-    description: 'Room code of the rack.',
-    example: 'ROOM-01',
-  })
-  room?: string;
+  @ApiProperty({ type: RackOverviewHealthStatusDto })
+  healthStatus!: RackOverviewHealthStatusDto;
 
-  @ApiPropertyOptional({
-    description: 'Zone code of the rack.',
-    example: 'ZONE-1',
-  })
-  zone?: string;
+  @ApiProperty({ type: RackOverviewBlastRadiusDto })
+  blastRadius!: RackOverviewBlastRadiusDto;
 
-  @ApiPropertyOptional({
-    description: 'Row code of the rack.',
-    example: 'ROW-1',
-  })
-  row?: string;
+  @ApiProperty({ type: RackOverviewAggregateMetricsDto })
+  aggregateMetrics!: RackOverviewAggregateMetricsDto;
 
-  @ApiPropertyOptional({
-    description: 'Position code of the rack inside the row.',
-    example: 'P-1',
-  })
-  position?: string;
+  @ApiProperty({ type: RackOverviewCulpritDto })
+  culprit!: RackOverviewCulpritDto;
+
+  @ApiProperty({ type: RackOverviewTrendDto })
+  trend!: RackOverviewTrendDto;
 }
 
-export class RackOverviewRiskCardDto {
+export class RackOverviewActiveFiltersDto {
   @ApiProperty({
-    description: 'Rack identity and display information for the risk card.',
-    type: RackOverviewRiskCardRackDto,
-  })
-  rack!: RackOverviewRiskCardRackDto;
-
-  @ApiProperty({
-    description: 'Consumer-friendly operational status for the rack.',
-    type: RackOverviewRiskCardStatusDto,
-  })
-  status!: RackOverviewRiskCardStatusDto;
-
-  @ApiProperty({
-    description: 'Node-level blast-radius metrics for the rack.',
-    type: RackOverviewRiskCardMetricsDto,
-  })
-  metrics!: RackOverviewRiskCardMetricsDto;
-
-  @ApiProperty({
-    description: 'Primary culprit explanation for the rack risk posture.',
-    type: RackOverviewRiskCardCulpritDto,
-  })
-  culprit!: RackOverviewRiskCardCulpritDto;
-
-  @ApiProperty({
-    description: 'Historical trend information for the rack risk posture.',
-    type: RackOverviewRiskCardTrendDto,
-  })
-  trend!: RackOverviewRiskCardTrendDto;
-
-  @ApiProperty({
-    description: 'Timestamp when the current rack summary was produced.',
-    example: '2026-07-01 10:15:00',
-  })
-  updatedAt!: string;
-
-  @ApiProperty({
-    description: 'Physical location details for the rack.',
-    type: RackOverviewRiskCardLocationDto,
-  })
-  location!: RackOverviewRiskCardLocationDto;
-}
-
-export class RackOverviewRackListDto {
-  @ApiProperty({
-    description: 'Operational sort order applied to the returned rack list.',
-    example: [
-      'severity',
-      'rackLevelFailure',
-      'signalLoss',
-      'badNodeRatio',
-      'staleNodes',
-      'updatedAt',
-      'rackId',
-    ],
     type: [String],
-  })
-  sort!: string[];
-}
-
-export class RackOverviewFiltersDto {
-  @ApiProperty({
-    description: 'Severity filter values supported by the UI.',
-    example: ['critical', 'warning', 'stale', 'normal'],
-    type: [String],
+    example: ['critical', 'high', 'warning', 'stale', 'healthy'],
   })
   severity!: string[];
 
-  @ApiProperty({
-    description: 'Whether the result set is restricted to rack-level failures.',
-    example: false,
-  })
+  @ApiProperty({ example: false })
   onlyFailure!: boolean;
 
-  @ApiProperty({
-    description: 'Whether the result set is restricted to signal-loss racks.',
-    example: false,
-  })
+  @ApiProperty({ example: false })
   onlySignalLoss!: boolean;
+
+  @ApiProperty({ example: '' })
+  search!: string;
+}
+
+export class RackOverviewPaginationAndSortDto {
+  @ApiProperty({ example: 1 })
+  currentPage!: number;
+
+  @ApiProperty({ example: 50 })
+  pageSize!: number;
+
+  @ApiProperty({ example: 1 })
+  totalPages!: number;
+
+  @ApiProperty({ example: 2 })
+  totalItems!: number;
+
+  @ApiProperty({
+    enum: ['severity', 'badNodeRatio', 'updatedAt'],
+    example: 'severity',
+  })
+  currentSortBy!: 'severity' | 'badNodeRatio' | 'updatedAt';
+
+  @ApiProperty({
+    enum: ['asc', 'desc'],
+    example: 'desc',
+  })
+  currentSortOrder!: 'asc' | 'desc';
+
+  @ApiProperty({ type: RackOverviewActiveFiltersDto })
+  activeFilters!: RackOverviewActiveFiltersDto;
 }
 
 export class MonitoringRackOverviewResponseDto {
-  @ApiProperty({
-    description: 'Timestamp when the overview payload was generated.',
-    example: '2026-07-01T10:15:00+07:00',
-  })
+  @ApiProperty({ example: '2026-07-19T11:02:54.220Z' })
   generatedAt!: string;
 
-  @ApiProperty({
-    description: 'Contract scope identifier for the dashboard payload.',
-    example: 'rack',
-  })
+  @ApiProperty({ example: 'rack' })
   scope!: 'rack';
 
-  @ApiProperty({
-    description: 'Logical view identifier for the response payload.',
-    example: 'operator_dashboard',
-  })
+  @ApiProperty({ example: 'operator_dashboard' })
   view!: 'operator_dashboard';
 
-  @ApiProperty({
-    description: 'Top-level rack counters for the current overview.',
-    type: RackOverviewOverviewDto,
-  })
-  overview!: RackOverviewOverviewDto;
+  @ApiProperty({ type: RackOverviewGlobalCountersDto })
+  globalCounters!: RackOverviewGlobalCountersDto;
 
-  @ApiProperty({
-    description: 'Backend-derived subset of the highest-risk racks.',
-    type: [RackOverviewRiskCardDto],
-  })
-  riskCards!: RackOverviewRiskCardDto[];
+  @ApiProperty({ type: [RackOverviewRackItemDto] })
+  racks!: RackOverviewRackItemDto[];
 
-  @ApiProperty({
-    description: 'Full rack list payload for the overview screen.',
-    type: RackOverviewRackListDto,
-  })
-  rackList!: RackOverviewRackListDto;
-
-  @ApiProperty({
-    description: 'Filter options and defaults supported by the UI.',
-    type: RackOverviewFiltersDto,
-  })
-  filters!: RackOverviewFiltersDto;
+  @ApiProperty({ type: RackOverviewPaginationAndSortDto })
+  paginationAndSort!: RackOverviewPaginationAndSortDto;
 }
 
 export class MonitoringRackOverviewResponseEnvelopeDto {
@@ -381,8 +349,6 @@ export class MonitoringRackOverviewResponseEnvelopeDto {
   })
   data!: MonitoringRackOverviewResponseDto;
 
-  @ApiProperty({
-    type: ResponseMetaDto,
-  })
+  @ApiProperty({ type: ResponseMetaDto })
   meta!: ResponseMetaDto;
 }

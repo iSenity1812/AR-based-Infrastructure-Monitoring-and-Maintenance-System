@@ -4,9 +4,9 @@ import {
   Headers,
   Param,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -14,6 +14,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 
 import { PERMISSION_CODES } from '@adapters/inbound/http/constants/permission-code.constant';
 import { RequirePermissions } from '@adapters/inbound/http/decorators/require-permissions.decorator';
@@ -49,18 +50,28 @@ export class AlertIncidentHandoffController {
     @Param('fingerprint') fingerprint: string,
     @Body() input: CreateIncidentFromAlertRequestDto = {},
     @Headers('authorization') authorizationHeader?: string,
-    @Headers('x-correlation-id') correlationId?: string,
+    @Req() request?: Request,
   ): Promise<CreateIncidentFromAlertResponseDto> {
     return this.createIncidentFromAlertUseCase.execute({
       fingerprint,
       authorizationHeader: authorizationHeader ?? null,
-      correlationId: normalizeCorrelationId(correlationId) ?? randomUUID(),
+      correlationId: getCorrelationId(request),
       title: input.title,
       description: input.description,
       operatorNote: input.operatorNote,
       severityOverride: input.severityOverride,
     });
   }
+}
+
+function getCorrelationId(request: Request | undefined): string | undefined {
+  const correlationId = request?.headers['x-correlation-id'];
+
+  if (Array.isArray(correlationId)) {
+    return normalizeCorrelationId(correlationId[0]);
+  }
+
+  return normalizeCorrelationId(correlationId);
 }
 
 function normalizeCorrelationId(input: string | undefined): string | undefined {

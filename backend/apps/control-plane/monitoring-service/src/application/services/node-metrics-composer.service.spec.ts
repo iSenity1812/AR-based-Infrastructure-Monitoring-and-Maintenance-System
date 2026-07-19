@@ -8,6 +8,7 @@ import type {
 import {
   buildMetricsMeta,
   buildMetricsConfig,
+  resolveLiveMetricsSeedWindow,
   selectNodeMetricsWorkloads,
   NodeMetricsComposerService,
 } from './node-metrics-composer.service';
@@ -49,6 +50,34 @@ describe('buildMetricsConfig', () => {
         'networkTxBytesSec',
       ],
       workloadMetricKeys: ['cpuUsagePct', 'memoryUsagePct'],
+    });
+  });
+});
+
+describe('resolveLiveMetricsSeedWindow', () => {
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-12T09:12:34.000Z'));
+  });
+
+  it('defaults to the last 5 minutes at 5 second resolution', () => {
+    expect(resolveLiveMetricsSeedWindow()).toEqual({
+      fromTs: '2026-07-12T09:07:30.000Z',
+      toTs: '2026-07-12T09:12:30.000Z',
+      resolutionSec: 5,
+    });
+  });
+
+  it('caps the live window to 400 points', () => {
+    expect(
+      resolveLiveMetricsSeedWindow({
+        from: '2026-07-12T08:00:00.000Z',
+        to: '2026-07-12T09:12:30.000Z',
+        interval: '5',
+      }),
+    ).toEqual({
+      fromTs: '2026-07-12T08:39:15.000Z',
+      toTs: '2026-07-12T09:12:30.000Z',
+      resolutionSec: 5,
     });
   });
 });
@@ -177,12 +206,114 @@ describe('NodeMetricsComposerService', () => {
     expect(response.seedWindow.timestamps).toEqual(['2026-07-12T09:12:00.000Z']);
     expect(response.seedWindow.workloadMetrics).toEqual({});
   });
+
+  it('composes live metrics bootstrap with a 5 second grid', async () => {
+    const repository = createRepository({
+      workloads: [
+        createWorkload({ workloadId: 'container-api', name: 'api', cpuUsagePct: 46.1, memoryUsagePct: 38.7 }),
+      ],
+      nodeBuckets: [],
+      workloadBuckets: [],
+      liveNodeBuckets: [
+        createNodeBucket({ ts: '2026-07-12 09:12:25', cpuUsagePct: 70.1 }),
+        createNodeBucket({ ts: '2026-07-12 09:12:30', cpuUsagePct: 72.4 }),
+      ],
+      liveWorkloadBuckets: [
+        {
+          ts: '2026-07-12 09:12:25',
+          workloadId: 'container-api',
+          nodeId: 'node-a1',
+          cpuUsagePct: 40.2,
+          memoryUsagePct: 36.4,
+        },
+      ],
+    });
+    const composer = new NodeMetricsComposerService(repository);
+
+    const response = await composer.buildLiveMetrics('node-a1');
+
+    expect(response.metricsConfig.bucketSec).toBe(5);
+    expect(response.seedWindow.resolutionSec).toBe(5);
+    expect(response.seedWindow.timestamps).toEqual([
+      '2026-07-12T09:07:30.000Z',
+      '2026-07-12T09:07:35.000Z',
+      '2026-07-12T09:07:40.000Z',
+      '2026-07-12T09:07:45.000Z',
+      '2026-07-12T09:07:50.000Z',
+      '2026-07-12T09:07:55.000Z',
+      '2026-07-12T09:08:00.000Z',
+      '2026-07-12T09:08:05.000Z',
+      '2026-07-12T09:08:10.000Z',
+      '2026-07-12T09:08:15.000Z',
+      '2026-07-12T09:08:20.000Z',
+      '2026-07-12T09:08:25.000Z',
+      '2026-07-12T09:08:30.000Z',
+      '2026-07-12T09:08:35.000Z',
+      '2026-07-12T09:08:40.000Z',
+      '2026-07-12T09:08:45.000Z',
+      '2026-07-12T09:08:50.000Z',
+      '2026-07-12T09:08:55.000Z',
+      '2026-07-12T09:09:00.000Z',
+      '2026-07-12T09:09:05.000Z',
+      '2026-07-12T09:09:10.000Z',
+      '2026-07-12T09:09:15.000Z',
+      '2026-07-12T09:09:20.000Z',
+      '2026-07-12T09:09:25.000Z',
+      '2026-07-12T09:09:30.000Z',
+      '2026-07-12T09:09:35.000Z',
+      '2026-07-12T09:09:40.000Z',
+      '2026-07-12T09:09:45.000Z',
+      '2026-07-12T09:09:50.000Z',
+      '2026-07-12T09:09:55.000Z',
+      '2026-07-12T09:10:00.000Z',
+      '2026-07-12T09:10:05.000Z',
+      '2026-07-12T09:10:10.000Z',
+      '2026-07-12T09:10:15.000Z',
+      '2026-07-12T09:10:20.000Z',
+      '2026-07-12T09:10:25.000Z',
+      '2026-07-12T09:10:30.000Z',
+      '2026-07-12T09:10:35.000Z',
+      '2026-07-12T09:10:40.000Z',
+      '2026-07-12T09:10:45.000Z',
+      '2026-07-12T09:10:50.000Z',
+      '2026-07-12T09:10:55.000Z',
+      '2026-07-12T09:11:00.000Z',
+      '2026-07-12T09:11:05.000Z',
+      '2026-07-12T09:11:10.000Z',
+      '2026-07-12T09:11:15.000Z',
+      '2026-07-12T09:11:20.000Z',
+      '2026-07-12T09:11:25.000Z',
+      '2026-07-12T09:11:30.000Z',
+      '2026-07-12T09:11:35.000Z',
+      '2026-07-12T09:11:40.000Z',
+      '2026-07-12T09:11:45.000Z',
+      '2026-07-12T09:11:50.000Z',
+      '2026-07-12T09:11:55.000Z',
+      '2026-07-12T09:12:00.000Z',
+      '2026-07-12T09:12:05.000Z',
+      '2026-07-12T09:12:10.000Z',
+      '2026-07-12T09:12:15.000Z',
+      '2026-07-12T09:12:20.000Z',
+      '2026-07-12T09:12:25.000Z',
+      '2026-07-12T09:12:30.000Z',
+    ]);
+    const nodeCpuSeries = response.seedWindow.nodeMetrics.cpuUsagePct;
+    const workloadCpuSeries =
+      response.seedWindow.workloadMetrics['container-api'].cpuUsagePct;
+
+    expect(nodeCpuSeries[nodeCpuSeries.length - 2]).toBe(70.1);
+    expect(nodeCpuSeries[nodeCpuSeries.length - 1]).toBe(72.4);
+    expect(workloadCpuSeries[workloadCpuSeries.length - 2]).toBe(40.2);
+    expect(workloadCpuSeries[workloadCpuSeries.length - 1]).toBeNull();
+  });
 });
 
 function createRepository(input: {
   workloads: NodeMetricsWorkloadRecord[];
   nodeBuckets: NodeMetricsNodeBucketRecord[];
   workloadBuckets: ReturnType<NodeMetricsReadRepository['listWorkloadSeedBuckets']> extends Promise<infer T> ? T : never;
+  liveNodeBuckets?: NodeMetricsNodeBucketRecord[];
+  liveWorkloadBuckets?: ReturnType<NodeMetricsReadRepository['listWorkloadLiveBuckets']> extends Promise<infer T> ? T : never;
 }): NodeMetricsReadRepository {
   return {
     getCurrentNode: jest.fn().mockResolvedValue({
@@ -198,6 +329,8 @@ function createRepository(input: {
     listNodeWorkloads: jest.fn().mockResolvedValue(input.workloads),
     listNodeSeedBuckets: jest.fn().mockResolvedValue(input.nodeBuckets),
     listWorkloadSeedBuckets: jest.fn().mockResolvedValue(input.workloadBuckets),
+    listNodeLiveBuckets: jest.fn().mockResolvedValue(input.liveNodeBuckets ?? []),
+    listWorkloadLiveBuckets: jest.fn().mockResolvedValue(input.liveWorkloadBuckets ?? []),
     getLatestMetricsChangeSummaryTs: jest.fn(),
     listChangedNodeIdsSince: jest.fn(),
     listNodeIdsForMetricsSync: jest.fn(),

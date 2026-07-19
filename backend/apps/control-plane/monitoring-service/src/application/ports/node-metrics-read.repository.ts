@@ -58,6 +58,7 @@ export interface NodeMetricsSeedWindowQuery {
 export interface NodeMetricsRangeInput {
   from?: string;
   to?: string;
+  interval?: string;
 }
 
 export abstract class NodeMetricsReadRepository {
@@ -75,6 +76,17 @@ export abstract class NodeMetricsReadRepository {
   ): Promise<NodeMetricsNodeBucketRecord[]>;
 
   abstract listWorkloadSeedBuckets(
+    nodeId: string,
+    workloadIds: string[],
+    window: NodeMetricsSeedWindowQuery,
+  ): Promise<NodeMetricsWorkloadBucketRecord[]>;
+
+  abstract listNodeLiveBuckets(
+    nodeId: string,
+    window: NodeMetricsSeedWindowQuery,
+  ): Promise<NodeMetricsNodeBucketRecord[]>;
+
+  abstract listWorkloadLiveBuckets(
     nodeId: string,
     workloadIds: string[],
     window: NodeMetricsSeedWindowQuery,

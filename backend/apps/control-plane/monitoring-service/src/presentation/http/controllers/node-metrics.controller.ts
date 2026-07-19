@@ -58,4 +58,45 @@ export class NodeMetricsController {
       { from, to },
     ) as Promise<MonitoringNodeMetricsResponseDto>;
   }
+
+  @Get(':nodeId/metrics/live')
+  @RequirePermissions(PERMISSION_CODES.DASHBOARD_READ)
+  @ApiParam({
+    name: 'nodeId',
+    description: 'Stable node identifier from monitoring scope.',
+    example: 'node-msi-8bc4df0d',
+  })
+  @ApiOperation({
+    summary: 'Get live node metrics bootstrap payload for short-interval charts.',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Inclusive ISO-8601 lower bound for the live seed window.',
+    example: '2026-07-18T15:58:00.000Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    description: 'Inclusive ISO-8601 upper bound for the live seed window.',
+    example: '2026-07-18T16:03:00.000Z',
+  })
+  @ApiQuery({
+    name: 'interval',
+    required: false,
+    description: 'Requested live bucket interval in seconds.',
+    example: '5',
+  })
+  @ApiOkResponse({ type: MonitoringNodeMetricsResponseEnvelopeDto })
+  async getNodeLiveMetrics(
+    @Param('nodeId') nodeId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('interval') interval?: string,
+  ): Promise<MonitoringNodeMetricsResponseDto> {
+    return this.getNodeMetricsUseCase.executeLive(
+      nodeId,
+      { from, to, interval },
+    ) as Promise<MonitoringNodeMetricsResponseDto>;
+  }
 }

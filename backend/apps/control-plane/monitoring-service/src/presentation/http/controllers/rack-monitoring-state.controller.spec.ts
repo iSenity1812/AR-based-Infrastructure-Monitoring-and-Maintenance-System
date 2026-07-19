@@ -29,7 +29,55 @@ describe('RackMonitoringStateController', () => {
       generatedAt: '2026-07-08T10:00:00.000Z',
       scope: 'rack',
       view: 'monitoring_state',
-      items: [],
+      items: [
+        {
+          rack: {
+            id: 'rack-a1',
+            rackCode: 'RACK-A1',
+            displayName: 'Rack A1',
+            lifecycleState: 'ACTIVE',
+            capacityState: 'AVAILABLE',
+            siteCode: null,
+            roomCode: null,
+            rowCode: null,
+            positionCode: null,
+            capacityLimit: null,
+            notes: null,
+            vendor: null,
+            metadata: {},
+          },
+          status: {
+            state: 'healthy',
+            severity: {
+              code: 0,
+              level: 'none',
+            },
+            activeAlertCount: 0,
+            lastChangedAt: null,
+            lifecycleStatus: 'resolved',
+            override: false,
+          },
+          timeline: {
+            firstObservedAt: null,
+            lastObservedAt: null,
+            openedAt: null,
+            resolvedAt: null,
+          },
+          alertsSummary: {
+            bySeverity: {
+              critical: 0,
+              warning: 0,
+            },
+            primaryAlertFingerprint: null,
+          },
+          alerts: [],
+          notification: {
+            syncStatus: 'idle',
+            lastNotificationAttemptAt: null,
+            lastNotificationSyncedAt: null,
+          },
+        },
+      ],
     });
     const controller = new RackMonitoringStateController({
       execute,
@@ -39,7 +87,55 @@ describe('RackMonitoringStateController', () => {
       generatedAt: '2026-07-08T10:00:00.000Z',
       scope: 'rack',
       view: 'monitoring_state',
-      items: [],
+      items: [
+        {
+          rack: {
+            id: 'rack-a1',
+            rackCode: 'RACK-A1',
+            displayName: 'Rack A1',
+            lifecycleState: 'ACTIVE',
+            capacityState: 'AVAILABLE',
+            siteCode: null,
+            roomCode: null,
+            rowCode: null,
+            positionCode: null,
+            capacityLimit: null,
+            notes: null,
+            vendor: null,
+            metadata: {},
+          },
+          status: {
+            state: 'healthy',
+            severity: {
+              code: 0,
+              level: 'none',
+            },
+            activeAlertCount: 0,
+            lastChangedAt: null,
+            lifecycleStatus: 'resolved',
+            override: false,
+          },
+          timeline: {
+            firstObservedAt: null,
+            lastObservedAt: null,
+            openedAt: null,
+            resolvedAt: null,
+          },
+          alertsSummary: {
+            bySeverity: {
+              critical: 0,
+              warning: 0,
+            },
+            primaryAlertFingerprint: null,
+          },
+          alerts: [],
+          notification: {
+            syncStatus: 'idle',
+            lastNotificationAttemptAt: null,
+            lastNotificationSyncedAt: null,
+          },
+        },
+      ],
     });
 
     expect(execute).toHaveBeenCalledTimes(1);

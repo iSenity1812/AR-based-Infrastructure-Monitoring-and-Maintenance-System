@@ -35,6 +35,8 @@ export interface NodeOverviewSnapshotRecord {
   networkTxBytesSecUnit: string | null;
   primaryNicStatusCurrent: string | null;
   primaryNicStatusUnit: string | null;
+  uptimeSecondsCurrent: number | null;
+  uptimeSecondsUnit: string | null;
   worstMetricKey: string | null;
   worstMetricValueNumeric: number | null;
   worstMetricValueText: string | null;

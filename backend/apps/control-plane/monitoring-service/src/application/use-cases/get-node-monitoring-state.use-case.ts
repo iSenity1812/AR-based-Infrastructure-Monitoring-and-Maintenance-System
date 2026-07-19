@@ -11,23 +11,36 @@ import type {
 import { AlertCurrentStateRepository } from '../ports/alert-current-state.repository';
 
 export type NodeMonitoringStateItemView = {
-  nodeId: string;
-  rackId: string;
-  state: {
-    status: 'healthy' | 'alerting';
-    highestSeverity: 'none' | 'warning' | 'critical';
+  node: {
+    id: string;
+    rackId: string;
+  };
+  status: {
+    state: 'healthy' | 'alerting';
+    severity: {
+      code: number;
+      level: 'none' | 'warning' | 'critical';
+    };
     activeAlertCount: number;
     lastChangedAt: string | null;
   };
-  alertSummary: {
-    critical: number;
-    warning: number;
+  timeline: {
+    firstObservedAt: string | null;
+    lastObservedAt: string | null;
+    openedAt: string | null;
+    resolvedAt: string | null;
   };
-  primaryAlert: NodePrimaryAlertView | null;
-  activeAlerts: NodeActiveAlertView[];
+  alertsSummary: {
+    bySeverity: {
+      critical: number;
+      warning: number;
+    };
+    primaryAlertFingerprint: string | null;
+  };
+  alerts: NodeActiveAlertView[];
 };
 
-export type NodePrimaryAlertView = {
+export type NodeActiveAlertView = {
   fingerprint: string;
   alertName: string;
   severity: AlertCurrentStateSeverity;
@@ -39,18 +52,6 @@ export type NodePrimaryAlertView = {
   endsAt: string | null;
   dashboardUrl: string | null;
   runbookUrl: string | null;
-  triageStatus: AlertTriageStatus;
-  incident: AlertIncidentLinkageView | null;
-};
-
-export type NodeActiveAlertView = {
-  fingerprint: string;
-  alertName: string;
-  severity: AlertCurrentStateSeverity;
-  category: AlertCurrentStateCategory;
-  status: AlertCurrentStateStatus;
-  summary: string;
-  startsAt: string;
   triageStatus: AlertTriageStatus;
   incident: AlertIncidentLinkageView | null;
 };
@@ -100,15 +101,13 @@ export class GetNodeMonitoringStateUseCase {
   ): NodeMonitoringStateItemView {
     const sortedAlerts = [...alerts].sort(compareAlertsForPrimarySelection);
     const primaryAlert = sortedAlerts[0] ?? null;
-    const alertSummary = {
-      critical: sortedAlerts.filter((alert) => alert.severity === 'critical')
-        .length,
-      warning: sortedAlerts.filter((alert) => alert.severity === 'warning')
-        .length,
-    };
-    const state = {
-      status: sortedAlerts.length > 0 ? 'alerting' : 'healthy',
-      highestSeverity: getHighestSeverity(sortedAlerts),
+    const highestSeverity = getHighestSeverity(sortedAlerts);
+    const status = {
+      state: sortedAlerts.length > 0 ? 'alerting' : 'healthy',
+      severity: {
+        code: mapSeverityToSeverityCode(highestSeverity),
+        level: highestSeverity,
+      },
       activeAlertCount: sortedAlerts.length,
       lastChangedAt: maxIsoOrNull(
         sortedAlerts.map((alert) => alert.lastStatusChangedAt),
@@ -116,12 +115,29 @@ export class GetNodeMonitoringStateUseCase {
     } as const;
 
     return {
-      nodeId,
-      rackId: primaryAlert?.rackId ?? 'unknown',
-      state,
-      alertSummary,
-      primaryAlert: primaryAlert ? mapPrimaryAlert(primaryAlert) : null,
-      activeAlerts: sortedAlerts.map(mapActiveAlert),
+      node: {
+        id: nodeId,
+        rackId: primaryAlert?.rackId ?? 'unknown',
+      },
+      status,
+      timeline: {
+        firstObservedAt: minIsoOrNull(sortedAlerts.map((alert) => alert.startsAt)),
+        lastObservedAt: maxIsoOrNull(
+          sortedAlerts.map((alert) => alert.lastReceivedAt),
+        ),
+        openedAt: primaryAlert?.startsAt ?? null,
+        resolvedAt: null,
+      },
+      alertsSummary: {
+        bySeverity: {
+          critical: sortedAlerts.filter((alert) => alert.severity === 'critical')
+            .length,
+          warning: sortedAlerts.filter((alert) => alert.severity === 'warning')
+            .length,
+        },
+        primaryAlertFingerprint: primaryAlert?.fingerprint ?? null,
+      },
+      alerts: sortedAlerts.map(mapActiveAlert),
     };
   }
 }
@@ -148,7 +164,7 @@ function groupAlertsByNodeId(
   return grouped;
 }
 
-function mapPrimaryAlert(alert: AlertCurrentState): NodePrimaryAlertView {
+function mapActiveAlert(alert: AlertCurrentState): NodeActiveAlertView {
   return {
     fingerprint: alert.fingerprint,
     alertName: alert.alertName,
@@ -161,20 +177,6 @@ function mapPrimaryAlert(alert: AlertCurrentState): NodePrimaryAlertView {
     endsAt: alert.endsAt,
     dashboardUrl: alert.dashboardUrl,
     runbookUrl: alert.runbookUrl,
-    triageStatus: alert.triageStatus,
-    incident: mapIncidentLinkage(alert),
-  };
-}
-
-function mapActiveAlert(alert: AlertCurrentState): NodeActiveAlertView {
-  return {
-    fingerprint: alert.fingerprint,
-    alertName: alert.alertName,
-    severity: alert.severity,
-    category: alert.category,
-    status: alert.status,
-    summary: alert.summary,
-    startsAt: alert.startsAt,
     triageStatus: alert.triageStatus,
     incident: mapIncidentLinkage(alert),
   };
@@ -222,9 +224,9 @@ function compareNodeItems(
   right: NodeMonitoringStateItemView,
 ): number {
   return (
-    compareSeverity(right.state.highestSeverity, left.state.highestSeverity) ||
-    (right.state.lastChangedAt ?? '').localeCompare(left.state.lastChangedAt ?? '') ||
-    left.nodeId.localeCompare(right.nodeId)
+    compareSeverity(right.status.severity.level, left.status.severity.level) ||
+    (right.status.lastChangedAt ?? '').localeCompare(left.status.lastChangedAt ?? '') ||
+    left.node.id.localeCompare(right.node.id)
   );
 }
 
@@ -264,4 +266,21 @@ function severityWeight(
 
 function maxIsoOrNull(values: string[]): string | null {
   return [...values].sort((left, right) => right.localeCompare(left))[0] ?? null;
+}
+
+function minIsoOrNull(values: string[]): string | null {
+  return [...values].sort((left, right) => left.localeCompare(right))[0] ?? null;
+}
+
+function mapSeverityToSeverityCode(
+  severity: 'none' | AlertCurrentStateSeverity,
+): number {
+  switch (severity) {
+    case 'critical':
+      return 3;
+    case 'warning':
+      return 2;
+    case 'none':
+      return 0;
+  }
 }

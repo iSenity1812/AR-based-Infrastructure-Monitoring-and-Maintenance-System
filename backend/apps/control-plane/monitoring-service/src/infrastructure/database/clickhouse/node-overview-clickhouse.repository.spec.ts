@@ -45,6 +45,8 @@ describe('mapNodeOverviewSnapshotRow', () => {
       networkTxBytesSecUnit: 'bytes/sec',
       primaryNicStatusCurrent: 'dormant',
       primaryNicStatusUnit: 'state',
+      uptimeSecondsCurrent: '34880',
+      uptimeSecondsUnit: 'seconds',
       worstMetricKey: 'node.cpu_temperature_c',
       worstMetricValueNumeric: '92',
       worstMetricValueText: '92',
@@ -87,6 +89,8 @@ describe('mapNodeOverviewSnapshotRow', () => {
       networkTxBytesSecUnit: 'bytes/sec',
       primaryNicStatusCurrent: 'dormant',
       primaryNicStatusUnit: 'state',
+      uptimeSecondsCurrent: 34880,
+      uptimeSecondsUnit: 'seconds',
       worstMetricKey: 'node.cpu_temperature_c',
       worstMetricValueNumeric: 92,
       worstMetricValueText: '92',
@@ -167,6 +171,9 @@ describe('NodeOverviewClickhouseRepository incremental change detection', () => 
     );
     expect(query.mock.calls[0][0].query).toContain(
       'cpu_usage_pct_unit AS cpuUsagePctUnit',
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      'uptime_seconds_current AS uptimeSecondsCurrent',
     );
   });
 

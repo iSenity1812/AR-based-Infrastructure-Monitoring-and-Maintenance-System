@@ -1,10 +1,11 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import type {
   NodeOverviewSnapshotRecord,
   NodeOverviewWorkloadRecord,
 } from '../ports/node-overview-read.repository';
 import {
+  NodeOverviewComposerService,
   buildNodeOverviewChangedChannel,
   deriveNodeOverviewSeverity,
   deriveNodeOverviewStatus,
@@ -15,6 +16,18 @@ describe('deriveNodeOverviewStatus', () => {
   const baseSnapshot: NodeOverviewSnapshotRecord = {
     nodeId: 'node-a1',
     summaryTs: '2026-07-10 10:00:00',
+    fingerprintSeenAt: null,
+    batteryModel: null,
+    cpuArchitecture: null,
+    cpuModel: null,
+    gpuModelPrimary: null,
+    hardwareSerial: null,
+    logicalCpuCount: null,
+    macAddress: null,
+    motherboardModel: null,
+    osProduct: null,
+    primaryIpv4: null,
+    ssdModelPrimary: null,
     maxSeverityCode: 0,
     hasOverrideFlag: 0,
     isAnyStale: 0,
@@ -37,6 +50,8 @@ describe('deriveNodeOverviewStatus', () => {
     networkTxBytesSecUnit: 'bytes/sec',
     primaryNicStatusCurrent: 'up',
     primaryNicStatusUnit: 'state',
+    uptimeSecondsCurrent: 34880,
+    uptimeSecondsUnit: 'seconds',
     worstMetricKey: null,
     worstMetricValueNumeric: null,
     worstMetricValueText: null,
@@ -157,5 +172,65 @@ describe('buildNodeOverviewChangedChannel', () => {
     expect(buildNodeOverviewChangedChannel('node-a1')).toBe(
       'monitoring.node.node-a1.overview.changed',
     );
+  });
+});
+
+describe('NodeOverviewComposerService', () => {
+  it('includes uptimeBySeconds in summary metrics', async () => {
+    const snapshot: NodeOverviewSnapshotRecord = {
+      nodeId: 'node-a1',
+      summaryTs: '2026-07-10 10:00:00',
+      fingerprintSeenAt: null,
+      batteryModel: null,
+      cpuArchitecture: null,
+      cpuModel: null,
+      gpuModelPrimary: null,
+      hardwareSerial: null,
+      logicalCpuCount: null,
+      macAddress: null,
+      motherboardModel: null,
+      osProduct: null,
+      primaryIpv4: null,
+      ssdModelPrimary: null,
+      maxSeverityCode: 0,
+      hasOverrideFlag: 0,
+      isAnyStale: 0,
+      staleMetricCount: 0,
+      criticalMetricCount: 0,
+      warningMetricCount: 0,
+      cpuUsagePctCurrent: 10,
+      cpuUsagePctUnit: '%',
+      memoryUsagePctCurrent: 20,
+      memoryUsagePctUnit: '%',
+      diskUsagePctCurrent: 30,
+      diskUsagePctUnit: '%',
+      cpuTemperatureCCurrent: 40,
+      cpuTemperatureCUnit: 'C',
+      cpuPackagePowerWCurrent: 75,
+      cpuPackagePowerWUnit: 'W',
+      networkRxBytesSecCurrent: 50,
+      networkRxBytesSecUnit: 'bytes/sec',
+      networkTxBytesSecCurrent: 60,
+      networkTxBytesSecUnit: 'bytes/sec',
+      primaryNicStatusCurrent: 'up',
+      primaryNicStatusUnit: 'state',
+      uptimeSecondsCurrent: 34880,
+      uptimeSecondsUnit: 'seconds',
+      worstMetricKey: null,
+      worstMetricValueNumeric: null,
+      worstMetricValueText: null,
+    };
+    const repository = {
+      getCurrentNode: jest.fn().mockResolvedValue(snapshot),
+      listNodeWorkloads: jest.fn().mockResolvedValue([]),
+    };
+    const service = new NodeOverviewComposerService(repository as never);
+
+    const overview = await service.buildOverview('node-a1');
+
+    expect(overview.summaryMetrics.uptimeBySeconds).toEqual({
+      value: 34880,
+      unit: 'seconds',
+    });
   });
 });

@@ -23,10 +23,10 @@ export class NodeMetricsConfigDto {
   channel!: string;
 
   @ApiProperty({ example: 60 })
-  bucketSec!: 60;
+  bucketSec!: number;
 
   @ApiProperty({ example: 900 })
-  retentionSec!: 900;
+  retentionSec!: number;
 
   @ApiProperty({
     enum: NODE_METRIC_KEYS,
@@ -135,7 +135,7 @@ export class NodeMetricsSeedWindowDto {
   to!: string | null;
 
   @ApiProperty({ example: 60 })
-  resolutionSec!: 60;
+  resolutionSec!: number;
 
   @ApiProperty({
     type: [String],

@@ -226,6 +226,115 @@ export class NodeMetricsClickhouseRepository
     return rows.map(mapNodeMetricsWorkloadBucketRow);
   }
 
+  async listNodeLiveBuckets(
+    nodeId: string,
+    window: NodeMetricsSeedWindowQuery,
+  ): Promise<NodeMetricsNodeBucketRecord[]> {
+    const result = await this.clickhouseClient.query({
+      query: `
+        WITH
+          parseDateTimeBestEffort({fromTs: String}, 'UTC') AS fromTsUtc,
+          parseDateTimeBestEffort({toTs: String}, 'UTC') AS toTsUtc,
+          toIntervalSecond({resolutionSec: UInt32}) AS resolutionInterval
+        SELECT
+          formatDateTime(
+            toStartOfInterval(
+              toTimeZone(metric_timestamp, 'UTC'),
+              resolutionInterval
+            ),
+            '%F %T',
+            'UTC'
+          ) AS ts,
+          scope_id AS nodeId,
+          avgIf(metric_value_numeric, metric_key = 'node.cpu_usage_pct') AS cpuUsagePct,
+          avgIf(metric_value_numeric, metric_key = 'node.memory_used_pct') AS memoryUsagePct,
+          avgIf(metric_value_numeric, metric_key = 'node.disk_used_pct') AS diskUsagePct,
+          avgIf(metric_value_numeric, metric_key = 'node.cpu_temperature_c') AS cpuTemperatureC,
+          sumIf(metric_value_numeric, metric_key = 'node.network_rx_bytes_sec') AS networkRxBytesSec,
+          sumIf(metric_value_numeric, metric_key = 'node.network_tx_bytes_sec') AS networkTxBytesSec
+        FROM telemetry_db.telemetry_metrics
+        WHERE scope_type = 'node'
+          AND scope_id = {nodeId: String}
+          AND toTimeZone(metric_timestamp, 'UTC') >= fromTsUtc
+          AND toTimeZone(metric_timestamp, 'UTC') <= toTsUtc
+          AND metric_key IN (
+            'node.cpu_usage_pct',
+            'node.memory_used_pct',
+            'node.disk_used_pct',
+            'node.cpu_temperature_c',
+            'node.network_rx_bytes_sec',
+            'node.network_tx_bytes_sec'
+          )
+        GROUP BY ts, nodeId
+        ORDER BY ts ASC
+      `,
+      query_params: {
+        nodeId,
+        fromTs: window.fromTs,
+        toTs: window.toTs,
+        resolutionSec: window.resolutionSec,
+      },
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<NodeMetricsNodeBucketRow>();
+    return rows.map(mapNodeMetricsNodeBucketRow);
+  }
+
+  async listWorkloadLiveBuckets(
+    nodeId: string,
+    workloadIds: string[],
+    window: NodeMetricsSeedWindowQuery,
+  ): Promise<NodeMetricsWorkloadBucketRecord[]> {
+    if (workloadIds.length === 0) {
+      return [];
+    }
+
+    const result = await this.clickhouseClient.query({
+      query: `
+        WITH
+          parseDateTimeBestEffort({fromTs: String}, 'UTC') AS fromTsUtc,
+          parseDateTimeBestEffort({toTs: String}, 'UTC') AS toTsUtc,
+          toIntervalSecond({resolutionSec: UInt32}) AS resolutionInterval
+        SELECT
+          formatDateTime(
+            toStartOfInterval(
+              toTimeZone(metric_timestamp, 'UTC'),
+              resolutionInterval
+            ),
+            '%F %T',
+            'UTC'
+          ) AS ts,
+          scope_id AS workloadId,
+          {nodeId: String} AS nodeId,
+          avgIf(metric_value_numeric, metric_key = 'container.cpu_usage_pct') AS cpuUsagePct,
+          avgIf(metric_value_numeric, metric_key = 'container.memory_used_pct') AS memoryUsagePct
+        FROM telemetry_db.telemetry_metrics
+        WHERE scope_type = 'container'
+          AND scope_id IN {workloadIds: Array(String)}
+          AND toTimeZone(metric_timestamp, 'UTC') >= fromTsUtc
+          AND toTimeZone(metric_timestamp, 'UTC') <= toTsUtc
+          AND metric_key IN (
+            'container.cpu_usage_pct',
+            'container.memory_used_pct'
+          )
+        GROUP BY ts, workloadId, nodeId
+        ORDER BY ts ASC, workloadId ASC
+      `,
+      query_params: {
+        nodeId,
+        workloadIds,
+        fromTs: window.fromTs,
+        toTs: window.toTs,
+        resolutionSec: window.resolutionSec,
+      },
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<NodeMetricsWorkloadBucketRow>();
+    return rows.map(mapNodeMetricsWorkloadBucketRow);
+  }
+
   async getLatestMetricsChangeSummaryTs(): Promise<string | null> {
     const result = await this.clickhouseClient.query({
       query: `

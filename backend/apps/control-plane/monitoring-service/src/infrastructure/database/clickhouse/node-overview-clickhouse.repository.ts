@@ -45,6 +45,8 @@ type NodeOverviewSnapshotRow = {
   networkTxBytesSecUnit: string | null;
   primaryNicStatusCurrent: string | null;
   primaryNicStatusUnit: string | null;
+  uptimeSecondsCurrent: number | string | null;
+  uptimeSecondsUnit: string | null;
   worstMetricKey: string | null;
   worstMetricValueNumeric: number | string | null;
   worstMetricValueText: string | null;
@@ -124,6 +126,8 @@ export class NodeOverviewClickhouseRepository implements NodeOverviewReadReposit
           summary.network_tx_bytes_sec_unit AS networkTxBytesSecUnit,
           summary.primary_nic_status_current AS primaryNicStatusCurrent,
           summary.primary_nic_status_unit AS primaryNicStatusUnit,
+          summary.uptime_seconds_current AS uptimeSecondsCurrent,
+          summary.uptime_seconds_unit AS uptimeSecondsUnit,
           summary.worst_metric_key AS worstMetricKey,
           summary.worst_metric_numeric_value AS worstMetricValueNumeric,
           summary.worst_metric_text_value AS worstMetricValueText
@@ -333,6 +337,8 @@ export function mapNodeOverviewSnapshotRow(
     networkTxBytesSecUnit: toNullableString(row.networkTxBytesSecUnit),
     primaryNicStatusCurrent: toNullableString(row.primaryNicStatusCurrent),
     primaryNicStatusUnit: toNullableString(row.primaryNicStatusUnit),
+    uptimeSecondsCurrent: toNullableNumber(row.uptimeSecondsCurrent),
+    uptimeSecondsUnit: toNullableString(row.uptimeSecondsUnit),
     worstMetricKey: toNullableString(row.worstMetricKey),
     worstMetricValueNumeric: toNullableNumber(row.worstMetricValueNumeric),
     worstMetricValueText: toNullableString(row.worstMetricValueText),

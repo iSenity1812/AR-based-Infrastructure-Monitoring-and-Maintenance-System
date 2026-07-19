@@ -20,7 +20,37 @@ describe('NodeMonitoringStateController', () => {
       generatedAt: '2026-07-15T15:16:59.298Z',
       scope: 'node',
       view: 'node_alert_state',
-      items: [],
+      items: [
+        {
+          node: {
+            id: 'node-msi-743e182b',
+            rackId: 'rack-a1',
+          },
+          status: {
+            state: 'healthy',
+            severity: {
+              code: 0,
+              level: 'none',
+            },
+            activeAlertCount: 0,
+            lastChangedAt: null,
+          },
+          timeline: {
+            firstObservedAt: null,
+            lastObservedAt: null,
+            openedAt: null,
+            resolvedAt: null,
+          },
+          alertsSummary: {
+            bySeverity: {
+              critical: 0,
+              warning: 0,
+            },
+            primaryAlertFingerprint: null,
+          },
+          alerts: [],
+        },
+      ],
     });
     const controller = new NodeMonitoringStateController({
       execute,
@@ -30,7 +60,37 @@ describe('NodeMonitoringStateController', () => {
       generatedAt: '2026-07-15T15:16:59.298Z',
       scope: 'node',
       view: 'node_alert_state',
-      items: [],
+      items: [
+        {
+          node: {
+            id: 'node-msi-743e182b',
+            rackId: 'rack-a1',
+          },
+          status: {
+            state: 'healthy',
+            severity: {
+              code: 0,
+              level: 'none',
+            },
+            activeAlertCount: 0,
+            lastChangedAt: null,
+          },
+          timeline: {
+            firstObservedAt: null,
+            lastObservedAt: null,
+            openedAt: null,
+            resolvedAt: null,
+          },
+          alertsSummary: {
+            bySeverity: {
+              critical: 0,
+              warning: 0,
+            },
+            primaryAlertFingerprint: null,
+          },
+          alerts: [],
+        },
+      ],
     });
 
     expect(execute).toHaveBeenCalledTimes(1);

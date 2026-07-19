@@ -15,42 +15,46 @@ import {
 } from '../ports/rack-context.provider';
 
 export type RackMonitoringStateItemView = {
-  rackId: string;
-  rackName: string;
-  rackCode: string;
-  operational: {
-    severityCode: number;
-    overrideFlag: boolean;
+  rack: {
+    id: string;
+    rackCode: string;
+    displayName: string;
+    lifecycleState: string | null;
+    capacityState: string | null;
+    siteCode: string | null;
+    roomCode: string | null;
+    rowCode: string | null;
+    positionCode: string | null;
+    capacityLimit: number | null;
+    notes: string | null;
+    vendor: string | null;
+    metadata: Record<string, unknown>;
+  };
+  status: {
+    state: 'healthy' | 'alerting';
+    severity: {
+      code: number;
+      level: 'none' | 'warning' | 'critical';
+    };
+    activeAlertCount: number;
+    lastChangedAt: string | null;
     lifecycleStatus: 'active' | 'resolved';
-    fingerprint: string;
-    firstObservedAt: string;
-    lastObservedAt: string;
-    lastStateChangedAt: string;
+    override: boolean;
+  };
+  timeline: {
+    firstObservedAt: string | null;
+    lastObservedAt: string | null;
     openedAt: string | null;
     resolvedAt: string | null;
   };
-  notification: {
-    syncStatus:
-      | 'idle'
-      | 'pending_open'
-      | 'open_synced'
-      | 'pending_resolve'
-      | 'resolve_synced'
-      | 'sync_failed';
-    lastNotificationAttemptAt: string | null;
-    lastNotificationSyncedAt: string | null;
+  alertsSummary: {
+    bySeverity: {
+      critical: number;
+      warning: number;
+    };
+    primaryAlertFingerprint: string | null;
   };
-  state: {
-    status: 'healthy' | 'alerting';
-    highestSeverity: 'none' | 'warning' | 'critical';
-    activeAlertCount: number;
-    lastChangedAt: string | null;
-  };
-  alertSummary: {
-    critical: number;
-    warning: number;
-  };
-  primaryAlert: {
+  alerts: Array<{
     fingerprint: string;
     alertName: string;
     severity: AlertCurrentStateSeverity;
@@ -64,18 +68,18 @@ export type RackMonitoringStateItemView = {
     runbookUrl: string | null;
     triageStatus: AlertTriageStatus;
     incident: AlertIncidentLinkageView | null;
-  } | null;
-  activeAlerts: Array<{
-    fingerprint: string;
-    alertName: string;
-    severity: AlertCurrentStateSeverity;
-    category: AlertCurrentStateCategory;
-    status: AlertCurrentStateStatus;
-    summary: string;
-    startsAt: string;
-    triageStatus: AlertTriageStatus;
-    incident: AlertIncidentLinkageView | null;
   }>;
+  notification: {
+    syncStatus:
+      | 'idle'
+      | 'pending_open'
+      | 'open_synced'
+      | 'pending_resolve'
+      | 'resolve_synced'
+      | 'sync_failed';
+    lastNotificationAttemptAt: string | null;
+    lastNotificationSyncedAt: string | null;
+  };
 };
 
 export type AlertIncidentLinkageView = {
@@ -134,80 +138,82 @@ export class GetRackMonitoringStateUseCase {
   ): RackMonitoringStateItemView {
     const sortedAlerts = [...alerts].sort(compareAlertsForPrimarySelection);
     const primaryAlert = sortedAlerts[0] ?? null;
-    const alertSummary = {
-      critical: sortedAlerts.filter((alert) => alert.severity === 'critical')
-        .length,
-      warning: sortedAlerts.filter((alert) => alert.severity === 'warning')
-        .length,
-    };
-    const firstObservedAt = minIsoOrFallback(
+    const firstObservedAt = minIsoOrNull(
       sortedAlerts.map((alert) => alert.startsAt),
     );
-    const lastObservedAt = maxIsoOrFallback(
+    const lastObservedAt = maxIsoOrNull(
       sortedAlerts.map((alert) => alert.lastReceivedAt),
     );
     const lastNotificationSyncedAt = maxIsoOrNull(
       sortedAlerts.map((alert) => alert.lastSyncedAt),
     );
-    const state = {
-      status: sortedAlerts.length > 0 ? 'alerting' : 'healthy',
-      highestSeverity: getHighestSeverity(sortedAlerts),
+    const highestSeverity = getHighestSeverity(sortedAlerts);
+    const status = {
+      state: sortedAlerts.length > 0 ? 'alerting' : 'healthy',
+      severity: {
+        code: mapSeverityToSeverityCode(highestSeverity),
+        level: highestSeverity,
+      },
       activeAlertCount: sortedAlerts.length,
       lastChangedAt: maxIsoOrNull(
         sortedAlerts.map((alert) => alert.lastStatusChangedAt),
       ),
+      lifecycleStatus: sortedAlerts.length > 0 ? 'active' : 'resolved',
+      override: highestSeverity === 'critical',
     } as const;
 
     return {
-      rackId,
-      rackName: rackContext?.displayName?.trim() || rackId,
-      rackCode: rackContext?.rackCode || rackId,
-      operational: {
-        severityCode: mapSeverityToSeverityCode(state.highestSeverity),
-        overrideFlag: state.highestSeverity === 'critical',
-        lifecycleStatus: state.status === 'alerting' ? 'active' : 'resolved',
-        fingerprint: primaryAlert?.fingerprint ?? `rack:${rackId}|healthy`,
+      rack: {
+        id: rackId,
+        rackCode: normalizeRackCode(rackContext, rackId),
+        displayName: normalizeRackDisplayName(rackContext, rackId),
+        lifecycleState: normalizeNullableString(rackContext?.lifecycleState),
+        capacityState: normalizeNullableString(rackContext?.capacityState),
+        siteCode: normalizeNullableString(rackContext?.siteCode),
+        roomCode: normalizeNullableString(rackContext?.roomCode),
+        rowCode: normalizeNullableString(rackContext?.rowCode),
+        positionCode: normalizeNullableString(rackContext?.positionCode),
+        capacityLimit: rackContext?.capacityLimit ?? null,
+        notes: normalizeNullableString(rackContext?.notes),
+        vendor: normalizeNullableString(rackContext?.vendor),
+        metadata: rackContext?.metadata ?? {},
+      },
+      status,
+      timeline: {
         firstObservedAt,
         lastObservedAt,
-        lastStateChangedAt: state.lastChangedAt ?? new Date(0).toISOString(),
         openedAt: primaryAlert?.startsAt ?? null,
         resolvedAt: null,
       },
-      notification: {
-        syncStatus: state.status === 'alerting' ? 'open_synced' : 'idle',
-        lastNotificationAttemptAt: null,
-        lastNotificationSyncedAt,
+      alertsSummary: {
+        bySeverity: {
+          critical: sortedAlerts.filter((alert) => alert.severity === 'critical')
+            .length,
+          warning: sortedAlerts.filter((alert) => alert.severity === 'warning')
+            .length,
+        },
+        primaryAlertFingerprint: primaryAlert?.fingerprint ?? null,
       },
-      state,
-      alertSummary,
-      primaryAlert: primaryAlert
-        ? {
-            fingerprint: primaryAlert.fingerprint,
-            alertName: primaryAlert.alertName,
-            severity: primaryAlert.severity,
-            category: primaryAlert.category,
-            status: primaryAlert.status,
-            summary: primaryAlert.summary,
-            description: primaryAlert.description,
-            startsAt: primaryAlert.startsAt,
-            endsAt: primaryAlert.endsAt,
-            dashboardUrl: primaryAlert.dashboardUrl,
-            runbookUrl: primaryAlert.runbookUrl,
-            triageStatus: primaryAlert.triageStatus,
-            incident: mapIncidentLinkage(primaryAlert),
-          }
-        : null,
-      activeAlerts: sortedAlerts.map((alert) => ({
+      alerts: sortedAlerts.map((alert) => ({
         fingerprint: alert.fingerprint,
         alertName: alert.alertName,
         severity: alert.severity,
         category: alert.category,
         status: alert.status,
         summary: alert.summary,
+        description: alert.description,
         startsAt: alert.startsAt,
+        endsAt: alert.endsAt,
+        dashboardUrl: alert.dashboardUrl,
+        runbookUrl: alert.runbookUrl,
         triageStatus: alert.triageStatus,
         incident: mapIncidentLinkage(alert),
       })),
+      notification: {
+        syncStatus: status.state === 'alerting' ? 'open_synced' : 'idle',
+        lastNotificationAttemptAt: null,
+        lastNotificationSyncedAt,
+      },
     };
   }
 }
@@ -276,9 +282,9 @@ function compareRackItems(
   right: RackMonitoringStateItemView,
 ): number {
   return (
-    compareSeverity(right.state.highestSeverity, left.state.highestSeverity) ||
-    (right.state.lastChangedAt ?? '').localeCompare(left.state.lastChangedAt ?? '') ||
-    left.rackId.localeCompare(right.rackId)
+    compareSeverity(right.status.severity.level, left.status.severity.level) ||
+    (right.status.lastChangedAt ?? '').localeCompare(left.status.lastChangedAt ?? '') ||
+    left.rack.id.localeCompare(right.rack.id)
   );
 }
 
@@ -329,16 +335,33 @@ function severityWeight(
   }
 }
 
-function minIsoOrFallback(values: string[]): string {
-  return [...values].sort((left, right) => left.localeCompare(right))[0]
-    ?? new Date(0).toISOString();
-}
-
-function maxIsoOrFallback(values: string[]): string {
-  return [...values].sort((left, right) => right.localeCompare(left))[0]
-    ?? new Date(0).toISOString();
+function minIsoOrNull(values: string[]): string | null {
+  return [...values].sort((left, right) => left.localeCompare(right))[0] ?? null;
 }
 
 function maxIsoOrNull(values: string[]): string | null {
   return [...values].sort((left, right) => right.localeCompare(left))[0] ?? null;
+}
+
+function normalizeRackCode(
+  rackContext: RackContextRecord | undefined,
+  rackId: string,
+): string {
+  return rackContext?.rackCode?.trim() || rackId;
+}
+
+function normalizeRackDisplayName(
+  rackContext: RackContextRecord | undefined,
+  rackId: string,
+): string {
+  return rackContext?.displayName?.trim() || rackId;
+}
+
+function normalizeNullableString(value?: string | null): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
 }

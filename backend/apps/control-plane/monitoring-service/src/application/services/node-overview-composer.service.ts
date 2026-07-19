@@ -19,6 +19,11 @@ type NodeOverviewTextMetricView = {
   unit: string | null;
 };
 
+type NodeOverviewNumberMetricView = {
+  value: number | null;
+  unit: string | null;
+};
+
 export type NodeOverviewResponseView = {
   node: {
     nodeId: string;
@@ -41,6 +46,7 @@ export type NodeOverviewResponseView = {
   };
   summaryMetrics: {
     primaryNicStatus: NodeOverviewTextMetricView;
+    uptimeBySeconds: NodeOverviewNumberMetricView;
     worstMetric: {
       metricKey: string | null;
       metricValueNumeric: number | null;
@@ -124,6 +130,10 @@ export class NodeOverviewComposerService {
         primaryNicStatus: {
           value: snapshot.primaryNicStatusCurrent,
           unit: snapshot.primaryNicStatusUnit,
+        },
+        uptimeBySeconds: {
+          value: snapshot.uptimeSecondsCurrent,
+          unit: snapshot.uptimeSecondsUnit,
         },
         worstMetric: {
           metricKey: snapshot.worstMetricKey,

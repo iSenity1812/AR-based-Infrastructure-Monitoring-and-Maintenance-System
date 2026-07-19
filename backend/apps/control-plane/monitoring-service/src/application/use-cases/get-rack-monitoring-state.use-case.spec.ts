@@ -5,7 +5,7 @@ import type { RackContextProvider } from '../ports/rack-context.provider';
 import { GetRackMonitoringStateUseCase } from './get-rack-monitoring-state.use-case';
 
 describe('GetRackMonitoringStateUseCase', () => {
-  it('returns rack monitoring state composed from active rack alerts with compatibility fields preserved', async () => {
+  it('returns rack monitoring state composed from active rack alerts with rack overview-style shaping', async () => {
     const alertCurrentStateRepository: AlertCurrentStateRepository = {
       findByFingerprint: jest.fn(),
       upsert: jest.fn(),
@@ -85,6 +85,14 @@ describe('GetRackMonitoringStateUseCase', () => {
               displayName: 'Rack A1',
               lifecycleState: 'ACTIVE',
               capacityState: 'AVAILABLE',
+              siteCode: 'DC01',
+              roomCode: 'ROOM-A',
+              rowCode: 'ROW-03',
+              positionCode: 'POS-12',
+              capacityLimit: 42,
+              notes: null,
+              vendor: 'DELL',
+              metadata: {},
             },
           ],
         ]),
@@ -104,46 +112,68 @@ describe('GetRackMonitoringStateUseCase', () => {
       view: 'monitoring_state',
       items: [
         {
-          rackId: 'rack-a1',
-          rackName: 'Rack A1',
-          rackCode: 'RACK-A1',
-          operational: {
-            severityCode: 3,
-            overrideFlag: true,
-            lifecycleStatus: 'active',
-            fingerprint: 'rack:rack-a1|critical',
+          rack: {
+            id: 'rack-a1',
+            rackCode: 'RACK-A1',
+            displayName: 'Rack A1',
+            lifecycleState: 'ACTIVE',
+            capacityState: 'AVAILABLE',
+            siteCode: 'DC01',
+            roomCode: 'ROOM-A',
+            rowCode: 'ROW-03',
+            positionCode: 'POS-12',
+            capacityLimit: 42,
+            notes: null,
+            vendor: 'DELL',
+            metadata: {},
           },
-          notification: {
-            syncStatus: 'open_synced',
-            lastNotificationAttemptAt: null,
-            lastNotificationSyncedAt: '2026-07-08T09:55:03.000Z',
-          },
-          state: {
-            status: 'alerting',
-            highestSeverity: 'critical',
+          status: {
+            state: 'alerting',
+            severity: {
+              code: 3,
+              level: 'critical',
+            },
             activeAlertCount: 2,
             lastChangedAt: '2026-07-08T09:57:00.000Z',
+            lifecycleStatus: 'active',
+            override: true,
           },
-          alertSummary: {
-            critical: 1,
-            warning: 1,
+          timeline: {
+            firstObservedAt: '2026-07-08T09:55:00.000Z',
+            lastObservedAt: '2026-07-08T09:59:35.000Z',
+            openedAt: '2026-07-08T09:55:00.000Z',
+            resolvedAt: null,
           },
-          primaryAlert: {
-            fingerprint: 'rack:rack-a1|critical',
-            alertName: 'RackSignalLossPresent',
-            severity: 'critical',
-            category: 'connectivity',
+          alertsSummary: {
+            bySeverity: {
+              critical: 1,
+              warning: 1,
+            },
+            primaryAlertFingerprint: 'rack:rack-a1|critical',
           },
-          activeAlerts: [
+          alerts: [
             {
               fingerprint: 'rack:rack-a1|critical',
               alertName: 'RackSignalLossPresent',
+              severity: 'critical',
+              category: 'connectivity',
+              status: 'firing',
+              endsAt: null,
             },
             {
               fingerprint: 'rack:rack-a1|warning',
               alertName: 'RackCoolingRiskWarning',
+              severity: 'warning',
+              category: 'thermal',
+              status: 'firing',
+              endsAt: null,
             },
           ],
+          notification: {
+            syncStatus: 'open_synced',
+            lastNotificationAttemptAt: null,
+            lastNotificationSyncedAt: '2026-07-08T09:59:36.000Z',
+          },
         },
       ],
     });

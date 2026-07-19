@@ -95,4 +95,31 @@ describe('NodeMetricsClickhouseRepository', () => {
       'FROM telemetry_db.container_summary_trend_1m',
     );
   });
+
+  it('queries live buckets from raw telemetry metrics', async () => {
+    const json = jest.fn().mockResolvedValue([]);
+    const query = jest.fn().mockResolvedValue({ json });
+    const repository = new NodeMetricsClickhouseRepository({ query } as never);
+    const window = {
+      fromTs: '2026-07-12T09:07:30.000Z',
+      toTs: '2026-07-12T09:12:30.000Z',
+      resolutionSec: 5,
+    };
+
+    await repository.listNodeLiveBuckets('node-a1', window);
+    await repository.listWorkloadLiveBuckets(
+      'node-a1',
+      ['container-api'],
+      window,
+    );
+
+    expect(query.mock.calls[0][0].query).toContain(
+      'FROM telemetry_db.telemetry_metrics',
+    );
+    expect(query.mock.calls[1][0].query).toContain(
+      'FROM telemetry_db.telemetry_metrics',
+    );
+    expect(query.mock.calls[0][0].query).toContain("scope_type = 'node'");
+    expect(query.mock.calls[1][0].query).toContain("scope_type = 'container'");
+  });
 });

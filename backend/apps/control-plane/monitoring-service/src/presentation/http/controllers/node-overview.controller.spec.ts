@@ -38,6 +38,7 @@ describe('NodeOverviewController', () => {
       },
       summaryMetrics: {
         primaryNicStatus: { value: 'up', unit: 'state' },
+        uptimeBySeconds: { value: 34880, unit: 'seconds' },
         worstMetric: {
           metricKey: 'node.cpu_usage_pct',
           metricValueNumeric: 10,

@@ -2,6 +2,35 @@ import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
 
 import { ResponseMetaDto } from './health-response.dto';
 
+export class NodeMonitoringIdentityDto {
+  @ApiProperty({
+    description: 'Stable node identifier used by the monitoring scope.',
+    example: 'node-msi-743e182b',
+  })
+  id!: string;
+
+  @ApiProperty({
+    description: 'Rack identifier currently associated with the node alerts.',
+    example: '6a5771e5931033f3bd53fb87',
+  })
+  rackId!: string;
+}
+
+export class NodeMonitoringSeverityDto {
+  @ApiProperty({
+    description: 'Stable numeric severity code for frontend sorting and badges.',
+    example: 3,
+  })
+  code!: number;
+
+  @ApiProperty({
+    description: 'Human-readable severity level.',
+    enum: ['none', 'warning', 'critical'],
+    example: 'critical',
+  })
+  level!: 'none' | 'warning' | 'critical';
+}
+
 export class NodeAlertStateDto {
   @ApiProperty({
     description:
@@ -9,15 +38,13 @@ export class NodeAlertStateDto {
     enum: ['healthy', 'alerting'],
     example: 'alerting',
   })
-  status!: 'healthy' | 'alerting';
+  state!: 'healthy' | 'alerting';
 
   @ApiProperty({
-    description:
-      'Highest external alert severity currently affecting this node.',
-    enum: ['none', 'warning', 'critical'],
-    example: 'critical',
+    description: 'Highest alert severity represented as stable code + level.',
+    type: NodeMonitoringSeverityDto,
   })
-  highestSeverity!: 'none' | 'warning' | 'critical';
+  severity!: NodeMonitoringSeverityDto;
 
   @ApiProperty({
     description:
@@ -29,12 +56,45 @@ export class NodeAlertStateDto {
   @ApiProperty({
     description: 'Latest timestamp when the node alert state changed.',
     nullable: true,
-    example: '2026-07-15T15:14:30.000Z',
+    example: '2026-07-15T15:16:00.000Z',
   })
   lastChangedAt!: string | null;
 }
 
-export class NodeAlertSummaryDto {
+export class NodeMonitoringTimelineDto {
+  @ApiProperty({
+    description:
+      'First timestamp when this node was observed in the current alert lineage.',
+    nullable: true,
+    example: '2026-07-15T15:14:30.000Z',
+  })
+  firstObservedAt!: string | null;
+
+  @ApiProperty({
+    description: 'Latest timestamp when this node alert posture was observed.',
+    nullable: true,
+    example: '2026-07-15T15:16:30.000Z',
+  })
+  lastObservedAt!: string | null;
+
+  @ApiProperty({
+    description:
+      'Timestamp when the current active lifecycle opened. Null when resolved.',
+    nullable: true,
+    example: '2026-07-15T15:14:30.000Z',
+  })
+  openedAt!: string | null;
+
+  @ApiProperty({
+    description:
+      'Timestamp when the lifecycle resolved. Null when still active.',
+    nullable: true,
+    example: null,
+  })
+  resolvedAt!: string | null;
+}
+
+export class NodeAlertSummaryBySeverityDto {
   @ApiProperty({
     description: 'Number of active critical node alerts.',
     example: 1,
@@ -46,6 +106,21 @@ export class NodeAlertSummaryDto {
     example: 1,
   })
   warning!: number;
+}
+
+export class NodeAlertSummaryDto {
+  @ApiProperty({
+    description: 'Alert counters grouped by severity.',
+    type: NodeAlertSummaryBySeverityDto,
+  })
+  bySeverity!: NodeAlertSummaryBySeverityDto;
+
+  @ApiProperty({
+    description: 'Fingerprint of the primary alert for lightweight correlation.',
+    nullable: true,
+    example: '5f6f7f15437de8fe',
+  })
+  primaryAlertFingerprint!: string | null;
 }
 
 export class NodeAlertIncidentLinkageDto {
@@ -93,108 +168,6 @@ export class NodeAlertIncidentLinkageDto {
     example: '2026-07-16T01:00:01.000Z',
   })
   linkedAt!: string | null;
-}
-
-export class NodePrimaryAlertDto {
-  @ApiProperty({
-    description: 'Deduplication fingerprint of the selected primary alert.',
-    example: '5f6f7f15437de8fe',
-  })
-  fingerprint!: string;
-
-  @ApiProperty({
-    description: 'Alert rule name from the external alert stack.',
-    example: 'NodeCpuTempCritical',
-  })
-  alertName!: string;
-
-  @ApiProperty({
-    description: 'Alert severity as exposed to operators.',
-    enum: ['warning', 'critical'],
-    example: 'critical',
-  })
-  severity!: 'warning' | 'critical';
-
-  @ApiProperty({
-    description: 'Alert category used for routing and UI grouping.',
-    enum: [
-      'availability',
-      'resource',
-      'thermal',
-      'runtime',
-      'network',
-      'connectivity',
-    ],
-    example: 'thermal',
-  })
-  category!:
-    | 'availability'
-    | 'resource'
-    | 'thermal'
-    | 'runtime'
-    | 'network'
-    | 'connectivity';
-
-  @ApiProperty({
-    description: 'Current alert status from the external read model.',
-    enum: ['firing', 'resolved'],
-    example: 'firing',
-  })
-  status!: 'firing' | 'resolved';
-
-  @ApiProperty({
-    description: 'Short operator-facing summary of the alert.',
-    example: 'Node node-msi-743e182b CPU temperature 94.4C > 90C',
-  })
-  summary!: string;
-
-  @ApiProperty({
-    description: 'Longer alert description suitable for a detail panel.',
-    example:
-      'Node node-msi-743e182b sustained CPU temperature above threshold.',
-  })
-  description!: string;
-
-  @ApiProperty({
-    description: 'Timestamp when the alert started firing.',
-    example: '2026-07-15T15:14:30.000Z',
-  })
-  startsAt!: string;
-
-  @ApiProperty({
-    description: 'Timestamp when the alert resolved, if available.',
-    nullable: true,
-    example: null,
-  })
-  endsAt!: string | null;
-
-  @ApiProperty({
-    description: 'Dashboard URL for operator drill-down when available.',
-    nullable: true,
-    example: '/d/monitoring-overview',
-  })
-  dashboardUrl!: string | null;
-
-  @ApiProperty({
-    description: 'Runbook URL for operator guidance when available.',
-    nullable: true,
-    example: '/docs/runbooks/alerting/node-cpu-temp-critical',
-  })
-  runbookUrl!: string | null;
-
-  @ApiProperty({
-    description: 'Read-side triage status for the alert.',
-    enum: ['new', 'acknowledged', 'incident_created', 'suppressed'],
-    example: 'incident_created',
-  })
-  triageStatus!: 'new' | 'acknowledged' | 'incident_created' | 'suppressed';
-
-  @ApiProperty({
-    description: 'Incident linkage created from manual alert escalation.',
-    nullable: true,
-    type: NodeAlertIncidentLinkageDto,
-  })
-  incident!: NodeAlertIncidentLinkageDto | null;
 }
 
 export class NodeActiveAlertDto {
@@ -251,10 +224,38 @@ export class NodeActiveAlertDto {
   summary!: string;
 
   @ApiProperty({
+    description: 'Longer alert description suitable for a detail panel.',
+    example:
+      'Node node-msi-743e182b sustained CPU temperature above threshold.',
+  })
+  description!: string;
+
+  @ApiProperty({
     description: 'Timestamp when the alert started firing.',
     example: '2026-07-15T15:14:30.000Z',
   })
   startsAt!: string;
+
+  @ApiProperty({
+    description: 'Timestamp when the alert resolved, if available.',
+    nullable: true,
+    example: null,
+  })
+  endsAt!: string | null;
+
+  @ApiProperty({
+    description: 'Dashboard URL for operator drill-down when available.',
+    nullable: true,
+    example: '/d/monitoring-overview',
+  })
+  dashboardUrl!: string | null;
+
+  @ApiProperty({
+    description: 'Runbook URL for operator guidance when available.',
+    nullable: true,
+    example: '/docs/runbooks/alerting/node-cpu-temp-critical',
+  })
+  runbookUrl!: string | null;
 
   @ApiProperty({
     description: 'Read-side triage status for the active alert.',
@@ -273,49 +274,42 @@ export class NodeActiveAlertDto {
 
 export class NodeMonitoringStateItemDto {
   @ApiProperty({
-    description: 'Stable node identifier used by the monitoring scope.',
-    example: 'node-msi-743e182b',
+    description: 'Identity block for the node monitoring item.',
+    type: NodeMonitoringIdentityDto,
   })
-  nodeId!: string;
-
-  @ApiProperty({
-    description: 'Rack identifier carried by the node alert labels.',
-    example: '6a5771e5931033f3bd53fb87',
-  })
-  rackId!: string;
+  node!: NodeMonitoringIdentityDto;
 
   @ApiProperty({
     description:
       'Consumer-first node alert state derived from active external alerts.',
     type: NodeAlertStateDto,
   })
-  state!: NodeAlertStateDto;
+  status!: NodeAlertStateDto;
+
+  @ApiProperty({
+    description: 'Timeline fields describing the current node alert posture.',
+    type: NodeMonitoringTimelineDto,
+  })
+  timeline!: NodeMonitoringTimelineDto;
 
   @ApiProperty({
     description: 'Count summary of active node-scoped alerts.',
     type: NodeAlertSummaryDto,
   })
-  alertSummary!: NodeAlertSummaryDto;
-
-  @ApiProperty({
-    description: 'Most important active alert selected for this node.',
-    nullable: true,
-    type: NodePrimaryAlertDto,
-  })
-  primaryAlert!: NodePrimaryAlertDto | null;
+  alertsSummary!: NodeAlertSummaryDto;
 
   @ApiProperty({
     description: 'Active node-scoped alerts for drill-down rendering.',
     type: [NodeActiveAlertDto],
   })
-  activeAlerts!: NodeActiveAlertDto[];
+  alerts!: NodeActiveAlertDto[];
 }
 
 export class MonitoringNodeStateResponseDto {
   @ApiProperty({
     description:
       'Timestamp when the node monitoring state payload was generated.',
-    example: '2026-07-15T15:16:59.298Z',
+    example: '2026-07-19T15:33:40.984Z',
   })
   generatedAt!: string;
 

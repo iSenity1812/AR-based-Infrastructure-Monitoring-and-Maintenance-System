@@ -33,8 +33,8 @@ export type NodeMetricsResponseView = {
   metricsConfig: {
     transport: 'socket.io';
     channel: string;
-    bucketSec: 60;
-    retentionSec: 900;
+    bucketSec: number;
+    retentionSec: number;
     nodeMetricKeys: NodeMetricKey[];
     workloadMetricKeys: WorkloadMetricKey[];
   };
@@ -58,7 +58,7 @@ export type NodeMetricsResponseView = {
   seedWindow: {
     from: string | null;
     to: string | null;
-    resolutionSec: 60;
+    resolutionSec: number;
     timestamps: string[];
     nodeMetrics: NodeMetricsSeriesView;
     workloadMetrics: Record<string, WorkloadMetricsSeriesView>;
@@ -127,8 +127,12 @@ type WorkloadMetricsSeriesView = {
 const BUCKET_SEC = 60;
 const RETENTION_SEC = 900;
 const MAX_SEED_POINTS = 500;
+const LIVE_DEFAULT_INTERVAL_SEC = 5;
+const LIVE_DEFAULT_RETENTION_SEC = 300;
+const LIVE_MAX_SEED_POINTS = 400;
 const MAX_TRACKED_WORKLOADS = 5;
 const DEFAULT_SELECTION_MODE: NodeMetricsSelectionMode = 'top_cpu_then_memory';
+const LIVE_INTERVAL_CANDIDATES = [1, 5, 10, 15, 30, 60] as const;
 
 @Injectable()
 export class NodeMetricsComposerService {
@@ -173,6 +177,54 @@ export class NodeMetricsComposerService {
     return {
       nodeId: currentNode.nodeId,
       metricsConfig: buildMetricsConfig(nodeId),
+      meta: buildMetricsMeta(),
+      workloads: trackedWorkloads.map(mapWorkloadView),
+      seedWindow: buildSeedWindow(
+        window,
+        nodeBuckets,
+        workloadBuckets,
+        trackedWorkloadIds,
+      ),
+    };
+  }
+
+  async buildLiveMetrics(
+    nodeId: string,
+    range?: NodeMetricsRangeInput,
+  ): Promise<NodeMetricsResponseView> {
+    const currentNode = await this.nodeMetricsReadRepository.getCurrentNode(
+      nodeId,
+    );
+    if (!currentNode) {
+      throw new NotFoundException(
+        `Node metrics snapshot not found for nodeId=${nodeId}`,
+      );
+    }
+
+    const workloads = await this.nodeMetricsReadRepository.listNodeWorkloads(
+      nodeId,
+    );
+    const trackedWorkloads = selectNodeMetricsWorkloads(workloads);
+    const trackedWorkloadIds = trackedWorkloads.map(
+      (workload) => workload.workloadId,
+    );
+    const window = resolveLiveMetricsSeedWindow(range);
+    const [nodeBuckets, workloadBuckets] = await Promise.all([
+      this.nodeMetricsReadRepository.listNodeLiveBuckets(nodeId, window),
+      this.nodeMetricsReadRepository.listWorkloadLiveBuckets(
+        nodeId,
+        trackedWorkloadIds,
+        window,
+      ),
+    ]);
+
+    return {
+      nodeId: currentNode.nodeId,
+      metricsConfig: buildMetricsConfig(
+        nodeId,
+        window.resolutionSec,
+        computeRetentionSec(window),
+      ),
       meta: buildMetricsMeta(),
       workloads: trackedWorkloads.map(mapWorkloadView),
       seedWindow: buildSeedWindow(
@@ -246,12 +298,14 @@ export class NodeMetricsComposerService {
 
 export function buildMetricsConfig(
   nodeId: string,
+  bucketSec: number = BUCKET_SEC,
+  retentionSec: number = RETENTION_SEC,
 ): NodeMetricsResponseView['metricsConfig'] {
   return {
     transport: 'socket.io',
     channel: buildNodeMetricsChannel(nodeId),
-    bucketSec: BUCKET_SEC,
-    retentionSec: RETENTION_SEC,
+    bucketSec,
+    retentionSec,
     nodeMetricKeys: [...NODE_METRIC_KEYS],
     workloadMetricKeys: [...WORKLOAD_METRIC_KEYS],
   };
@@ -544,6 +598,61 @@ export function resolveMetricsSeedWindow(
     toTs: new Date(alignedToMs).toISOString(),
     resolutionSec,
   };
+}
+
+export function resolveLiveMetricsSeedWindow(
+  range?: NodeMetricsRangeInput,
+): NodeMetricsSeedWindowQuery {
+  const resolutionSec = resolveLiveIntervalSec(range?.interval);
+  const safeToMs = floorToResolutionMs(
+    range?.to ? parseTimestamp(range.to) : Date.now(),
+    resolutionSec,
+  );
+  const fallbackToMs = Number.isFinite(safeToMs)
+    ? safeToMs
+    : floorToResolutionMs(Date.now(), resolutionSec);
+  const requestedFromMs = range?.from
+    ? floorToResolutionMs(parseTimestamp(range.from), resolutionSec)
+    : fallbackToMs - LIVE_DEFAULT_RETENTION_SEC * 1000;
+  const safeFromMs = Number.isFinite(requestedFromMs)
+    ? Math.min(requestedFromMs, fallbackToMs)
+    : fallbackToMs - LIVE_DEFAULT_RETENTION_SEC * 1000;
+  const earliestAllowedMs =
+    fallbackToMs - (LIVE_MAX_SEED_POINTS - 1) * resolutionSec * 1000;
+  const cappedFromMs = Math.max(safeFromMs, earliestAllowedMs);
+
+  return {
+    fromTs: new Date(cappedFromMs).toISOString(),
+    toTs: new Date(fallbackToMs).toISOString(),
+    resolutionSec,
+  };
+}
+
+function resolveLiveIntervalSec(interval?: string): number {
+  if (!interval) {
+    return LIVE_DEFAULT_INTERVAL_SEC;
+  }
+
+  const parsed = Number(interval);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    return LIVE_DEFAULT_INTERVAL_SEC;
+  }
+
+  return LIVE_INTERVAL_CANDIDATES.includes(
+    parsed as (typeof LIVE_INTERVAL_CANDIDATES)[number],
+  )
+    ? parsed
+    : LIVE_DEFAULT_INTERVAL_SEC;
+}
+
+function computeRetentionSec(window: NodeMetricsSeedWindowQuery): number {
+  const fromMs = parseTimestamp(window.fromTs);
+  const toMs = parseTimestamp(window.toTs);
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs < fromMs) {
+    return 0;
+  }
+
+  return Math.floor((toMs - fromMs) / 1000);
 }
 
 function selectResolutionSec(rangeSec: number): number {

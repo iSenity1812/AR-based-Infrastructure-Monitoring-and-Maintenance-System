@@ -130,9 +130,20 @@ export class NodeOverviewTextMetricDto {
   unit!: string | null;
 }
 
+export class NodeOverviewNumberMetricDto {
+  @ApiProperty({ nullable: true, example: 34880 })
+  value!: number | null;
+
+  @ApiProperty({ nullable: true, example: 'seconds' })
+  unit!: string | null;
+}
+
 export class NodeOverviewSummaryMetricsDto {
   @ApiProperty({ type: NodeOverviewTextMetricDto })
   primaryNicStatus!: NodeOverviewTextMetricDto;
+
+  @ApiProperty({ type: NodeOverviewNumberMetricDto })
+  uptimeBySeconds!: NodeOverviewNumberMetricDto;
 
   @ApiProperty({
     type: NodeOverviewWorstMetricDto,

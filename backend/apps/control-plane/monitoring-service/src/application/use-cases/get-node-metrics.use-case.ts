@@ -18,4 +18,11 @@ export class GetNodeMetricsUseCase {
   ): Promise<NodeMetricsResponseView> {
     return this.nodeMetricsComposerService.buildMetrics(nodeId, range);
   }
+
+  async executeLive(
+    nodeId: string,
+    range?: NodeMetricsRangeInput,
+  ): Promise<NodeMetricsResponseView> {
+    return this.nodeMetricsComposerService.buildLiveMetrics(nodeId, range);
+  }
 }

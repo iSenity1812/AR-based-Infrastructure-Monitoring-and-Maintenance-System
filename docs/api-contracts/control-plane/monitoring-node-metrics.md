@@ -7,6 +7,7 @@ This document defines the public contract for the current node metrics scope in 
 Scope covered:
 
 - `GET /api/v1/monitoring/nodes/:nodeId/metrics`
+- `GET /api/v1/monitoring/nodes/:nodeId/metrics/live`
 - advertised realtime channel `monitoring.node.{nodeId}.metrics.updated`
 - related workload-membership realtime channel `monitoring.node.{nodeId}.metrics.workloads.changed`
 
@@ -234,6 +235,168 @@ Expected error conditions:
 - `500 Internal Server Error` - unexpected backend failure
 
 The current controller does not define explicit request validation for malformed `from` or `to`. Invalid values are currently normalized by the range resolver rather than rejected up front.
+
+---
+
+### `GET /api/v1/monitoring/nodes/:nodeId/metrics/live`
+
+Returns a live metrics bootstrap payload for short-interval node and container charts.
+
+#### Authorization
+
+- Bearer authentication is required
+- the endpoint is protected by `JwtAuthGuard`
+- the caller must have permission `DASHBOARD_READ`
+
+#### Path Parameters
+
+- `nodeId` - string, required, stable node identifier from monitoring scope
+
+#### Query Parameters
+
+- `from` - string, optional, inclusive ISO-8601 lower bound for the requested live window
+- `to` - string, optional, inclusive ISO-8601 upper bound for the requested live window
+- `interval` - string, optional, requested live bucket interval in seconds
+
+#### Success Response `200`
+
+The response envelope and payload shape are intentionally the same as `GET /api/v1/monitoring/nodes/:nodeId/metrics`.
+
+Differences are expressed through payload values rather than a different schema:
+
+- `data.metricsConfig.bucketSec` is dynamic for the live request
+- `data.metricsConfig.retentionSec` reflects the resolved live window size
+- `data.seedWindow.resolutionSec` matches the resolved live interval
+- `data.seedWindow.timestamps` uses the live interval grid
+
+Representative live payload:
+
+```json
+{
+  "data": {
+    "nodeId": "node-msi-8bc4df0d",
+    "metricsConfig": {
+      "transport": "socket.io",
+      "channel": "monitoring.node.node-msi-8bc4df0d.metrics.updated",
+      "bucketSec": 5,
+      "retentionSec": 300,
+      "nodeMetricKeys": [
+        "cpuUsagePct",
+        "memoryUsagePct",
+        "diskUsagePct",
+        "cpuTemperatureC",
+        "networkRxBytesSec",
+        "networkTxBytesSec"
+      ],
+      "workloadMetricKeys": ["cpuUsagePct", "memoryUsagePct"]
+    },
+    "meta": {
+      "units": {
+        "cpuUsagePct": "%",
+        "memoryUsagePct": "%",
+        "diskUsagePct": "%",
+        "cpuTemperatureC": "C",
+        "networkRxBytesSec": "bytes/sec",
+        "networkTxBytesSec": "bytes/sec",
+        "workloadCpuUsagePct": "%",
+        "workloadMemoryUsagePct": "%"
+      }
+    },
+    "workloads": [
+      {
+        "workloadId": "container-api-01",
+        "workloadType": "container",
+        "name": "control-plane-api"
+      }
+    ],
+    "seedWindow": {
+      "from": "2026-07-19T09:58:00.000Z",
+      "to": "2026-07-19T10:03:00.000Z",
+      "resolutionSec": 5,
+      "timestamps": [
+        "2026-07-19T10:02:50.000Z",
+        "2026-07-19T10:02:55.000Z",
+        "2026-07-19T10:03:00.000Z"
+      ],
+      "nodeMetrics": {
+        "cpuUsagePct": [70.1, 71.8, 72.4],
+        "memoryUsagePct": [84.7, 84.9, 85.0],
+        "diskUsagePct": [84.6, 84.6, 84.7],
+        "cpuTemperatureC": [79, 80, 80],
+        "networkRxBytesSec": [4180, 4202, 4169],
+        "networkTxBytesSec": [2281, 2290, 2274]
+      },
+      "workloadMetrics": {
+        "container-api-01": {
+          "cpuUsagePct": [40.2, 40.8, null],
+          "memoryUsagePct": [36.4, 36.7, null]
+        }
+      }
+    }
+  },
+  "meta": {
+    "version": "v1",
+    "timestamp": "2026-07-19T10:03:00.000Z"
+  }
+}
+```
+
+#### Live Window Resolution Rules
+
+The current live implementation resolves the requested window as follows:
+
+- if `interval` is omitted, it defaults to `5` seconds
+- if `to` is omitted, `to` defaults to current time floored to the resolved interval
+- if `from` is omitted, `from` defaults to `to - 300 seconds`
+- if parsing fails, the resolver falls back to a safe default window ending at current time
+- if parsed `from` is later than parsed `to`, `from` is clamped down to `to`
+- if the requested range would exceed `400` points, `from` is capped forward so the returned grid stays within `400` points
+
+Currently allowed live interval values are:
+
+- `1`
+- `5`
+- `10`
+- `15`
+- `30`
+- `60`
+
+If `interval` is missing or unsupported, the live endpoint falls back to `5`.
+
+#### Live Data Source Notes
+
+The live endpoint uses raw telemetry aggregation at query time from `telemetry_db.telemetry_metrics`.
+
+Current metric-key mapping:
+
+- node:
+  - `node.cpu_usage_pct`
+  - `node.memory_used_pct`
+  - `node.disk_used_pct`
+  - `node.cpu_temperature_c`
+  - `node.network_rx_bytes_sec`
+  - `node.network_tx_bytes_sec`
+- workload:
+  - `container.cpu_usage_pct`
+  - `container.memory_used_pct`
+
+The tracked workload list still reuses the same workload selection logic as the standard `/metrics` endpoint.
+
+#### Live Empty-State Behavior
+
+- if no current node snapshot exists for `nodeId`, the endpoint returns `404 Not Found`
+- if the node exists but there are no tracked workloads, `data.workloads` is an empty array
+- if the live query produces no metric rows for the requested window, `timestamps` still reflects the resolved interval grid and the returned series are all `null`
+- if a specific metric is missing for a returned timestamp, that series value is `null`
+
+#### Live Error Responses
+
+Expected error conditions are the same as `GET /api/v1/monitoring/nodes/:nodeId/metrics`:
+
+- `401 Unauthorized` - missing or invalid bearer token
+- `403 Forbidden` - authenticated caller lacks `DASHBOARD_READ`
+- `404 Not Found` - no current node metrics snapshot exists for `nodeId`
+- `500 Internal Server Error` - unexpected backend failure
 
 ## Realtime Relationship
 

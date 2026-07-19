@@ -62,6 +62,8 @@ function createRepository(input: {
     listNodeWorkloads: jest.fn(),
     listNodeSeedBuckets: jest.fn(),
     listWorkloadSeedBuckets: jest.fn(),
+    listNodeLiveBuckets: jest.fn(),
+    listWorkloadLiveBuckets: jest.fn(),
     getLatestMetricsChangeSummaryTs: jest
       .fn()
       .mockResolvedValue(input.latestSummaryTs),

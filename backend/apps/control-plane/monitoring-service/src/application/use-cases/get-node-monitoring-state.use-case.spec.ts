@@ -4,7 +4,7 @@ import type { AlertCurrentStateRepository } from '../ports/alert-current-state.r
 import { GetNodeMonitoringStateUseCase } from './get-node-monitoring-state.use-case';
 
 describe('GetNodeMonitoringStateUseCase', () => {
-  it('returns node monitoring state grouped from active node alerts', async () => {
+  it('returns node monitoring state grouped from active node alerts with consumer-driven shaping', async () => {
     const alertCurrentStateRepository: AlertCurrentStateRepository = {
       findByFingerprint: jest.fn(),
       upsert: jest.fn(),
@@ -88,32 +88,48 @@ describe('GetNodeMonitoringStateUseCase', () => {
       view: 'node_alert_state',
       items: [
         {
-          nodeId: 'node-msi-743e182b',
-          rackId: 'rack-a1',
-          state: {
-            status: 'alerting',
-            highestSeverity: 'critical',
+          node: {
+            id: 'node-msi-743e182b',
+            rackId: 'rack-a1',
+          },
+          status: {
+            state: 'alerting',
+            severity: {
+              code: 3,
+              level: 'critical',
+            },
             activeAlertCount: 2,
             lastChangedAt: '2026-07-15T15:16:00.000Z',
           },
-          alertSummary: {
-            critical: 1,
-            warning: 1,
+          timeline: {
+            firstObservedAt: '2026-07-15T15:14:30.000Z',
+            lastObservedAt: '2026-07-15T15:16:30.000Z',
+            openedAt: '2026-07-15T15:14:30.000Z',
+            resolvedAt: null,
           },
-          primaryAlert: {
-            fingerprint: 'fp-node-critical',
-            alertName: 'NodeCpuTempCritical',
-            severity: 'critical',
-            category: 'thermal',
+          alertsSummary: {
+            bySeverity: {
+              critical: 1,
+              warning: 1,
+            },
+            primaryAlertFingerprint: 'fp-node-critical',
           },
-          activeAlerts: [
+          alerts: [
             {
               fingerprint: 'fp-node-critical',
               alertName: 'NodeCpuTempCritical',
+              severity: 'critical',
+              category: 'thermal',
+              status: 'firing',
+              endsAt: null,
             },
             {
               fingerprint: 'fp-node-warning',
               alertName: 'NodePacketLossHigh',
+              severity: 'warning',
+              category: 'network',
+              status: 'firing',
+              endsAt: null,
             },
           ],
         },

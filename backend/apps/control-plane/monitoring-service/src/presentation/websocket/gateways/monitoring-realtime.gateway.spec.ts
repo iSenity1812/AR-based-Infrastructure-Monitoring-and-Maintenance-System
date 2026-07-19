@@ -170,6 +170,7 @@ describe('MonitoringRealtimeGateway', () => {
     await gateway.emitNodeMetricsUpdated({
       event: 'monitoring.node.metrics.updated',
       nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.updated',
       ts: '2026-07-12T09:13:00.000Z',
       bucketSec: 60,
       node: {
@@ -180,13 +181,12 @@ describe('MonitoringRealtimeGateway', () => {
         networkRxBytesSec: 2510000,
         networkTxBytesSec: 1840000,
       },
-      workloads: [
-        {
-          workloadId: 'container-api',
+      workloads: {
+        'container-api': {
           cpuUsagePct: 47.3,
           memoryUsagePct: 39.1,
         },
-      ],
+      },
     });
 
     expect(emit).toHaveBeenCalledWith(
@@ -194,6 +194,12 @@ describe('MonitoringRealtimeGateway', () => {
       expect.objectContaining({
         nodeId: 'node-a1',
         bucketSec: 60,
+      }),
+    );
+    expect(emit).toHaveBeenCalledWith(
+      'monitoring.node.node-a1.metrics.updated',
+      expect.objectContaining({
+        nodeId: 'node-a1',
       }),
     );
   });
@@ -211,6 +217,7 @@ describe('MonitoringRealtimeGateway', () => {
     await gateway.emitNodeMetricsWorkloadsChanged({
       event: 'monitoring.node.metrics.workloads.changed',
       nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.workloads.changed',
       ts: '2026-07-12T09:13:00.000Z',
       workloadSummary: {
         total: 1,
@@ -231,6 +238,12 @@ describe('MonitoringRealtimeGateway', () => {
 
     expect(emit).toHaveBeenCalledWith(
       MONITORING_NODE_METRICS_WORKLOADS_CHANGED_EVENT,
+      expect.objectContaining({
+        nodeId: 'node-a1',
+      }),
+    );
+    expect(emit).toHaveBeenCalledWith(
+      'monitoring.node.node-a1.metrics.workloads.changed',
       expect.objectContaining({
         nodeId: 'node-a1',
       }),

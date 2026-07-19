@@ -92,6 +92,7 @@ export interface NodeOverviewChangedEvent {
 export interface NodeMetricsUpdatedEvent {
   event: 'monitoring.node.metrics.updated';
   nodeId: string;
+  channel: string;
   ts: string;
   bucketSec: 60;
   node: {
@@ -102,8 +103,7 @@ export interface NodeMetricsUpdatedEvent {
     networkRxBytesSec: number | null;
     networkTxBytesSec: number | null;
   };
-  workloads: Array<{
-    workloadId: string;
+  workloads: Record<string, {
     cpuUsagePct: number | null;
     memoryUsagePct: number | null;
   }>;
@@ -112,6 +112,7 @@ export interface NodeMetricsUpdatedEvent {
 export interface NodeMetricsWorkloadsChangedEvent {
   event: 'monitoring.node.metrics.workloads.changed';
   nodeId: string;
+  channel: string;
   ts: string;
   workloadSummary: {
     total: number;

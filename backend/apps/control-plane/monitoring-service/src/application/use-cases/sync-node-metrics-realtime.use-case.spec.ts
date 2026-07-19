@@ -47,7 +47,9 @@ describe('SyncNodeMetricsRealtimeUseCase', () => {
     await useCase.execute();
 
     expect(realtimePort.emitNodeMetricsUpdated).toHaveBeenCalledTimes(1);
-    expect(realtimePort.emitNodeMetricsWorkloadsChanged).toHaveBeenCalledTimes(1);
+    expect(realtimePort.emitNodeMetricsWorkloadsChanged).toHaveBeenCalledTimes(
+      1,
+    );
   });
 });
 
@@ -64,6 +66,9 @@ function createRepository(input: {
       .fn()
       .mockResolvedValue(input.latestSummaryTs),
     listChangedNodeIdsSince: jest.fn().mockResolvedValue(input.changedNodeIds),
+    listNodeIdsForMetricsSync: jest
+      .fn()
+      .mockResolvedValue(input.changedNodeIds),
   };
 }
 
@@ -82,6 +87,7 @@ function createComposer(): NodeMetricsComposerService {
     buildWorkloadsChangedEvent: jest.fn().mockResolvedValue({
       event: 'monitoring.node.metrics.workloads.changed',
       nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.workloads.changed',
       ts: '2026-07-12T09:13:00.000Z',
       workloadSummary: {
         total: 1,
@@ -102,6 +108,7 @@ function createComposer(): NodeMetricsComposerService {
     buildUpdatedEvent: jest.fn().mockResolvedValue({
       event: 'monitoring.node.metrics.updated',
       nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.updated',
       ts: '2026-07-12T09:13:00.000Z',
       bucketSec: 60,
       node: {
@@ -112,13 +119,12 @@ function createComposer(): NodeMetricsComposerService {
         networkRxBytesSec: 2510000,
         networkTxBytesSec: 1840000,
       },
-      workloads: [
-        {
-          workloadId: 'container-api',
+      workloads: {
+        'container-api': {
           cpuUsagePct: 47.3,
           memoryUsagePct: 39.1,
         },
-      ],
+      },
     }),
   } as unknown as NodeMetricsComposerService;
 }

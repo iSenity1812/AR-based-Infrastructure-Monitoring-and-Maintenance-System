@@ -50,20 +50,26 @@ export class SyncNodeMetricsRealtimeUseCase {
       await this.nodeMetricsReadRepository.listChangedNodeIdsSince(
         this.checkpointSummaryTs,
       );
+    const candidateNodeIds =
+      await this.nodeMetricsReadRepository.listNodeIdsForMetricsSync();
 
     let emittedMetricEvents = 0;
     let emittedWorkloadMembershipEvents = 0;
 
-    for (const nodeId of changedNodeIds) {
+    for (const nodeId of candidateNodeIds) {
       try {
         const workloadsChangedEvent =
           await this.nodeMetricsComposerService.buildWorkloadsChangedEvent(
             nodeId,
           );
         if (workloadsChangedEvent) {
-          const workloadFingerprint =
-            buildMetricsWorkloadMembershipFingerprint(workloadsChangedEvent);
-          if (this.workloadFingerprintsByNodeId.get(nodeId) !== workloadFingerprint) {
+          const workloadFingerprint = buildMetricsWorkloadMembershipFingerprint(
+            workloadsChangedEvent,
+          );
+          if (
+            this.workloadFingerprintsByNodeId.get(nodeId) !==
+            workloadFingerprint
+          ) {
             this.workloadFingerprintsByNodeId.set(nodeId, workloadFingerprint);
             emittedWorkloadMembershipEvents += 1;
             await this.monitoringRealtimePort.emitNodeMetricsWorkloadsChanged(

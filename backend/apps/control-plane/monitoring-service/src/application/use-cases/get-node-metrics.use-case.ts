@@ -4,6 +4,7 @@ import {
   NodeMetricsComposerService,
   type NodeMetricsResponseView,
 } from '../services/node-metrics-composer.service';
+import type { NodeMetricsRangeInput } from '../ports/node-metrics-read.repository';
 
 @Injectable()
 export class GetNodeMetricsUseCase {
@@ -11,7 +12,10 @@ export class GetNodeMetricsUseCase {
     private readonly nodeMetricsComposerService: NodeMetricsComposerService,
   ) {}
 
-  async execute(nodeId: string): Promise<NodeMetricsResponseView> {
-    return this.nodeMetricsComposerService.buildMetrics(nodeId);
+  async execute(
+    nodeId: string,
+    range?: NodeMetricsRangeInput,
+  ): Promise<NodeMetricsResponseView> {
+    return this.nodeMetricsComposerService.buildMetrics(nodeId, range);
   }
 }

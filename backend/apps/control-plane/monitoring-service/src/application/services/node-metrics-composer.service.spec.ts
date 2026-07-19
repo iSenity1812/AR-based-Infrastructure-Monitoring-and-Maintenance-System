@@ -6,6 +6,7 @@ import type {
   NodeMetricsWorkloadRecord,
 } from '../ports/node-metrics-read.repository';
 import {
+  buildMetricsMeta,
   buildMetricsConfig,
   selectNodeMetricsWorkloads,
   NodeMetricsComposerService,
@@ -34,9 +35,9 @@ describe('selectNodeMetricsWorkloads', () => {
 
 describe('buildMetricsConfig', () => {
   it('keeps v1 metrics config aligned to 1 minute trend views', () => {
-    expect(buildMetricsConfig()).toEqual({
+    expect(buildMetricsConfig('node-a1')).toEqual({
       transport: 'socket.io',
-      channel: 'monitoring.node.metrics.updated',
+      channel: 'monitoring.node.node-a1.metrics.updated',
       bucketSec: 60,
       retentionSec: 900,
       nodeMetricKeys: [
@@ -52,21 +53,46 @@ describe('buildMetricsConfig', () => {
   });
 });
 
+describe('buildMetricsMeta', () => {
+  it('exposes compact units for node and workload series', () => {
+    expect(buildMetricsMeta()).toEqual({
+      units: {
+        cpuUsagePct: '%',
+        memoryUsagePct: '%',
+        diskUsagePct: '%',
+        cpuTemperatureC: 'C',
+        networkRxBytesSec: 'bytes/sec',
+        networkTxBytesSec: 'bytes/sec',
+        workloadCpuUsagePct: '%',
+        workloadMemoryUsagePct: '%',
+      },
+    });
+  });
+});
+
 describe('NodeMetricsComposerService', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-07-12T09:12:34.000Z'));
   });
 
-  it('composes REST metrics bootstrap with tracked workloads and seed points', async () => {
+  it('composes REST metrics bootstrap with flattened tracked workloads and aligned series', async () => {
     const repository = createRepository({
       workloads: [
         createWorkload({ workloadId: 'container-api', name: 'api', cpuUsagePct: 46.1, memoryUsagePct: 38.7 }),
         createWorkload({ workloadId: 'container-nginx', name: 'nginx', cpuUsagePct: 18.2, memoryUsagePct: 12.4 }),
       ],
       nodeBuckets: [
+        createNodeBucket({ ts: '2026-07-12 09:11:00', cpuUsagePct: 71.3, memoryUsagePct: 70.2 }),
         createNodeBucket({ ts: '2026-07-12 09:12:00', cpuUsagePct: 79.1 }),
       ],
       workloadBuckets: [
+        {
+          ts: '2026-07-12 09:11:00',
+          workloadId: 'container-api',
+          nodeId: 'node-a1',
+          cpuUsagePct: 40.2,
+          memoryUsagePct: 36.4,
+        },
         {
           ts: '2026-07-12 09:12:00',
           workloadId: 'container-api',
@@ -80,22 +106,61 @@ describe('NodeMetricsComposerService', () => {
 
     await expect(composer.buildMetrics('node-a1')).resolves.toEqual(
       expect.objectContaining({
-        node: expect.objectContaining({
-          nodeId: 'node-a1',
-          lastSeenAt: '2026-07-12T09:12:30.000Z',
-          freshnessSec: 4,
-        }),
-        workloadSummary: {
-          total: 2,
-          returned: 2,
-          selectionMode: 'top_cpu_then_memory',
-        },
+        nodeId: 'node-a1',
+        meta: buildMetricsMeta(),
+        workloads: [
+          { workloadId: 'container-api', workloadType: 'container', name: 'api' },
+          { workloadId: 'container-nginx', workloadType: 'container', name: 'nginx' },
+        ],
         seedWindow: expect.objectContaining({
-          from: '2026-07-12T09:12:00.000Z',
+          from: '2026-07-12T09:11:00.000Z',
           to: '2026-07-12T09:12:00.000Z',
+          resolutionSec: 60,
+          timestamps: [
+            '2026-07-12T09:11:00.000Z',
+            '2026-07-12T09:12:00.000Z',
+          ],
+          nodeMetrics: expect.objectContaining({
+            cpuUsagePct: [71.3, 79.1],
+          }),
+          workloadMetrics: {
+            'container-api': {
+              cpuUsagePct: [40.2, 42.8],
+              memoryUsagePct: [36.4, 37.9],
+            },
+            'container-nginx': {
+              cpuUsagePct: [null, null],
+              memoryUsagePct: [null, null],
+            },
+          },
         }),
       }),
     );
+  });
+
+  it('treats ClickHouse bucket timestamps without timezone suffix as UTC so series do not collapse to null', async () => {
+    const repository = createRepository({
+      workloads: [
+        createWorkload({ workloadId: 'container-api', name: 'api' }),
+      ],
+      nodeBuckets: [
+        createNodeBucket({ ts: '2026-07-12 09:11:00', cpuUsagePct: 71.3 }),
+        createNodeBucket({ ts: '2026-07-12 09:12:00', cpuUsagePct: 79.1 }),
+      ],
+      workloadBuckets: [],
+    });
+    const composer = new NodeMetricsComposerService(repository);
+
+    const response = await composer.buildMetrics('node-a1', {
+      from: '2026-07-12T09:11:00.000Z',
+      to: '2026-07-12T09:12:00.000Z',
+    });
+
+    expect(response.seedWindow.timestamps).toEqual([
+      '2026-07-12T09:11:00.000Z',
+      '2026-07-12T09:12:00.000Z',
+    ]);
+    expect(response.seedWindow.nodeMetrics.cpuUsagePct).toEqual([71.3, 79.1]);
   });
 
   it('returns an empty workload payload when the node has no workloads', async () => {
@@ -108,13 +173,9 @@ describe('NodeMetricsComposerService', () => {
 
     const response = await composer.buildMetrics('node-a1');
 
-    expect(response.workloadSummary).toEqual({
-      total: 0,
-      returned: 0,
-      selectionMode: 'top_cpu_then_memory',
-    });
     expect(response.workloads).toEqual([]);
-    expect(response.seedWindow.points[0].workloads).toEqual([]);
+    expect(response.seedWindow.timestamps).toEqual(['2026-07-12T09:12:00.000Z']);
+    expect(response.seedWindow.workloadMetrics).toEqual({});
   });
 });
 
@@ -127,12 +188,19 @@ function createRepository(input: {
     getCurrentNode: jest.fn().mockResolvedValue({
       nodeId: 'node-a1',
       summaryTs: '2026-07-12 09:12:30',
+      cpuUsagePct: 84.1,
+      memoryUsagePct: 76.8,
+      diskUsagePct: 71.4,
+      cpuTemperatureC: 81,
+      networkRxBytesSec: 2510000,
+      networkTxBytesSec: 1840000,
     }),
     listNodeWorkloads: jest.fn().mockResolvedValue(input.workloads),
     listNodeSeedBuckets: jest.fn().mockResolvedValue(input.nodeBuckets),
     listWorkloadSeedBuckets: jest.fn().mockResolvedValue(input.workloadBuckets),
     getLatestMetricsChangeSummaryTs: jest.fn(),
     listChangedNodeIdsSince: jest.fn(),
+    listNodeIdsForMetricsSync: jest.fn(),
   };
 }
 

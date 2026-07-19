@@ -13,44 +13,14 @@ const NODE_METRIC_KEYS = [
 
 const WORKLOAD_METRIC_KEYS = ['cpuUsagePct', 'memoryUsagePct'] as const;
 
-const SELECTION_MODES = [
-  'top_cpu_then_memory',
-  'top_memory_then_cpu',
-  'abnormal_first_then_top_cpu',
-  'abnormal_only',
-  'pinned_workloads',
-  'manual_ids',
-] as const;
-
-export class NodeMetricsNodeDto {
-  @ApiProperty({
-    description: 'Stable node identifier from monitoring scope.',
-    example: 'node-msi-8bc4df0d',
-  })
-  nodeId!: string;
-
-  @ApiProperty({
-    description: 'Latest node summary timestamp.',
-    example: '2026-07-12T09:12:30.000Z',
-  })
-  lastSeenAt!: string;
-
-  @ApiProperty({
-    description: 'Age in seconds between now and the latest node summary.',
-    example: 4,
-  })
-  freshnessSec!: number;
-}
-
 export class NodeMetricsConfigDto {
   @ApiProperty({ enum: ['socket.io'], example: 'socket.io' })
   transport!: 'socket.io';
 
   @ApiProperty({
-    enum: ['monitoring.node.metrics.updated'],
-    example: 'monitoring.node.metrics.updated',
+    example: 'monitoring.node.node-msi-341b683e.metrics.updated',
   })
-  channel!: 'monitoring.node.metrics.updated';
+  channel!: string;
 
   @ApiProperty({ example: 60 })
   bucketSec!: 60;
@@ -73,18 +43,35 @@ export class NodeMetricsConfigDto {
   workloadMetricKeys!: Array<(typeof WORKLOAD_METRIC_KEYS)[number]>;
 }
 
-export class NodeMetricsWorkloadSummaryDto {
-  @ApiProperty({ example: 32 })
-  total!: number;
+export class NodeMetricsUnitsDto {
+  @ApiProperty({ example: '%' })
+  cpuUsagePct!: '%';
 
-  @ApiProperty({ example: 5 })
-  returned!: number;
+  @ApiProperty({ example: '%' })
+  memoryUsagePct!: '%';
 
-  @ApiProperty({
-    enum: SELECTION_MODES,
-    example: 'top_cpu_then_memory',
-  })
-  selectionMode!: (typeof SELECTION_MODES)[number];
+  @ApiProperty({ example: '%' })
+  diskUsagePct!: '%';
+
+  @ApiProperty({ example: 'C' })
+  cpuTemperatureC!: 'C';
+
+  @ApiProperty({ example: 'bytes/sec' })
+  networkRxBytesSec!: 'bytes/sec';
+
+  @ApiProperty({ example: 'bytes/sec' })
+  networkTxBytesSec!: 'bytes/sec';
+
+  @ApiProperty({ example: '%' })
+  workloadCpuUsagePct!: '%';
+
+  @ApiProperty({ example: '%' })
+  workloadMemoryUsagePct!: '%';
+}
+
+export class NodeMetricsMetaDto {
+  @ApiProperty({ type: NodeMetricsUnitsDto })
+  units!: NodeMetricsUnitsDto;
 }
 
 export class NodeMetricsWorkloadDto {
@@ -96,57 +83,42 @@ export class NodeMetricsWorkloadDto {
 
   @ApiProperty({ example: 'control-plane-api' })
   name!: string;
-
-  @ApiProperty({ example: 'running' })
-  status!: string;
-
-  @ApiProperty({ nullable: true, example: 46.1 })
-  latestCpuUsagePct!: number | null;
-
-  @ApiProperty({ nullable: true, example: 38.7 })
-  latestMemoryUsagePct!: number | null;
 }
 
-export class NodeMetricsNodeValuesDto {
-  @ApiProperty({ nullable: true, example: 79.1 })
-  cpuUsagePct!: number | null;
+export class NodeMetricsSeriesDto {
+  @ApiProperty({ type: [Number], nullable: true, example: [79.1, 81.4, null] })
+  cpuUsagePct!: Array<number | null>;
 
-  @ApiProperty({ nullable: true, example: 75.2 })
-  memoryUsagePct!: number | null;
+  @ApiProperty({ type: [Number], nullable: true, example: [75.2, 75.1, null] })
+  memoryUsagePct!: Array<number | null>;
 
-  @ApiProperty({ nullable: true, example: 71.4 })
-  diskUsagePct!: number | null;
+  @ApiProperty({ type: [Number], nullable: true, example: [71.4, 71.4, null] })
+  diskUsagePct!: Array<number | null>;
 
-  @ApiProperty({ nullable: true, example: 78.8 })
-  cpuTemperatureC!: number | null;
+  @ApiProperty({ type: [Number], nullable: true, example: [78.8, 79.4, null] })
+  cpuTemperatureC!: Array<number | null>;
 
-  @ApiProperty({ nullable: true, example: 2210000 })
-  networkRxBytesSec!: number | null;
+  @ApiProperty({
+    type: [Number],
+    nullable: true,
+    example: [2210000, 2200000, null],
+  })
+  networkRxBytesSec!: Array<number | null>;
 
-  @ApiProperty({ nullable: true, example: 1700000 })
-  networkTxBytesSec!: number | null;
+  @ApiProperty({
+    type: [Number],
+    nullable: true,
+    example: [1700000, 1680000, null],
+  })
+  networkTxBytesSec!: Array<number | null>;
 }
 
-export class NodeMetricsWorkloadValuesDto {
-  @ApiProperty({ example: 'container-api-01' })
-  workloadId!: string;
+export class NodeMetricsWorkloadSeriesDto {
+  @ApiProperty({ type: [Number], nullable: true, example: [42.8, 40.5, null] })
+  cpuUsagePct!: Array<number | null>;
 
-  @ApiProperty({ nullable: true, example: 42.8 })
-  cpuUsagePct!: number | null;
-
-  @ApiProperty({ nullable: true, example: 37.9 })
-  memoryUsagePct!: number | null;
-}
-
-export class NodeMetricsSeedPointDto {
-  @ApiProperty({ example: '2026-07-12T09:12:00.000Z' })
-  ts!: string;
-
-  @ApiProperty({ type: NodeMetricsNodeValuesDto })
-  node!: NodeMetricsNodeValuesDto;
-
-  @ApiProperty({ type: [NodeMetricsWorkloadValuesDto] })
-  workloads!: NodeMetricsWorkloadValuesDto[];
+  @ApiProperty({ type: [Number], nullable: true, example: [37.9, 37.4, null] })
+  memoryUsagePct!: Array<number | null>;
 }
 
 export class NodeMetricsSeedWindowDto {
@@ -162,19 +134,48 @@ export class NodeMetricsSeedWindowDto {
   })
   to!: string | null;
 
-  @ApiProperty({ type: [NodeMetricsSeedPointDto] })
-  points!: NodeMetricsSeedPointDto[];
+  @ApiProperty({ example: 60 })
+  resolutionSec!: 60;
+
+  @ApiProperty({
+    type: [String],
+    example: [
+      '2026-07-12T09:10:00.000Z',
+      '2026-07-12T09:11:00.000Z',
+      '2026-07-12T09:12:00.000Z',
+    ],
+  })
+  timestamps!: string[];
+
+  @ApiProperty({ type: NodeMetricsSeriesDto })
+  nodeMetrics!: NodeMetricsSeriesDto;
+
+  @ApiProperty({
+    additionalProperties: {
+      $ref: getSchemaPath(NodeMetricsWorkloadSeriesDto),
+    },
+    example: {
+      'container-api-01': {
+        cpuUsagePct: [42.8, 40.5, null],
+        memoryUsagePct: [37.9, 37.4, null],
+      },
+    },
+  })
+  workloadMetrics!: Record<string, NodeMetricsWorkloadSeriesDto>;
 }
 
 export class MonitoringNodeMetricsResponseDto {
-  @ApiProperty({ type: NodeMetricsNodeDto })
-  node!: NodeMetricsNodeDto;
+  @ApiProperty({
+    description: 'Stable node identifier from monitoring scope.',
+    example: 'node-msi-8bc4df0d',
+  })
+  nodeId!: string;
 
   @ApiProperty({ type: NodeMetricsConfigDto })
   metricsConfig!: NodeMetricsConfigDto;
 
-  @ApiProperty({ type: NodeMetricsWorkloadSummaryDto })
-  workloadSummary!: NodeMetricsWorkloadSummaryDto;
+  @ApiProperty({ type: NodeMetricsMetaDto })
+  meta!: NodeMetricsMetaDto;
 
   @ApiProperty({ type: [NodeMetricsWorkloadDto] })
   workloads!: NodeMetricsWorkloadDto[];

@@ -9,6 +9,12 @@ export type NodeMetricsSelectionMode =
 export interface NodeMetricsCurrentRecord {
   nodeId: string;
   summaryTs: string;
+  cpuUsagePct: number | null;
+  memoryUsagePct: number | null;
+  diskUsagePct: number | null;
+  cpuTemperatureC: number | null;
+  networkRxBytesSec: number | null;
+  networkTxBytesSec: number | null;
 }
 
 export interface NodeMetricsWorkloadRecord {
@@ -43,6 +49,17 @@ export interface NodeMetricsWorkloadBucketRecord {
   memoryUsagePct: number | null;
 }
 
+export interface NodeMetricsSeedWindowQuery {
+  fromTs: string;
+  toTs: string;
+  resolutionSec: number;
+}
+
+export interface NodeMetricsRangeInput {
+  from?: string;
+  to?: string;
+}
+
 export abstract class NodeMetricsReadRepository {
   abstract getCurrentNode(
     nodeId: string,
@@ -54,16 +71,18 @@ export abstract class NodeMetricsReadRepository {
 
   abstract listNodeSeedBuckets(
     nodeId: string,
-    limit: number,
+    window: NodeMetricsSeedWindowQuery,
   ): Promise<NodeMetricsNodeBucketRecord[]>;
 
   abstract listWorkloadSeedBuckets(
     nodeId: string,
     workloadIds: string[],
-    limit: number,
+    window: NodeMetricsSeedWindowQuery,
   ): Promise<NodeMetricsWorkloadBucketRecord[]>;
 
   abstract getLatestMetricsChangeSummaryTs(): Promise<string | null>;
 
   abstract listChangedNodeIdsSince(summaryTs: string): Promise<string[]>;
+
+  abstract listNodeIdsForMetricsSync(): Promise<string[]>;
 }

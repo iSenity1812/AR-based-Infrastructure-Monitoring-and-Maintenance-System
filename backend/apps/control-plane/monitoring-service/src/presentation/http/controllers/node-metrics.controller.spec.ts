@@ -17,11 +17,7 @@ describe('NodeMetricsController', () => {
 
   it('delegates node metrics bootstrap generation to the use case', async () => {
     const execute = jest.fn().mockResolvedValue({
-      node: {
-        nodeId: 'node-a1',
-        lastSeenAt: '2026-07-12T09:12:30.000Z',
-        freshnessSec: 4,
-      },
+      nodeId: 'node-a1',
       metricsConfig: {
         transport: 'socket.io',
         channel: 'monitoring.node.metrics.updated',
@@ -30,28 +26,52 @@ describe('NodeMetricsController', () => {
         nodeMetricKeys: ['cpuUsagePct'],
         workloadMetricKeys: ['cpuUsagePct'],
       },
-      workloadSummary: {
-        total: 0,
-        returned: 0,
-        selectionMode: 'top_cpu_then_memory',
+      meta: {
+        units: {
+          cpuUsagePct: '%',
+          memoryUsagePct: '%',
+          diskUsagePct: '%',
+          cpuTemperatureC: 'C',
+          networkRxBytesSec: 'bytes/sec',
+          networkTxBytesSec: 'bytes/sec',
+          workloadCpuUsagePct: '%',
+          workloadMemoryUsagePct: '%',
+        },
       },
       workloads: [],
       seedWindow: {
         from: null,
         to: null,
-        points: [],
+        resolutionSec: 60,
+        timestamps: [],
+        nodeMetrics: {
+          cpuUsagePct: [],
+          memoryUsagePct: [],
+          diskUsagePct: [],
+          cpuTemperatureC: [],
+          networkRxBytesSec: [],
+          networkTxBytesSec: [],
+        },
+        workloadMetrics: {},
       },
     });
     const controller = new NodeMetricsController({ execute } as never);
 
-    await expect(controller.getNodeMetrics('node-a1')).resolves.toEqual(
+    await expect(
+      controller.getNodeMetrics(
+        'node-a1',
+        '2026-07-12T09:00:00.000Z',
+        '2026-07-12T09:12:00.000Z',
+      ),
+    ).resolves.toEqual(
       expect.objectContaining({
-        node: expect.objectContaining({
-          nodeId: 'node-a1',
-        }),
+        nodeId: 'node-a1',
       }),
     );
 
-    expect(execute).toHaveBeenCalledWith('node-a1');
+    expect(execute).toHaveBeenCalledWith('node-a1', {
+      from: '2026-07-12T09:00:00.000Z',
+      to: '2026-07-12T09:12:00.000Z',
+    });
   });
 });

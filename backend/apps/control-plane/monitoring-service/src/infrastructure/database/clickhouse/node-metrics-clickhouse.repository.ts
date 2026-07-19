@@ -5,6 +5,7 @@ import {
   NodeMetricsReadRepository,
   type NodeMetricsCurrentRecord,
   type NodeMetricsNodeBucketRecord,
+  type NodeMetricsSeedWindowQuery,
   type NodeMetricsWorkloadBucketRecord,
   type NodeMetricsWorkloadRecord,
 } from '../../../application/ports/node-metrics-read.repository';
@@ -13,6 +14,12 @@ import { CLICKHOUSE_CLIENT } from './clickhouse.constants';
 type NodeMetricsCurrentRow = {
   nodeId: string;
   summaryTs: string;
+  cpuUsagePct: number | string | null;
+  memoryUsagePct: number | string | null;
+  diskUsagePct: number | string | null;
+  cpuTemperatureC: number | string | null;
+  networkRxBytesSec: number | string | null;
+  networkTxBytesSec: number | string | null;
 };
 
 type NodeMetricsWorkloadRow = {
@@ -71,7 +78,13 @@ export class NodeMetricsClickhouseRepository
       query: `
         SELECT
           node_id AS nodeId,
-          toString(summary_ts) AS summaryTs
+          toString(summary_ts) AS summaryTs,
+          cpu_usage_pct_current AS cpuUsagePct,
+          memory_used_pct_current AS memoryUsagePct,
+          disk_used_pct_max_current AS diskUsagePct,
+          cpu_temperature_c_max_current AS cpuTemperatureC,
+          network_rx_bytes_sec_sum_current AS networkRxBytesSec,
+          network_tx_bytes_sec_sum_current AS networkTxBytesSec
         FROM telemetry_db.node_current_summary
         WHERE node_id = {nodeId: String}
         LIMIT 1
@@ -119,25 +132,43 @@ export class NodeMetricsClickhouseRepository
 
   async listNodeSeedBuckets(
     nodeId: string,
-    limit: number,
+    window: NodeMetricsSeedWindowQuery,
   ): Promise<NodeMetricsNodeBucketRecord[]> {
     const result = await this.clickhouseClient.query({
       query: `
+        WITH
+          parseDateTimeBestEffort({fromTs: String}, 'UTC') AS fromTsUtc,
+          parseDateTimeBestEffort({toTs: String}, 'UTC') AS toTsUtc,
+          toIntervalSecond({resolutionSec: UInt32}) AS resolutionInterval
         SELECT
-          toString(bucket_start) AS ts,
+          formatDateTime(
+            toStartOfInterval(
+              toTimeZone(bucket_start, 'UTC'),
+              resolutionInterval
+            ),
+            '%F %T',
+            'UTC'
+          ) AS ts,
           node_id AS nodeId,
-          cpu_usage_pct_current AS cpuUsagePct,
-          memory_used_pct_current AS memoryUsagePct,
-          disk_used_pct_max_current AS diskUsagePct,
-          cpu_temperature_c_current AS cpuTemperatureC,
-          network_rx_bytes_sec_sum_current AS networkRxBytesSec,
-          network_tx_bytes_sec_sum_current AS networkTxBytesSec
+          avg(cpu_usage_pct_current) AS cpuUsagePct,
+          avg(memory_used_pct_current) AS memoryUsagePct,
+          avg(disk_used_pct_max_current) AS diskUsagePct,
+          avg(cpu_temperature_c_current) AS cpuTemperatureC,
+          avg(network_rx_bytes_sec_sum_current) AS networkRxBytesSec,
+          avg(network_tx_bytes_sec_sum_current) AS networkTxBytesSec
         FROM telemetry_db.node_summary_trend_1m
         WHERE node_id = {nodeId: String}
-        ORDER BY bucket_start DESC
-        LIMIT {limit: UInt32}
+          AND toTimeZone(bucket_start, 'UTC') >= fromTsUtc
+          AND toTimeZone(bucket_start, 'UTC') <= toTsUtc
+        GROUP BY ts, nodeId
+        ORDER BY ts ASC
       `,
-      query_params: { nodeId, limit },
+      query_params: {
+        nodeId,
+        fromTs: window.fromTs,
+        toTs: window.toTs,
+        resolutionSec: window.resolutionSec,
+      },
       format: 'JSONEachRow',
     });
 
@@ -148,7 +179,7 @@ export class NodeMetricsClickhouseRepository
   async listWorkloadSeedBuckets(
     nodeId: string,
     workloadIds: string[],
-    limit: number,
+    window: NodeMetricsSeedWindowQuery,
   ): Promise<NodeMetricsWorkloadBucketRecord[]> {
     if (workloadIds.length === 0) {
       return [];
@@ -156,27 +187,38 @@ export class NodeMetricsClickhouseRepository
 
     const result = await this.clickhouseClient.query({
       query: `
+        WITH
+          parseDateTimeBestEffort({fromTs: String}, 'UTC') AS fromTsUtc,
+          parseDateTimeBestEffort({toTs: String}, 'UTC') AS toTsUtc,
+          toIntervalSecond({resolutionSec: UInt32}) AS resolutionInterval
         SELECT
-          toString(bucket_start) AS ts,
+          formatDateTime(
+            toStartOfInterval(
+              toTimeZone(bucket_start, 'UTC'),
+              resolutionInterval
+            ),
+            '%F %T',
+            'UTC'
+          ) AS ts,
           container_id AS workloadId,
           node_id AS nodeId,
-          cpu_usage_pct_current AS cpuUsagePct,
-          memory_used_pct_current AS memoryUsagePct
+          avg(cpu_usage_pct_current) AS cpuUsagePct,
+          avg(memory_used_pct_current) AS memoryUsagePct
         FROM telemetry_db.container_summary_trend_1m
         WHERE node_id = {nodeId: String}
           AND container_id IN {workloadIds: Array(String)}
-          AND bucket_start IN (
-            SELECT bucket_start
-            FROM telemetry_db.container_summary_trend_1m
-            WHERE node_id = {nodeId: String}
-              AND container_id IN {workloadIds: Array(String)}
-            GROUP BY bucket_start
-            ORDER BY bucket_start DESC
-            LIMIT {limit: UInt32}
-          )
-        ORDER BY bucket_start DESC, container_id ASC
+          AND toTimeZone(bucket_start, 'UTC') >= fromTsUtc
+          AND toTimeZone(bucket_start, 'UTC') <= toTsUtc
+        GROUP BY ts, workloadId, nodeId
+        ORDER BY ts ASC, workloadId ASC
       `,
-      query_params: { nodeId, workloadIds, limit },
+      query_params: {
+        nodeId,
+        workloadIds,
+        fromTs: window.fromTs,
+        toTs: window.toTs,
+        resolutionSec: window.resolutionSec,
+      },
       format: 'JSONEachRow',
     });
 
@@ -227,29 +269,30 @@ export class NodeMetricsClickhouseRepository
   async listChangedNodeIdsSince(summaryTs: string): Promise<string[]> {
     const result = await this.clickhouseClient.query({
       query: `
+        WITH parseDateTimeBestEffort({changedSinceSummaryTs: String}, 'UTC') AS changedSinceSummaryTsUtc
         SELECT DISTINCT nodeId
         FROM (
           SELECT node_id AS nodeId
           FROM telemetry_db.node_current_summary
-          WHERE summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})
+          WHERE toTimeZone(summary_ts, 'UTC') > changedSinceSummaryTsUtc
 
           UNION DISTINCT
 
           SELECT node_id AS nodeId
           FROM telemetry_db.container_current_summary
-          WHERE summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})
+          WHERE toTimeZone(summary_ts, 'UTC') > changedSinceSummaryTsUtc
 
           UNION DISTINCT
 
           SELECT node_id AS nodeId
           FROM telemetry_db.node_summary_trend_1m
-          WHERE summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})
+          WHERE toTimeZone(summary_ts, 'UTC') > changedSinceSummaryTsUtc
 
           UNION DISTINCT
 
           SELECT node_id AS nodeId
           FROM telemetry_db.container_summary_trend_1m
-          WHERE summary_ts > parseDateTimeBestEffort({changedSinceSummaryTs: String})
+          WHERE toTimeZone(summary_ts, 'UTC') > changedSinceSummaryTsUtc
         )
         WHERE nodeId IS NOT NULL
           AND nodeId != ''
@@ -266,6 +309,32 @@ export class NodeMetricsClickhouseRepository
     const rows = await result.json<ChangedNodeIdRow>();
     return rows.map((row) => row.nodeId);
   }
+
+  async listNodeIdsForMetricsSync(): Promise<string[]> {
+    const result = await this.clickhouseClient.query({
+      query: `
+        SELECT DISTINCT nodeId
+        FROM (
+          SELECT node_id AS nodeId
+          FROM telemetry_db.node_current_summary
+
+          UNION DISTINCT
+
+          SELECT node_id AS nodeId
+          FROM telemetry_db.container_current_summary
+        )
+        WHERE nodeId IS NOT NULL
+          AND nodeId != ''
+          AND lower(trim(nodeId)) != 'null'
+          AND lower(trim(nodeId)) != 'undefined'
+        ORDER BY nodeId ASC
+      `,
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<ChangedNodeIdRow>();
+    return rows.map((row) => row.nodeId);
+  }
 }
 
 export function mapNodeMetricsCurrentRow(
@@ -274,6 +343,12 @@ export function mapNodeMetricsCurrentRow(
   return {
     nodeId: row.nodeId,
     summaryTs: row.summaryTs,
+    cpuUsagePct: toNullableNumber(row.cpuUsagePct),
+    memoryUsagePct: toNullableNumber(row.memoryUsagePct),
+    diskUsagePct: toNullableNumber(row.diskUsagePct),
+    cpuTemperatureC: toNullableNumber(row.cpuTemperatureC),
+    networkRxBytesSec: toNullableNumber(row.networkRxBytesSec),
+    networkTxBytesSec: toNullableNumber(row.networkTxBytesSec),
   };
 }
 

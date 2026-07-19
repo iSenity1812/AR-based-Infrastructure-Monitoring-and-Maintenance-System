@@ -1,9 +1,10 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 
@@ -34,12 +35,27 @@ export class NodeMetricsController {
   @ApiOperation({
     summary: 'Get node metrics bootstrap payload for realtime charts.',
   })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Inclusive ISO-8601 lower bound for the seed window.',
+    example: '2026-07-18T15:48:00.000Z',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    description: 'Inclusive ISO-8601 upper bound for the seed window.',
+    example: '2026-07-18T16:03:00.000Z',
+  })
   @ApiOkResponse({ type: MonitoringNodeMetricsResponseEnvelopeDto })
   async getNodeMetrics(
     @Param('nodeId') nodeId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ): Promise<MonitoringNodeMetricsResponseDto> {
     return this.getNodeMetricsUseCase.execute(
       nodeId,
+      { from, to },
     ) as Promise<MonitoringNodeMetricsResponseDto>;
   }
 }

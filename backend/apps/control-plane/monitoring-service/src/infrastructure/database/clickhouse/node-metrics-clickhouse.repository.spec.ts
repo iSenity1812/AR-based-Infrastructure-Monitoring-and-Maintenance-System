@@ -79,9 +79,14 @@ describe('NodeMetricsClickhouseRepository', () => {
     const json = jest.fn().mockResolvedValue([]);
     const query = jest.fn().mockResolvedValue({ json });
     const repository = new NodeMetricsClickhouseRepository({ query } as never);
+    const window = {
+      fromTs: '2026-07-12T09:00:00.000Z',
+      toTs: '2026-07-12T09:15:00.000Z',
+      resolutionSec: 60,
+    };
 
-    await repository.listNodeSeedBuckets('node-a1', 15);
-    await repository.listWorkloadSeedBuckets('node-a1', ['container-api'], 15);
+    await repository.listNodeSeedBuckets('node-a1', window);
+    await repository.listWorkloadSeedBuckets('node-a1', ['container-api'], window);
 
     expect(query.mock.calls[0][0].query).toContain(
       'FROM telemetry_db.node_summary_trend_1m',

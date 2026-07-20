@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	pb "ingestion-worker/api/registration/v1"
 	"ingestion-worker/internal/domain"
 	"ingestion-worker/internal/port"
 
+	pb "github.com/iSenity1812/ingestion-worker-contract/api/registration/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"

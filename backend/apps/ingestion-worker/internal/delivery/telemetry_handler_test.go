@@ -5,9 +5,9 @@ import (
 	"net"
 	"testing"
 
-	telemetrypb "ingestion-worker/api/telemetry/v1"
 	"ingestion-worker/internal/domain"
 
+	telemetrypb "github.com/iSenity1812/ingestion-worker-contract/api/telemetry/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"

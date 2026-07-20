@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	pb "ingestion-worker/api/registration/v1"
-	telemetrypb "ingestion-worker/api/telemetry/v1"
 	localca "ingestion-worker/deployment/local-ca"
 	"ingestion-worker/internal/adapter"
 	"ingestion-worker/internal/delivery"
@@ -18,6 +16,8 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/iSenity1812/ingestion-worker-contract/api/registration/v1"
+	telemetrypb "github.com/iSenity1812/ingestion-worker-contract/api/telemetry/v1"
 	"google.golang.org/grpc"
 	"gopkg.in/yaml.v3"
 )

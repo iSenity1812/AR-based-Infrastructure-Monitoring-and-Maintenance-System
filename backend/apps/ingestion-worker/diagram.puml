@@ -1,120 +1,173 @@
 @startuml
-autonumber
-skinparam BoxPadding 10
-skinparam ParticipantPadding 10
+title Secure Node Registration & Telemetry Ingestion Pipeline
 
-box "Client / Node (Máy Trạm)" #LightCyan
-participant "Go Agent\n(System Service)" as Agent
-end box
+actor Agent
+participant "Nginx Gateway" as Nginx
+participant "Ingestion Worker" as Worker
+participant "Local CA" as LocalCA
+database Redis
+queue Redpanda
+participant Vector
+database ClickHouse
+actor Administrator as Admin
 
-box "Ingestion Layer & Reverse Proxy" #LightYellow
-participant "Nginx\n(mTLS Proxy)" as Nginx
-participant "API Ingestion\nWorker (Go)" as API
-participant "Redpanda\nBroker" as Broker
-end box
+note over Agent
+Initial State
+- No client certificate
+- No trusted agent_id
+- Collect hostname, device type,
+  and hardware fingerprint
+end note
 
-box "Control Plane & Metadata" #LightBlue
-participant "Local CA\n(step-ca / OpenSSL)" as CA
-database "Redis\nCache" as Redis
-participant "Admin Web UI\n(Dashboard)" as UI
-end box
+== Phase 1: Node Bootstrap Registration ==
 
-box "Storage & Analytics" #LightGreen
-participant "Processing Consumer\n(Python Pool)" as Consumer
-database "ClickHouse\n(Hot DB)" as CH
-end box
-
-== GIAI ĐOẠN 1: KHAI SINH & ĐĂNG KÝ (Chạy 1 lần duy nhất) ==
-
-note over Agent: Agent khởi động lần đầu\nChưa có ID & mTLS Certificate.\nTự quét vân tay phần cứng (MAC, Serial).
-
-Agent -> Nginx: **gRPC /Register (Standard TLS - 1 chiều)**\n(Bootstrap Token + Hardware Info)
+Agent -> Nginx: RegisterNode()\nTLS + bootstrap_token + hardware_info
 activate Nginx
-Nginx -> API: Forward nguyên trạng gRPC Request sang mạng nội bộ
-activate API
 
-API -> API: Xác thực Bootstrap Token thô bằng ConstantTimeCompare\n(Nếu sai -> Ngắt luồng tại chỗ)
+Nginx -> Worker: Forward registration request
+activate Worker
 
-API -> CA: Yêu cầu đúc Chứng chỉ mTLS mới\n(Dựa trên Hardware Fingerprint)
-activate CA
-CA --> API: Trả về: agent_id (agent-msi)\n+ Client Cert (.crt) & Private Key (.key)
-deactivate CA
+Worker -> Worker: Validate bootstrap token\n(Constant-time verification)
 
-API -> Redis: Khởi tạo Slot trống đóng băng ID mới\n(HSET node:tags:agent-msi status="unassigned")
-activate Redis
-deactivate Redis
+alt Invalid bootstrap token
 
-API --> Nginx: Trả về dữ liệu nhị phân Cert/Key
-deactivate API
-Nginx --> Agent: Phản hồi gRPC RegisterResponse thành công
+    Worker --> Nginx: Registration failed
+    Nginx --> Agent: Registration rejected
+
+else Valid bootstrap token
+
+    Worker -> Worker: Generate new agent_id\nDefault state = DISCOVERED / UNASSIGNED
+
+    Worker -> LocalCA: GenerateCredentials(agent_id)
+    activate LocalCA
+    LocalCA --> Worker: X.509 certificate + private key
+    deactivate LocalCA
+
+    Worker -> Redis: Persist node registry\nnode:agent:<agent_id>\nAdd agent_id to index
+    activate Redis
+    Redis --> Worker: OK
+    deactivate Redis
+
+    Worker --> Nginx: RegisterNodeResponse\nagent_id + certificate + private key
+    Nginx --> Agent: Registration successful
+
+end
+
+deactivate Worker
 deactivate Nginx
 
-note over Agent: Agent ghi chặt file Cert/Key vào ổ cứng.\nVứt bỏ Bootstrap Token, không dùng lại nữa.
+note over Agent
+Persist certificate and private key locally.
 
-|||
-... Sau đó, Admin mở Web UI lên kiểm tra hệ thống ...
-|||
+All subsequent communication
+uses mutual TLS (mTLS).
+end note
 
-UI -> Redis: Admin quét danh sách "Unassigned" từ Redis\nvà bấm chọn: **Assign vào Rack-A1**
+== Phase 1.5: Administrative Node Assignment ==
+
+Admin -> Redis: Query DISCOVERED / UNASSIGNED nodes
 activate Redis
+Redis --> Admin: Node inventory
 deactivate Redis
-UI -> Redis: Ghi nhãn vị trí logic vĩnh viễn\n(**HSET node:tags:agent-msi rackId="Rack-A1" site="lab-local" status="active"**)
+
+Admin -> Redis: Assign operational metadata\nState -> ASSIGNED / ACTIVE\nRack / Site / Labels
 activate Redis
+Redis --> Admin: OK
 deactivate Redis
 
-== GIAI ĐOẠN 2: VÀO GUỒNG CHẠY CƠM BỮA (Lặp lại mỗi 15 giây) ==
+== Phase 2: Telemetry Ingestion ==
 
-loop Cứ mỗi 15 giây liên tục
-    Agent -> Nginx: **Bắt tay mTLS hai chiều (Mạng công cộng)**\n(Chìa .crt cá nhân, ký số bằng .key bảo mật)
+loop Periodic telemetry upload
+
+    Agent -> Nginx: mTLS + IngestBatch(metrics[])
     activate Nginx
-    
-    alt Kịch bản A: Chứng chỉ không hợp lệ / Hacker giả danh
-        Nginx -> Nginx: Tự đối chiếu chữ ký với ca.crt gốc thất bại
-        Nginx --> Agent: Bẻ gãy kết nối TCP (400 Bad Request / TLS Handshake Error)
-    else Kịch bản B: Chứng chỉ hợp lệ (Hợp pháp)
-        Nginx -> Nginx: Trích xuất danh tính từ Common Name (CN) trong Cert\nBiến đổi thành Header: X-Client-Cert-DN = "agent-msi-..."
-        
-        Nginx -> API: **Forward gRPC SendBatch (Mạng nội bộ)**\n(Kèm theo Header định danh X-Client-Cert-DN)
-        activate API
-        
-        note over API: API Worker chỉ đọc Header từ Nginx gửi sang.\nKhông tốn CPU giải mã mTLS toán học nữa.
-        API -> API: Bọc thêm vỏ Envelope (receivedAt) và ID định danh
-        
-        API -> Broker: Đẩy chuỗi nhị phân thô chứa mảng metrics vào Topic
-        activate Broker
-        Broker --> API: ACK (Đã append-only ghi đĩa an toàn)
-        deactivate Broker
-        
-        API --> Nginx: gRPC Response (Success - 202)
-        deactivate API
-        Nginx --> Agent: Trả về gRPC Response kết thúc chu kỳ
+
+    alt Client certificate invalid
+
+        Nginx --> Agent: TLS handshake rejected
+
+    else Client certificate valid
+
+        Nginx -> Nginx: Extract client certificate DN
+
+        Nginx -> Worker: Forward telemetry batch\n+ client certificate DN
+        activate Worker
+
+        Worker -> Worker: Extract agent_id\nfrom certificate DN
+
+        Worker -> Redis: Lookup node by agent_id
+        activate Redis
+        Redis --> Worker: Node status + assignment
+        deactivate Redis
+
+        alt Node not found\nUNASSIGNED\nor RETIRED
+
+            Worker --> Nginx: Reject telemetry
+            Nginx --> Agent: Ingestion rejected
+
+        else Authorized node
+
+            Worker -> Worker: Build telemetry envelope\nEnvelopeID\nAgentID\nReceivedAt\nClientDN\nPayload
+
+            Worker -> Redpanda: Publish\ntelemetry.ingested-raw.received
+            activate Redpanda
+            Redpanda --> Worker: ACK
+            deactivate Redpanda
+
+            Worker --> Nginx: accepted = true
+            Nginx --> Agent: Batch accepted
+
+        end
+
+        deactivate Worker
+
     end
+
     deactivate Nginx
-    
-    == Tầng Consumer PULL dữ liệu xử lý bất đồng bộ ==
-    Consumer -> Broker: Continuous PULL Event (Ăn đong theo năng lực)
-    activate Broker
-    Broker --> Consumer: Trả về cục byte nhị phân thô
-    deactivate Broker
-    activate Consumer
-    
-    Consumer -> Consumer: Giải mã Protobuf (Unbox ruột mảng metrics)
-    Consumer -> Redis: Tra cứu Tag: **HGETALL node:tags:agent-msi**
-    activate Redis
-    Redis --> Consumer: Trả về trạng thái & nhãn vị trí
-    deactivate Redis
-    
-    alt Nếu Redis trả về status="unassigned" hoặc Trống (Chưa được duyệt Rack)
-        Consumer -> Consumer: **DROP ĐOÀN DỮ LIỆU NGAY TRÊN RAM**\n(Bảo vệ đĩa cứng ClickHouse)
-    else Trường hợp hợp pháp (status="active")
-        Consumer -> Consumer: Ép phẳng dữ liệu (Flatten) + Đắp nhãn 'Rack-A1' vào mẻ metrics
-        Consumer -> CH: **BULK INSERT mảng phẳng sạch** (Duy nhất 1 câu lệnh SQL)
-        activate CH
-        CH --> Consumer: Confirm (Đã nén và lưu trữ dạng cột vĩnh viễn)
-        deactivate CH
-        Consumer -> Broker: Manual Commit Offset (Chốt khóa bảo hiểm dữ liệu)
-    end
-    deactivate Consumer
+
 end
-@endum
+
+== Phase 3: Normalization & Storage ==
+
+Vector -> Redpanda: Consume telemetry.ingested-raw.received
+
+activate Redpanda
+Redpanda --> Vector: Raw telemetry envelope
+deactivate Redpanda
+
+activate Vector
+
+Vector -> Vector: Normalize payload\n- batch_sequence\n- agent_id\n- received_at\n- hardware_fingerprint\n- metrics[]
+
+Vector -> Redpanda: Publish\ntelemetry.normalized.received
+
+activate Redpanda
+Redpanda --> Vector: ACK
+deactivate Redpanda
+
+deactivate Vector
+
+Redpanda -> ClickHouse: Stream normalized telemetry
+
+activate ClickHouse
+
+ClickHouse -> ClickHouse: Materialized Views\nFlatten metrics[]\nPopulate telemetry tables\nRefresh serving views
+
+deactivate ClickHouse
+
+== Design Notes ==
+
+note over Worker,Redis
+Telemetry is accepted only for
+nodes that exist in the registry
+and are operationally assigned.
+end note
+
+note over Vector,ClickHouse
+Vector performs normalization only.
+
+ClickHouse stores the structured
+historical telemetry and provides
+optimized analytical views.
+end note
 @enduml

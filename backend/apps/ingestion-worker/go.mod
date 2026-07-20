@@ -40,3 +40,7 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+require github.com/iSenity1812/ingestion-worker-contract v0.0.0
+
+replace github.com/iSenity1812/ingestion-worker-contract => ../../../packages/ingestion-worker-contract

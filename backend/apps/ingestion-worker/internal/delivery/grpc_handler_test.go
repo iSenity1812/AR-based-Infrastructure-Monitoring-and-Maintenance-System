@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	pb "ingestion-worker/api/registration/v1"
 	"ingestion-worker/internal/domain"
+
+	pb "github.com/iSenity1812/ingestion-worker-contract/api/registration/v1"
 )
 
 type mockRegistrationUseCase struct {

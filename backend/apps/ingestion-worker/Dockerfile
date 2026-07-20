@@ -6,10 +6,13 @@ RUN apt-get update \
 
 WORKDIR /src
 
-COPY go.mod go.sum ./
+COPY packages/ingestion-worker-contract ./packages/ingestion-worker-contract
+COPY backend/apps/ingestion-worker ./backend/apps/ingestion-worker
+
+WORKDIR /src/backend/apps/ingestion-worker
+
 RUN go mod download
 
-COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/ingestion-worker ./cmd/server
 
 FROM debian:bookworm-slim

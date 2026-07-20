@@ -3,10 +3,10 @@ package delivery
 import (
 	"context"
 	"fmt"
-	telemetrypb "ingestion-worker/api/telemetry/v1"
 	"ingestion-worker/internal/domain"
 	"ingestion-worker/internal/port"
 
+	telemetrypb "github.com/iSenity1812/ingestion-worker-contract/api/telemetry/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 

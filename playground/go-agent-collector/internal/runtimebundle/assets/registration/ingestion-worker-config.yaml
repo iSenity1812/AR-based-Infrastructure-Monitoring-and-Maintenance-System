@@ -1,0 +1,18 @@
+server:
+  port: 4040
+auth:
+  bootstrap_token: ""
+pki:
+  ca_cert_path: "deployment/local-ca/pki/ca.crt"
+  ca_key_path: "deployment/local-ca/pki/ca.key"
+  work_dir: "deployment/local-ca/pki"
+redis:
+  address: "localhost:6379"
+  password: ""
+  db: 0
+broker:
+  brokers:
+    - "localhost:19092"
+  domain: "telemetry"
+  dataArea: "ingested"
+  status: "received"

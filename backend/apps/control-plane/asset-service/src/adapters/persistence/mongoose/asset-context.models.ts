@@ -70,6 +70,9 @@ export class NodeDocumentModel {
   rackId?: string;
 
   @Prop()
+  positionCode?: string;
+
+  @Prop()
   nodeType?: string;
 
   @Prop({ required: true, trim: true })
@@ -102,6 +105,17 @@ export class NodeDocumentModel {
 
 export type NodeDocument = HydratedDocument<NodeDocumentModel>;
 export const NodeSchema = SchemaFactory.createForClass(NodeDocumentModel);
+NodeSchema.index(
+  { rackId: 1, positionCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      rackId: { $exists: true, $gt: '' },
+      positionCode: { $exists: true, $gt: '' },
+    },
+  },
+);
+NodeSchema.index({ assignmentState: 1 });
 
 @Schema({ collection: 'markers', timestamps: true, versionKey: false })
 export class MarkerDocumentModel {

@@ -211,6 +211,11 @@ export class UpdateNodeRequestDto {
   @IsString()
   hostname?: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  rackId?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -236,6 +241,11 @@ export class UpdateNodeRequestDto {
   @IsString()
   managementIp?: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  positionCode?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -252,6 +262,28 @@ export class AssignNodeToRackRequestDto {
   @IsString()
   @IsNotEmpty()
   rackId!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  positionCode!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  allowDraining?: boolean;
+}
+
+export class UnifiedAssignNodeToRackRequestDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  rackId!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  positionCode!: string;
 
   @ApiPropertyOptional()
   @IsOptional()

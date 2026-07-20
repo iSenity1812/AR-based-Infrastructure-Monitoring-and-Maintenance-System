@@ -45,8 +45,8 @@ flowchart LR
     end
 
     subgraph Backbone["Event and Data Backbone"]
-        K[Kafka]
-        T[(TimescaleDB)]
+        K[Redpanda]
+        T[(ClickHouse)]
         M[(MongoDB)]
         R[(Redis)]
         O[(Object Storage)]
@@ -232,7 +232,7 @@ Dùng cho operational data:
 * Audit
 * AI Inference Records
 
-### 6.2 TimescaleDB
+### 6.2 ClickHouse
 
 Dùng cho telemetry và historical time-series:
 
@@ -249,7 +249,7 @@ Dùng cho derived serving state:
 * Hot Cache
 * Current Health Context
 
-### 6.4 Kafka
+### 6.4 Redpanda
 
 Dùng làm event backbone:
 
@@ -259,7 +259,7 @@ Dùng làm event backbone:
 * AI Output Events
 * Simulation Events
 
-Kafka không phải source of truth của business entity.
+Redpanda không phải source of truth của business entity.
 
 ### 6.5 Object Storage
 
@@ -287,7 +287,7 @@ Mỗi service phải có vùng ownership riêng.
 Quy tắc:
 
 * Không query trực tiếp database authoritative của service khác
-* Cross-service access thông qua REST, gRPC hoặc Kafka
+* Cross-service access thông qua REST, gRPC hoặc Redpanda
 * Shared physical cluster không đồng nghĩa với shared ownership
 * BFF không sở hữu authoritative database
 
@@ -295,7 +295,8 @@ Quy tắc:
 
 * WebAR Client không đọc raw telemetry trực tiếp
 * AI không sở hữu alert lifecycle
-* Kafka không thay thế database nghiệp vụ
+* Redpanda không thay thế database nghiệp vụ
 * Redis không phải source of truth
 * Control Plane không nên biến thành query-only aggregation service
 * Đoạn nghiệp vụ phải giữ đúng bounded context theo service decomposition
+

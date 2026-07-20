@@ -18,7 +18,9 @@ export function serializeEnvelope<TData>(
       requestId: context?.requestId,
       correlationId: context?.correlationId,
       version: 'v1',
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+      }),
     },
   };
 }

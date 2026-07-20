@@ -1,0 +1,179 @@
+-- =========================================================
+-- FILE NAME: init.manifest
+-- MUC DICH:
+--   Orchestration file de chay toan bo ClickHouse schema/module
+--   theo structure moi da duoc refactor.
+-- TANG DU LIEU PHUC VU:
+--   Bootstrap / execution order / review manifest
+-- GHI CHU:
+--   - File nay duoc tao de review thu tu chay truoc.
+--   - Khong thay the clickhouse.sql o giai doan hien tai.
+--   - Gia dinh duoc chay bang clickhouse-client ho tro lenh SOURCE.
+--   - Neu runtime init khong ho tro SOURCE, co the dung file nay lam
+--     manifest de ghep/thuc thi tung file theo thu tu tuong ung.
+-- =========================================================
+
+-- =========================================================
+-- 00. BOOTSTRAP
+-- Muc dich:
+--   Tao database telemetry_db va normalized queue ban dau.
+-- =========================================================
+
+SOURCE './00_bootstrap/init_db.sql';
+
+-- =========================================================
+-- 01. RAW INGESTION
+-- Muc dich:
+--   Dinh nghia bang telemetry_metrics va MV chuyen payload JSON
+--   thanh tung dong metric co cau truc.
+-- =========================================================
+
+SOURCE './01_raw_ingestion/01_telemetry_metrics.sql';
+
+SOURCE './01_raw_ingestion/02_mv_raw_to_structured.sql';
+
+-- =========================================================
+-- 02. LATEST STATE
+-- Muc dich:
+--   Dinh nghia tang latest-known state tong quat cho moi scope.
+--   Day la cau noi giua raw telemetry va cac read model phia tren.
+-- =========================================================
+
+SOURCE './02_latest_state/01_latest_state_by_scope_table.sql';
+
+SOURCE './02_latest_state/02_mv_telemetry_to_latest_state_by_scope.sql';
+
+SOURCE './02_latest_state/03_v_latest_state_by_scope.sql';
+
+-- =========================================================
+-- 03. REFERENCE POLICY
+-- Muc dich:
+--   Khai bao metric_profile va dict_metric_profile de policy
+--   duoc tra cuu bang dictGet thay vi hardcode multiIf lap lai.
+-- =========================================================
+
+SOURCE './03_reference_policy/01_metric_profile.sql';
+
+-- =========================================================
+-- 04. NODE SERVING
+-- Muc dich:
+--   Dinh nghia cac view/bang phuc vu node scope:
+--   latest-known, current-live, fingerprint, current-summary.
+--   Node trend 1m duoc dat file trong module nay nhung chay sau
+--   khi aggregate 1m da san sang.
+-- =========================================================
+
+SOURCE './04_node_serving/01_node_latest_state.sql';
+
+SOURCE './04_node_serving/02_node_current_live.sql';
+
+SOURCE './04_node_serving/03_node_fingerprint_raw.sql';
+
+SOURCE './04_node_serving/04_mv_raw_to_node_fingerprint_raw.sql';
+
+SOURCE './04_node_serving/05_node_fingerprint_latest_agg.sql';
+
+SOURCE './04_node_serving/06_mv_node_fingerprint_raw_to_latest_agg.sql';
+
+SOURCE './04_node_serving/07_node_fingerprint_latest.sql';
+
+SOURCE './04_node_serving/08_node_current_summary.sql';
+
+-- =========================================================
+-- 05. WINDOW AGGREGATES
+-- Muc dich:
+--   Dinh nghia aggregate 1m va 5m dung chung policy dictionary.
+--   1m phuc vu 1h-6h, 5m phuc vu 24h-7d.
+-- =========================================================
+
+SOURCE './05_window_aggregates/01_agg_1m_by_scope_metric.sql';
+
+SOURCE './05_window_aggregates/02_mv_telemetry_metrics_to_agg_1m_by_scope_metric.sql';
+
+SOURCE './05_window_aggregates/03_v_agg_1m_by_scope_metric.sql';
+
+SOURCE './04_node_serving/09_node_summary_trend_1m.sql';
+
+SOURCE './05_window_aggregates/04_agg_5m_by_scope_metric.sql';
+
+SOURCE './05_window_aggregates/05_mv_telemetry_metrics_to_agg_5m_by_scope_metric.sql';
+
+SOURCE './05_window_aggregates/06_v_agg_5m_by_scope_metric.sql';
+
+-- =========================================================
+-- 06. RACK SERVING
+-- Muc dich:
+--   Dinh nghia current summary, trend views va historical read model
+--   cho Rack duoc roll-up tu Node.
+-- =========================================================
+
+SOURCE './06_rack_serving/01_rack_current_summary.sql';
+
+SOURCE './06_rack_serving/02_rack_summary_trend_1m.sql';
+
+SOURCE './06_rack_serving/03_rack_summary_trend_5m.sql';
+
+SOURCE './06_rack_serving/04_rack_summary_history.sql';
+
+SOURCE './06_rack_serving/05_mv_agg_1m_to_rack_summary_history.sql';
+
+SOURCE './06_rack_serving/06_mv_agg_5m_to_rack_summary_history.sql';
+
+SOURCE './06_rack_serving/07_v_rack_summary_history.sql';
+
+-- =========================================================
+-- 07. CONTAINER / SERVICE SERVING
+-- Muc dich:
+--   Dinh nghia cac lop serving dau tien cho scope container.
+--   Giai doan hien tai moi dua vao latest-state va current-live
+--   de phuc vu implementation tang dan theo spec.
+-- =========================================================
+
+SOURCE './07_container_service_serving/01_container_latest_state.sql';
+
+SOURCE './07_container_service_serving/02_container_current_live.sql';
+
+SOURCE './07_container_service_serving/03_container_current_summary.sql';
+
+SOURCE './07_container_service_serving/04_service_latest_state.sql';
+
+SOURCE './07_container_service_serving/05_service_current_live.sql';
+
+SOURCE './07_container_service_serving/06_service_current_summary.sql';
+
+SOURCE './07_container_service_serving/07_container_summary_trend_1m.sql';
+
+SOURCE './07_container_service_serving/08_container_summary_trend_5m.sql';
+
+SOURCE './07_container_service_serving/09_service_summary_trend_1m.sql';
+
+SOURCE './07_container_service_serving/10_service_summary_trend_5m.sql';
+
+SOURCE './07_container_service_serving/11_service_summary_history.sql';
+
+SOURCE './07_container_service_serving/12_mv_agg_1m_to_service_summary_history.sql';
+
+SOURCE './07_container_service_serving/13_mv_agg_5m_to_service_summary_history.sql';
+
+SOURCE './07_container_service_serving/14_v_service_summary_history.sql';
+
+-- =========================================================
+-- 08. REVIEW NOTES
+-- Muc dich:
+--   Nhung diem can review truoc khi coi init_new.sql la execution path chinh.
+-- =========================================================
+
+-- 1. Xac nhan runtime init co ho tro SOURCE file tuong doi.
+-- 2. Xac nhan dict_metric_profile co the ket noi:
+--      HOST localhost
+--      PORT 9000
+--      DB telemetry_db
+--      USER root
+--      PASSWORD password
+-- 3. Xac nhan kieu du lieu series_key:
+--      telemetry_metrics.series_key dang la String
+--      latest/aggregate tables dang dung UInt64
+--    Hien tai cac MV dang ep toUInt64(series_key) de giong source-of-truth.
+-- 4. Xac nhan policy seed da phu metric can dung cho node/current/1m/5m.
+-- 5. Xac nhan dict_node_topology da co rack_id truoc khi ky vong rack-serving co du lieu.
+-- 6. Xac nhan rack_summary_history duoc backfill neu can lich su truoc thoi diem tao MV.

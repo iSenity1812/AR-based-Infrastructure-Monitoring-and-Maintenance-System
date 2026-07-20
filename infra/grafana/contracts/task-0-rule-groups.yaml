@@ -1,0 +1,87 @@
+apiVersion: task-0
+kind: GrafanaManagedAlertRuleGroups
+metadata:
+  purpose: >
+    Contract-aligned rule group skeleton for delegated alerting v1. This file
+    is intentionally kept outside live provisioning until each rule model is
+    exported or validated against Grafana's ClickHouse query JSON structure.
+
+groups:
+  - name: monitoring_node_health_v1
+    folder: delegated-alerting-v1
+    interval: 60s
+    rules:
+      - uid: node_stale_v1
+        title: NodeStale
+        scope_type: node
+        condition_window: 120s stale age
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#NodeStale
+        labels:
+          severity: warning
+          category: availability
+      - uid: node_cpu_temp_critical_v1
+        title: NodeCpuTempCritical
+        scope_type: node
+        condition_window: 5m sustained
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#NodeCpuTempCritical
+        labels:
+          severity: critical
+          category: thermal
+      - uid: node_memory_pressure_high_v1
+        title: NodeMemoryPressureHigh
+        scope_type: node
+        condition_window: 5m sustained
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#NodeMemoryPressureHigh
+        labels:
+          severity: critical
+          category: resource
+      - uid: node_disk_usage_high_v1
+        title: NodeDiskUsageHigh
+        scope_type: node
+        condition_window: 10m sustained
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#NodeDiskUsageHigh
+        labels:
+          severity: warning
+          category: resource
+      - uid: node_cpu_usage_high_v1
+        title: NodeCpuUsageHigh
+        scope_type: node
+        condition_window: 5m sustained
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#NodeCpuUsageHigh
+        labels:
+          severity: critical
+          category: resource
+
+  - name: monitoring_runtime_v1
+    folder: delegated-alerting-v1
+    interval: 60s
+    rules:
+      - uid: container_unhealthy_present_v1
+        title: ContainerUnhealthyPresent
+        scope_type: node
+        condition_window: current snapshot
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#ContainerUnhealthyPresent
+        labels:
+          severity: warning
+          category: runtime
+      - uid: container_restarting_v1
+        title: ContainerRestarting
+        scope_type: workload
+        condition_window: current snapshot
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#ContainerRestarting
+        labels:
+          severity: warning
+          category: runtime
+
+  - name: monitoring_rack_health_v1
+    folder: delegated-alerting-v1
+    interval: 60s
+    rules:
+      - uid: rack_critical_v1
+        title: RackCritical
+        scope_type: rack
+        condition_window: current snapshot
+        query_source: infra/grafana/contracts/task-0-rule-queries.sql#RackCritical
+        labels:
+          severity: critical
+          category: availability

@@ -7,6 +7,8 @@ export abstract class UseCaseError extends Error {
     readonly errorCode: ErrorCode,
   ) {
     super(message);
+    this.name = new.target.name;
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 

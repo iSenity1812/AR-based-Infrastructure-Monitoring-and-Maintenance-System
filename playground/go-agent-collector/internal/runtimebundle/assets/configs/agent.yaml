@@ -1,0 +1,102 @@
+agent:
+  schemaVersion: v1
+  sourceType: windows_exporter
+  mode: service
+  agentVersion: 0.1.0
+
+  # Resolution order:
+  # 1. env override
+  # 2. explicit config value
+  # 3. derive from hostname
+  identity:
+    agentId: ""
+    agentName: ""
+    agentIdEnv: GO_AGENT_ID
+    agentNameEnv: GO_AGENT_NAME
+    agentIdStrategy: hostname_slug
+    agentNameStrategy: hostname
+    agentIdPrefix: agent
+    hostnameEnv: COMPUTERNAME
+
+sources:
+  enabled:
+    - windows_exporter
+    - docker
+    - lhm
+
+scrape:
+  endpoint: http://localhost:9182/metrics
+  interval: 15s
+  timeout: 3s
+  maxBodySizeMb: 8
+
+lhm:
+  endpoint: http://localhost:8085/data.json
+  timeout: 3s
+  fingerprintInterval: 120s
+
+docker:
+  endpoint: npipe:////./pipe/docker_engine
+  timeout: 3s
+  collectStopped: true
+  enableServiceRollups: true
+
+send:
+  transport: grpc
+  endpoint: 127.0.0.1:9443
+  interval: 15s
+  timeout: 5s
+  grpcTimeout: 15s
+  maxBatchItems: 200
+  maxBatchBytesKb: 512
+  authTokenEnv: GO_AGENT_API_TOKEN
+
+registration:
+  enabled: true
+  endpoint: 127.0.0.1:8443
+  tlsEnabled: true
+  caCertPath: data/registration/ca.crt
+  serverName: local-ingestion.local
+  bootstrapToken: ""
+  sharedConfigPath: data/registration/ingestion-worker-config.yaml
+  credentialStatePath: data/registration/registration-state.json
+  deviceType: WORKSTATION
+  timeout: 15s
+
+retry:
+  minBackoff: 1s
+  maxBackoff: 30s
+  maxAttempts: 0
+  retryableStatusCodes:
+    - 408
+    - 425
+    - 429
+    - 500
+    - 502
+    - 503
+    - 504
+
+buffer:
+  enabled: true
+  path: data/buffer
+  maxSizeMb: 50
+  maxBatchFiles: 500
+  overflowPolicy: drop_oldest
+
+queue:
+  maxRecords: 5000
+  overflowPolicy: drop_oldest
+
+logging:
+  level: info
+  format: json
+  output: stdout
+
+observability:
+  healthAddress: 127.0.0.1:9101
+
+features:
+  configReload: false
+  localHealthEndpoint: true
+  internalMetrics: true
+  linuxAdapter: false

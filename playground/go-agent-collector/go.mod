@@ -9,7 +9,7 @@ require (
 	golang.org/x/sys v0.45.0
 	google.golang.org/grpc v1.81.1
 	gopkg.in/yaml.v3 v3.0.1
-	ingestion-worker v0.0.0
+	github.com/iSenity1812/ingestion-worker-contract v0.0.0
 )
 
 require (
@@ -20,6 +20,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/elastic/go-windows v1.0.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -45,4 +46,4 @@ require (
 	gotest.tools/v3 v3.5.2 // indirect
 )
 
-replace ingestion-worker => ../../backend/apps/ingestion-worker
+replace github.com/iSenity1812/ingestion-worker-contract => ../../packages/ingestion-worker-contract

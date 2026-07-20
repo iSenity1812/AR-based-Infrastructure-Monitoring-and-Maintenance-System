@@ -69,7 +69,8 @@ export interface NodeEntity {
   nodeCode: string;
   displayName: string;
   hostname?: string;
-  rackId?: string;
+  rackId?: string | null;
+  positionCode?: string | null;
   nodeType?: string;
   source: string;
   lifecycleState: NodeLifecycleState;
@@ -80,6 +81,31 @@ export interface NodeEntity {
   managementIp?: string;
   notes?: string;
   metadata: Record<string, unknown>;
+}
+
+export interface DiscoveredNodeHardwareEntity {
+  primaryIpv4?: string;
+  macAddress?: string;
+  hardwareSerial?: string;
+  vendor?: string;
+  model?: string;
+  osProduct?: string;
+  logicalCpuCount?: number;
+  cpuArchitecture?: string;
+}
+
+export interface DiscoveredNodeEntity {
+  agentId: string;
+  hostname: string;
+  deviceType: string;
+  source?: string;
+  lifecycleState: NodeLifecycleState;
+  assignmentState: NodeAssignmentState;
+  logicalRackId?: string | null;
+  siteCode?: string;
+  hardware: DiscoveredNodeHardwareEntity;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface MarkerEntity {

@@ -4,7 +4,11 @@ import { Model } from 'mongoose';
 
 import { NodeDocumentModel } from '@adapters/persistence/mongoose/asset-context.models';
 import { getDocumentId } from '@adapters/persistence/mongoose/mongoose-document.mapper';
-import type { NodeEntity } from '@domain/entities/asset-context.entities';
+import { NodeAssignmentState } from '@domain/entities/asset-context.entities';
+import type {
+  NodeEntity,
+  NodeLifecycleState,
+} from '@domain/entities/asset-context.entities';
 import type { NodeRepositoryPort } from '@domain/ports/repositories.port';
 
 function mapNode(
@@ -16,6 +20,7 @@ function mapNode(
     displayName: document.displayName,
     hostname: document.hostname,
     rackId: document.rackId,
+    positionCode: document.positionCode,
     nodeType: document.nodeType,
     source: document.source,
     lifecycleState: document.lifecycleState,
@@ -37,7 +42,7 @@ export class MongooseNodeRepository implements NodeRepositoryPort {
   ) {}
 
   async create(input: Omit<NodeEntity, 'id'>): Promise<NodeEntity> {
-    return mapNode(await this.nodeModel.create(input));
+    return mapNode(await this.nodeModel.create(input as never));
   }
 
   async update(
@@ -60,6 +65,14 @@ export class MongooseNodeRepository implements NodeRepositoryPort {
     return document ? mapNode(document) : null;
   }
 
+  async findByRackIdAndPositionCode(
+    rackId: string,
+    positionCode: string,
+  ): Promise<NodeEntity | null> {
+    const document = await this.nodeModel.findOne({ rackId, positionCode });
+    return document ? mapNode(document) : null;
+  }
+
   async listAll(): Promise<NodeEntity[]> {
     const documents = await this.nodeModel.find().sort({ nodeCode: 1 });
     return documents.map((document) =>
@@ -71,6 +84,22 @@ export class MongooseNodeRepository implements NodeRepositoryPort {
     const documents = await this.nodeModel
       .find({ rackId })
       .sort({ nodeCode: 1 });
+    return documents.map((document) =>
+      mapNode(document as NodeDocumentModel & { _id: { toString(): string } }),
+    );
+  }
+
+  async listUnassigned(filter?: {
+    lifecycleState?: NodeLifecycleState;
+  }): Promise<NodeEntity[]> {
+    const query: Record<string, unknown> = {
+      assignmentState: NodeAssignmentState.UNASSIGNED,
+    };
+    if (filter?.lifecycleState) {
+      query.lifecycleState = filter.lifecycleState;
+    }
+
+    const documents = await this.nodeModel.find(query).sort({ nodeCode: 1 });
     return documents.map((document) =>
       mapNode(document as NodeDocumentModel & { _id: { toString(): string } }),
     );

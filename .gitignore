@@ -15,3 +15,5 @@ node_modules
 **/*.log
 # Added by code-review-graph
 .code-review-graph/
+docs/methodology/*
+docs/literature_matrix.md

@@ -1,12 +1,11 @@
 {
-  "name": "@ar-monitoring/identity-service",
+  "name": "@ar-imms/identity-service",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "dev": "ts-node -r tsconfig-paths/register src/infrastructure/bootstrap/main.ts",
     "start": "node dist/infrastructure/bootstrap/main.js",
-    "prestart": "pnpm build",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "jest --runInBand",
     "seed": "ts-node -r tsconfig-paths/register src/infrastructure/bootstrap/seed.ts",

@@ -4,7 +4,7 @@
 
 Luồng dữ liệu chính trong hệ thống đi theo hướng:
 
-Telemetry Collectors / Simulation Producers -> Telemetry Ingestion Service -> Kafka / TimescaleDB -> Stream Processing Service -> Monitoring Service / AI Analytics Service -> Control Plane API and BFF -> Web Dashboard / WebAR Client
+Telemetry Collectors / Simulation Producers -> Telemetry Ingestion Service -> Redpanda / ClickHouse -> Stream Processing Service -> Monitoring Service / AI Analytics Service -> Control Plane API and BFF -> Web Dashboard / WebAR Client
 
 ## 2. Thu Thập Telemetry
 
@@ -34,9 +34,9 @@ Nếu payload không hợp lệ:
 - Ghi nhận invalid metadata
 - Không đưa vào stream processing như dữ liệu hợp lệ
 
-## 4. Luồng Kafka Backbone
+## 4. Luồng Redpanda Backbone
 
-Kafka được dùng để:
+Redpanda được dùng để:
 
 - Phân tán telemetry events
 - Fan-out cho stream processing
@@ -44,7 +44,7 @@ Kafka được dùng để:
 - Truyền AI enrichment outputs
 - Truyền simulation events
 
-Kafka là event backbone, không phải nơi lưu business truth.
+Redpanda là event backbone, không phải nơi lưu business truth.
 
 ## 5. Luồng Stream Processing
 
@@ -60,8 +60,8 @@ Stream Processing Service nhận event để:
 Derived outputs có thể được đưa vào:
 
 - Redis
-- TimescaleDB
-- Kafka
+- ClickHouse
+- Redpanda
 
 ## 6. Luồng Monitoring và Alert
 
@@ -86,7 +86,7 @@ Khi WebAR Client quét QR marker:
 3. BFF lấy latest snapshot từ derived state
 4. BFF lấy alert context từ Monitoring Service
 5. BFF lấy workflow context từ Incident Workflow Service
-6. BFF có thể lấy historical snippet từ TimescaleDB nếu cần
+6. BFF có thể lấy historical snippet từ ClickHouse nếu cần
 7. BFF compose diagnostics bundle và trả về cho client
 
 Quan trọng:
@@ -135,6 +135,7 @@ Dữ liệu từ workflow và inspection có thể quay lại để:
 
 - Không có direct raw telemetry access từ WebAR Client
 - Không để BFF trở thành source of truth
-- Không dùng Kafka để thay thế database nghiệp vụ
+- Không dùng Redpanda để thay thế database nghiệp vụ
 - Không để AI tự mình quản lý workflow
 - Không query trực tiếp database của service khác
+

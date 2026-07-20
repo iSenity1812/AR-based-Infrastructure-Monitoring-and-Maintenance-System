@@ -19,7 +19,7 @@ Hệ thống được mô tả theo architecture-first, có các thành phần c
 - Control Plane API and BFF
 - các microservice control plane
 - các service data plane
-- Kafka, Clickhouse, MongoDB, Redis, Object Storage
+- Redpanda, ClickHouse, MongoDB, Redis, Object Storage
 - Vertex AI cho training và model lifecycle
 
 ## 2. Main Users
@@ -126,3 +126,4 @@ Giá trị mong đợi:
 - giảm sai sót khi kiểm tra tại hiện trường
 - tăng khả năng traceability và auditability
 - góp phần hình thành một mô hình vận hành có AI support nhưng vẫn giữ source of truth rõ ràng
+

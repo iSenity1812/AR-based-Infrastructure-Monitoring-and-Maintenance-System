@@ -199,6 +199,11 @@ Workload runtime schema duoc tach sang tai lieu tham chieu rieng:
 
 #### Runtime-facing fields on node
 
+Luu y ve `source`:
+
+- `source` o node la canonical discovery source, khong phai ten service trung gian.
+- Vi du: `windows_exporter`, `docker`, `lhm`, hoac `manual` neu asset duoc tao thu cong.
+
 Nhung field nay co the dat tren collection `nodes` neu can query don gian,
 nhung ve kien truc van nen duoc cap nhat tu read model/snapshot:
 

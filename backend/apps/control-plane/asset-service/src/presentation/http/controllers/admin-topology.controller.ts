@@ -1,9 +1,12 @@
 import {
   Body,
   Controller,
+  Get,
+  Logger,
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +16,7 @@ import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
 import {
   ActivateNodeUseCase,
   ActivateRackUseCase,
+  AssignDiscoveredNodeToRackUseCase,
   AssignNodeToRackUseCase,
   ConfirmRackReadyUseCase,
   CreateRackUseCase,
@@ -21,13 +25,19 @@ import {
   NormalizeNodeUseCase,
   RetireNodeUseCase,
   RetireRackUseCase,
+  UnifiedAssignNodeToRackUseCase,
   UpdateNodeUseCase,
   UpdateRackUseCase,
 } from '@use-cases/commands/topology';
+import { ListDiscoveredNodesUseCase } from '@use-cases/queries/discovered-node.queries';
+import { ListPendingAssignmentNodesUseCase } from '@use-cases/queries/pending-assignment-node.queries';
+import { ListUnassignedNodesUseCase } from '@use-cases/queries/unassigned-node.queries';
 import {
   AssignNodeToRackRequestDto,
   CreateRackRequestDto,
   NormalizeNodeRequestDto,
+  UnifiedAssignNodeToRackRequestDto,
+  UnassignedNodesRequestDto,
   UpdateNodeRequestDto,
   UpdateRackRequestDto,
 } from '@presentation/http/dto';
@@ -51,6 +61,8 @@ function responseMeta(request: HeaderRequest) {
 @Controller('admin/topology')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminTopologyController {
+  private readonly logger = new Logger(AdminTopologyController.name);
+
   constructor(
     private readonly createRackUseCase: CreateRackUseCase,
     private readonly updateRackUseCase: UpdateRackUseCase,
@@ -61,9 +73,14 @@ export class AdminTopologyController {
     private readonly normalizeNodeUseCase: NormalizeNodeUseCase,
     private readonly updateNodeUseCase: UpdateNodeUseCase,
     private readonly assignNodeToRackUseCase: AssignNodeToRackUseCase,
+    private readonly assignDiscoveredNodeToRackUseCase: AssignDiscoveredNodeToRackUseCase,
+    private readonly unifiedAssignNodeToRackUseCase: UnifiedAssignNodeToRackUseCase,
     private readonly activateNodeUseCase: ActivateNodeUseCase,
     private readonly drainNodeUseCase: DrainNodeUseCase,
     private readonly retireNodeUseCase: RetireNodeUseCase,
+    private readonly listDiscoveredNodesUseCase: ListDiscoveredNodesUseCase,
+    private readonly listPendingAssignmentNodesUseCase: ListPendingAssignmentNodesUseCase,
+    private readonly listUnassignedNodesUseCase: ListUnassignedNodesUseCase,
   ) {}
 
   @Post('racks')
@@ -162,6 +179,43 @@ export class AdminTopologyController {
     );
   }
 
+  @Get('nodes/unassigned')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary: 'List canonical nodes that have not been assigned to a rack.',
+  })
+  async listUnassignedNodes(
+    @Query() query: UnassignedNodesRequestDto,
+    @Req() request: HeaderRequest,
+  ) {
+    return this.serializeUnassignedNodes(query, request);
+  }
+
+  @Get('discovered-nodes')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary: 'List discovered nodes stored in shared Redis state.',
+  })
+  async listDiscoveredNodes(@Req() request: HeaderRequest) {
+    return serializeEnvelope(
+      await this.listDiscoveredNodesUseCase.execute(),
+      responseMeta(request),
+    );
+  }
+
+  @Get('nodes/pending-assignment')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'List nodes pending assignment by merging canonical Mongo and discovered Redis state.',
+  })
+  async listPendingAssignmentNodes(@Req() request: HeaderRequest) {
+    return serializeEnvelope(
+      await this.listPendingAssignmentNodesUseCase.execute(),
+      responseMeta(request),
+    );
+  }
+
   @Patch('nodes/:nodeId')
   @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
   @ApiOperation({ summary: 'Update node business fields.' })
@@ -188,8 +242,64 @@ export class AdminTopologyController {
       await this.assignNodeToRackUseCase.execute(
         nodeId,
         body.rackId,
+        body.positionCode,
         body.allowDraining,
       ),
+      responseMeta(request),
+    );
+  }
+
+  @Post('nodes/:nodeId/assign')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'Assign a node to a rack through a unified command that syncs Mongo and Redis.',
+  })
+  async unifiedAssignNodeToRack(
+    @Param('nodeId') nodeId: string,
+    @Body() body: UnifiedAssignNodeToRackRequestDto,
+    @Req() request: HeaderRequest,
+  ) {
+    return serializeEnvelope(
+      await this.unifiedAssignNodeToRackUseCase.execute({
+        nodeId,
+        ...body,
+      }),
+      responseMeta(request),
+    );
+  }
+
+  @Post('discovered-nodes/:agentId/assign-rack')
+  @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
+  @ApiOperation({
+    summary:
+      'Normalize a discovered Redis-backed node, assign it to a rack, and activate it.',
+  })
+  async assignDiscoveredNodeToRack(
+    @Param('agentId') agentId: string,
+    @Body() body: AssignNodeToRackRequestDto,
+    @Req() request: HeaderRequest,
+  ) {
+    this.logger.log(
+      `assignDiscoveredNodeToRack(agentId=${agentId}, rackId=${body.rackId}, positionCode=${body.positionCode}, allowDraining=${body.allowDraining})`,
+    );
+    return serializeEnvelope(
+      await this.assignDiscoveredNodeToRackUseCase.execute(
+        agentId,
+        body.rackId,
+        body.positionCode,
+        body.allowDraining,
+      ),
+      responseMeta(request),
+    );
+  }
+
+  private async serializeUnassignedNodes(
+    query: UnassignedNodesRequestDto,
+    request: HeaderRequest,
+  ) {
+    return serializeEnvelope(
+      await this.listUnassignedNodesUseCase.execute(query),
       responseMeta(request),
     );
   }
@@ -222,7 +332,9 @@ export class AdminTopologyController {
 
   @Post('nodes/:nodeId/retire')
   @RequirePermissions(PERMISSION_CODES.TOPOLOGY_NODES_MANAGE)
-  @ApiOperation({ summary: 'Retire a node and release rack assignment.' })
+  @ApiOperation({
+    summary: 'Retire a node while preserving its current rack placement.',
+  })
   async retireNode(
     @Param('nodeId') nodeId: string,
     @Req() request: HeaderRequest,

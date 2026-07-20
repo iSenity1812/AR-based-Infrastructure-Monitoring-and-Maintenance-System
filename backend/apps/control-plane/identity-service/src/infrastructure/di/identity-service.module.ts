@@ -42,6 +42,7 @@ import type { UserRepositoryPort } from "../../domain/ports/user-repository.port
 import { IdentityServiceConfig } from "../config/identity-service-config";
 import { AuthController } from "../../presentation/http/controllers/auth.controller";
 import { AdminUsersController } from "../../presentation/http/controllers/admin-users.controller";
+import { TechniciansController } from "../../presentation/http/controllers/technicians.controller";
 import { RolesController } from "../../presentation/http/controllers/roles.controller";
 import { HealthController } from "../../presentation/http/controllers/health.controller";
 import { ApiResponseInterceptor } from "../../presentation/http/interceptors/api-response.interceptor";
@@ -75,9 +76,11 @@ import {
   UPDATE_USER_STATUS_USE_CASE,
   LIST_USERS_USE_CASE,
   GET_BY_USERNAME_USE_CASE,
+  GET_BY_ID_USE_CASE,
 } from "./use-case.tokens";
 import { ListUsersUseCase } from "@use-cases/queries/list-users.use-case";
 import { GetByUsernameUseCase } from "@use-cases/queries/search-by-username.use-case";
+import { GetUserUseCase } from "@use-cases/queries/get-user.use-case";
 
 @Module({
   imports: [
@@ -92,6 +95,7 @@ import { GetByUsernameUseCase } from "@use-cases/queries/search-by-username.use-
   controllers: [
     AuthController,
     AdminUsersController,
+    TechniciansController,
     RolesController,
     HealthController,
   ],
@@ -298,6 +302,20 @@ import { GetByUsernameUseCase } from "@use-cases/queries/search-by-username.use-
       inject: [USER_REPOSITORY],
       useFactory: (userRepository: UserRepositoryPort) =>
         new GetByUsernameUseCase(userRepository),
+    },
+    {
+      provide: GET_BY_ID_USE_CASE,
+      inject: [USER_REPOSITORY, ROLE_REPOSITORY, IdentityPermissionService],
+      useFactory: (
+        userRepository: UserRepositoryPort,
+        roleRepository: RoleRepositoryPort,
+        identityPermissionService: IdentityPermissionService,
+      ) =>
+        new GetUserUseCase(
+          userRepository,
+          roleRepository,
+          identityPermissionService,
+        ),
     },
     {
       provide: ASSIGN_USER_ROLES_USE_CASE,

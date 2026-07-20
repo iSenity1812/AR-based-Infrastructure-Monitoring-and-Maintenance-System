@@ -1,0 +1,9 @@
+alertname=NodeCpuTempCritical
+scope_type=node
+node_id=node-msi-5e8ff2c0
+rack_id=rack-a1
+environment=lab
+team=infra
+category=thermal
+severity=critical
+source=grafana

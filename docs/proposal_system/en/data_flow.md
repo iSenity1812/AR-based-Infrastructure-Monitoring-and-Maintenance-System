@@ -4,7 +4,7 @@
 
 Luong du lieu chinh trong he thong di theo huong:
 
-Telemetry Collectors / Simulation Producers -> Telemetry Ingestion Service -> Kafka / TimescaleDB -> Stream Processing Service -> Monitoring Service / AI Analytics Service -> Control Plane API and BFF -> Web Dashboard / WebAR Client
+Telemetry Collectors / Simulation Producers -> Telemetry Ingestion Service -> Redpanda / ClickHouse -> Stream Processing Service -> Monitoring Service / AI Analytics Service -> Control Plane API and BFF -> Web Dashboard / WebAR Client
 
 ## 2. Telemetry Collection
 
@@ -34,9 +34,9 @@ Neu payload khong hop le:
 - ghi nhan invalid metadata
 - khong dua vao stream processing nhu du lieu hop le
 
-## 4. Kafka Backbone Flow
+## 4. Redpanda Backbone Flow
 
-Kafka dung de:
+Redpanda dung de:
 
 - phan tan telemetry events
 - fan-out cho stream processing
@@ -44,7 +44,7 @@ Kafka dung de:
 - truyen AI enrichment outputs
 - truyen simulation events
 
-Kafka la event backbone, khong phai noi luu business truth.
+Redpanda la event backbone, khong phai noi luu business truth.
 
 ## 5. Stream Processing Flow
 
@@ -60,8 +60,8 @@ Stream Processing Service nhan event de:
 Derived outputs co the di vao:
 
 - Redis
-- TimescaleDB
-- Kafka
+- ClickHouse
+- Redpanda
 
 ## 6. Monitoring and Alert Flow
 
@@ -86,7 +86,7 @@ Khi WebAR Client quet QR marker:
 3. BFF lay latest snapshot tu derived state
 4. BFF lay alert context tu Monitoring Service
 5. BFF lay workflow context tu Incident Workflow Service
-6. BFF co the lay historical snippet tu TimescaleDB neu can
+6. BFF co the lay historical snippet tu ClickHouse neu can
 7. BFF compose diagnostics bundle va tra ve client
 
 Quan trong:
@@ -135,7 +135,8 @@ Day la vong lap cai tien, nhung van phai giu ro ownership cua tung service.
 
 - khong co direct raw telemetry access tu WebAR Client
 - khong de BFF tro thanh source of truth
-- khong dung Kafka de thay cho DB nghiep vu
+- khong dung Redpanda de thay cho DB nghiep vu
 - khong de AI ngan mot minh quan ly workflow
 - khong query cross-service database truc tiep
+
 

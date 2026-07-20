@@ -26,7 +26,7 @@ sources:
 
 scrape:
   endpoint: http://localhost:9182/metrics
-  interval: 15s
+  interval: 5s
   timeout: 3s
   maxBodySizeMb: 8
 
@@ -44,7 +44,7 @@ docker:
 send:
   transport: grpc
   endpoint: 127.0.0.1:9443
-  interval: 15s
+  interval: 5s
   timeout: 5s
   grpcTimeout: 15s
   maxBatchItems: 200
@@ -55,10 +55,10 @@ registration:
   enabled: true
   endpoint: 127.0.0.1:8443
   tlsEnabled: true
-  caCertPath: ../../backend/apps/ingestion-worker/deployment/local-ca/pki/ca.crt
+  caCertPath: data/registration/ca.crt
   serverName: local-ingestion.local
   bootstrapToken: ""
-  sharedConfigPath: ../../backend/apps/ingestion-worker/config/config.yaml
+  sharedConfigPath: data/registration/ingestion-worker-config.yaml
   credentialStatePath: data/registration/registration-state.json
   deviceType: WORKSTATION
   timeout: 15s

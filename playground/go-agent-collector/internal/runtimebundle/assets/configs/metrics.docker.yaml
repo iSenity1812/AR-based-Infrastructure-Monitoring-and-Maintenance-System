@@ -1,0 +1,286 @@
+dockerMetrics:
+  - category: identity_and_inventory
+    key: container.name
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.name
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Human-readable container name from inspect or summary names.
+
+  - category: identity_and_inventory
+    key: container.image
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.image
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Image repository without tag.
+
+  - category: identity_and_inventory
+    key: container.image_tag
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.image_tag
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Parsed image tag with latest as fallback.
+
+  - category: identity_and_inventory
+    key: container.runtime_id
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.id
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Container runtime identifier from Docker.
+
+  - category: identity_and_inventory
+    key: container.status
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.status
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Human-readable status string.
+
+  - category: identity_and_inventory
+    key: container.state
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.state
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Canonical Docker state status.
+
+  - category: identity_and_inventory
+    key: container.health_status
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.health
+    scopeType: container
+    unit: state
+    valueType: gauge
+    aggregation: direct
+    notes: Docker health status when present.
+
+  - category: identity_and_inventory
+    key: container.restart_count
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.restart_count
+    scopeType: container
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Restart count from container inspect.
+
+  - category: identity_and_inventory
+    key: container.service_name
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.service_name
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Derived service name using labels/compose first.
+
+  - category: identity_and_inventory
+    key: container.node_id
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.node_id
+    scopeType: container
+    unit: text
+    valueType: gauge
+    aggregation: direct
+    notes: Collector node id for backend joins.
+
+  - category: resource_runtime
+    key: container.cpu_usage_pct
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.cpu
+    scopeType: container
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    notes: One-shot CPU usage percent from Docker stats.
+
+  - category: resource_runtime
+    key: container.memory_used_bytes
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.memory_usage
+    scopeType: container
+    unit: bytes
+    valueType: gauge
+    aggregation: direct
+    notes: Memory usage from Docker stats.
+
+  - category: resource_runtime
+    key: container.memory_used_pct
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.memory_pct
+    scopeType: container
+    unit: "%"
+    valueType: gauge
+    aggregation: direct
+    notes: Memory usage over limit when limit is available.
+
+  - category: resource_runtime
+    key: container.memory_limit_bytes
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.memory_limit
+    scopeType: container
+    unit: bytes
+    valueType: gauge
+    aggregation: direct
+    notes: Container memory limit from stats.
+
+  - category: resource_runtime
+    key: container.network_rx_bytes_sec
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.network_rx
+    scopeType: container
+    unit: bytes/sec
+    valueType: counter
+    aggregation: rate
+    notes: Per-container receive throughput derived between scrapes.
+
+  - category: resource_runtime
+    key: container.network_tx_bytes_sec
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.network_tx
+    scopeType: container
+    unit: bytes/sec
+    valueType: counter
+    aggregation: rate
+    notes: Per-container transmit throughput derived between scrapes.
+
+  - category: resource_runtime
+    key: container.block_read_bytes_sec
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.block_read
+    scopeType: container
+    unit: bytes/sec
+    valueType: counter
+    aggregation: rate
+    notes: Block read throughput derived between scrapes.
+
+  - category: resource_runtime
+    key: container.block_write_bytes_sec
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.block_write
+    scopeType: container
+    unit: bytes/sec
+    valueType: counter
+    aggregation: rate
+    notes: Block write throughput derived between scrapes.
+
+  - category: resource_runtime
+    key: container.pid_count
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.pids
+    scopeType: container
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Current process count inside the container.
+
+  - category: inventory_counts
+    key: container.port_binding_count
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.ports
+    scopeType: container
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Number of exposed port bindings.
+
+  - category: inventory_counts
+    key: container.mount_count
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.mounts
+    scopeType: container
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Number of mounts on the container.
+
+  - category: inventory_counts
+    key: container.network_count
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.networks
+    scopeType: container
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Number of attached Docker networks.
+
+  - category: service_rollup
+    key: service.container_count
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.service_rollup
+    scopeType: service
+    unit: count
+    valueType: gauge
+    aggregation: sum
+    notes: Count of containers in the derived service group.
+
+  - category: service_rollup
+    key: service.running_container_count
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.inspect.service_rollup
+    scopeType: service
+    unit: count
+    valueType: gauge
+    aggregation: sum
+    notes: Count of running containers in the derived service group.
+
+  - category: service_rollup
+    key: service.cpu_usage_pct_sum
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.service_rollup
+    scopeType: service
+    unit: "%"
+    valueType: gauge
+    aggregation: sum
+    notes: Sum CPU usage percent for all containers in the service group.
+
+  - category: service_rollup
+    key: service.memory_used_bytes_sum
+    status: verified_design
+    enabled: true
+    sourceMetric: docker.stats.service_rollup
+    scopeType: service
+    unit: bytes
+    valueType: gauge
+    aggregation: sum
+    notes: Sum memory usage for all containers in the service group.

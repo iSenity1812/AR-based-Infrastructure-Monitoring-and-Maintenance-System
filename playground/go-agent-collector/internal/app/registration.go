@@ -11,10 +11,9 @@ import (
 	"strings"
 	"time"
 
-	registrationpb "ingestion-worker/api/registration/v1"
-
 	"github.com/iSenity1812/go-agent-collector/internal/config"
 	"github.com/iSenity1812/go-agent-collector/internal/hostmeta"
+	registrationpb "github.com/iSenity1812/ingestion-worker-contract/api/registration/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -151,6 +150,9 @@ func applyRegisteredIdentity(cfg *config.Config, agentID string) {
 }
 
 func resolveBootstrapToken(cfg *config.Config) (string, error) {
+	if token := strings.TrimSpace(os.Getenv("GO_AGENT_BOOTSTRAP_TOKEN")); token != "" {
+		return token, nil
+	}
 	if token := strings.TrimSpace(cfg.Runtime.RegistrationToken); token != "" {
 		return token, nil
 	}

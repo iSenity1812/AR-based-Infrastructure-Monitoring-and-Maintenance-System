@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/iSenity1812/go-agent-collector/internal/config"
+	telemetrypb "github.com/iSenity1812/ingestion-worker-contract/api/telemetry/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
-	telemetrypb "ingestion-worker/api/telemetry/v1"
 )
 
 // GRPCSender posts payload batches over gRPC.

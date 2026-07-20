@@ -180,29 +180,42 @@ func (c *Config) resolve() error {
 	if !c.Runtime.RegistrationEnabled {
 		c.Runtime.RegistrationEnabled = true
 	}
+	c.Registration.Endpoint = firstNonEmpty(
+		readEnv("GO_AGENT_REGISTRATION_ENDPOINT"),
+		c.Registration.Endpoint,
+	)
 	if strings.TrimSpace(c.Registration.Endpoint) == "" {
 		c.Registration.Endpoint = "127.0.0.1:8443"
+	}
+	if value := strings.TrimSpace(strings.ToLower(readEnv("GO_AGENT_REGISTRATION_TLS_ENABLED"))); value != "" {
+		c.Registration.TLSEnabled = value == "true" || value == "1" || value == "yes"
 	}
 	if !c.Registration.TLSEnabled {
 		c.Registration.TLSEnabled = true
 	}
+	c.Registration.CACertPath = firstNonEmpty(
+		readEnv("GO_AGENT_REGISTRATION_CA_CERT_PATH"),
+		c.Registration.CACertPath,
+	)
 	if strings.TrimSpace(c.Registration.CACertPath) == "" {
 		c.Registration.CACertPath = filepath.Join(
 			c.BaseDir,
-			"..",
-			"..",
-			"backend",
-			"apps",
-			"ingestion-worker",
-			"deployment",
-			"local-ca",
-			"pki",
+			"data",
+			"registration",
 			"ca.crt",
 		)
 	}
+	c.Registration.ServerName = firstNonEmpty(
+		readEnv("GO_AGENT_REGISTRATION_SERVER_NAME"),
+		c.Registration.ServerName,
+	)
 	if strings.TrimSpace(c.Registration.ServerName) == "" {
 		c.Registration.ServerName = "local-ingestion.local"
 	}
+	c.Registration.CredentialStatePath = firstNonEmpty(
+		readEnv("GO_AGENT_REGISTRATION_STATE_PATH"),
+		c.Registration.CredentialStatePath,
+	)
 	if strings.TrimSpace(c.Registration.CredentialStatePath) == "" {
 		c.Registration.CredentialStatePath = filepath.Join(
 			c.BaseDir,
@@ -211,30 +224,42 @@ func (c *Config) resolve() error {
 			"registration-state.json",
 		)
 	}
+	c.Registration.ClientCertPath = firstNonEmpty(
+		readEnv("GO_AGENT_REGISTRATION_CLIENT_CERT_PATH"),
+		c.Registration.ClientCertPath,
+	)
 	if strings.TrimSpace(c.Registration.ClientCertPath) == "" {
 		c.Registration.ClientCertPath = filepath.Join(
 			filepath.Dir(c.Registration.CredentialStatePath),
 			"client.crt",
 		)
 	}
+	c.Registration.ClientKeyPath = firstNonEmpty(
+		readEnv("GO_AGENT_REGISTRATION_CLIENT_KEY_PATH"),
+		c.Registration.ClientKeyPath,
+	)
 	if strings.TrimSpace(c.Registration.ClientKeyPath) == "" {
 		c.Registration.ClientKeyPath = filepath.Join(
 			filepath.Dir(c.Registration.CredentialStatePath),
 			"client.key",
 		)
 	}
+	c.Registration.SharedConfigPath = firstNonEmpty(
+		readEnv("GO_AGENT_REGISTRATION_SHARED_CONFIG_PATH"),
+		c.Registration.SharedConfigPath,
+	)
 	if strings.TrimSpace(c.Registration.SharedConfigPath) == "" {
 		c.Registration.SharedConfigPath = filepath.Join(
 			c.BaseDir,
-			"..",
-			"..",
-			"backend",
-			"apps",
-			"ingestion-worker",
-			"config",
-			"config.yaml",
+			"data",
+			"registration",
+			"ingestion-worker-config.yaml",
 		)
 	}
+	c.Registration.DeviceType = firstNonEmpty(
+		readEnv("GO_AGENT_DEVICE_TYPE"),
+		c.Registration.DeviceType,
+	)
 	if strings.TrimSpace(c.Registration.DeviceType) == "" {
 		c.Registration.DeviceType = "WORKSTATION"
 	}

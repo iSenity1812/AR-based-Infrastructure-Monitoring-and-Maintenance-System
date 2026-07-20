@@ -26,7 +26,7 @@ sources:
 
 scrape:
   endpoint: http://localhost:9182/metrics
-  interval: 5s
+  interval: 15s
   timeout: 3s
   maxBodySizeMb: 8
 
@@ -44,7 +44,7 @@ docker:
 send:
   transport: grpc
   endpoint: 127.0.0.1:9443
-  interval: 5s
+  interval: 15s
   timeout: 5s
   grpcTimeout: 15s
   maxBatchItems: 200

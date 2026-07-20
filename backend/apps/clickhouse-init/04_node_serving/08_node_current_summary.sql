@@ -89,7 +89,16 @@ SELECT
 
     maxIf(b.latest_value_numeric, b.metric_key = 'node.ssd_temperature_c') AS ssd_temperature_c_max_current,
     minIf(b.latest_value_numeric, b.metric_key = 'node.ssd_life_pct') AS ssd_life_pct_min_current,
-    maxIf(b.latest_value_numeric, b.metric_key = 'node.uptime_seconds') AS uptime_seconds_current,
+    toUInt32(
+        if(
+            c.is_unknown_flag = 1,
+            0,
+            greatest(
+                maxIf(b.latest_value_numeric, b.metric_key = 'node.uptime_seconds'),
+                0
+            )
+        )
+    ) AS uptime_seconds_current,
     -- 3.1. UNIT MAPPING: Giữ unit thật từ metric source để frontend không phải hardcode
     anyIf(b.unit, b.metric_key = 'node.cpu_usage_pct') AS cpu_usage_pct_unit,
     anyIf(b.unit, b.metric_key = 'node.memory_used_pct') AS memory_used_pct_unit,

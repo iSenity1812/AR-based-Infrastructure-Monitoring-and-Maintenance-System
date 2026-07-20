@@ -49,8 +49,14 @@ SELECT
     semantic_class,
     is_operational_metric,
 
-    container_state,
-    container_health_status,
+    multiIf(
+        freshness_code_calc = 2, 'unknown',
+        container_state
+    ) AS container_state,
+    multiIf(
+        freshness_code_calc = 2, 'unknown',
+        container_health_status
+    ) AS container_health_status,
     memory_used_bytes,
     memory_limit_bytes,
     memory_used_ratio_calc AS memory_used_ratio,

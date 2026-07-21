@@ -128,6 +128,17 @@ const monitoringRealtimePort: MonitoringRealtimePort = {
     const secondResult = await useCase.execute();
 
     expect(monitoringRealtimePort.emitNodeOverviewChanged).toHaveBeenCalledTimes(1);
+    expect(monitoringRealtimePort.emitNodeOverviewChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'monitoring.node.overview.changed',
+        nodeId: 'node-a1',
+        channel: 'monitoring.node.node-a1.overview.changed',
+      }),
+    );
+    const emittedPayload = (
+      monitoringRealtimePort.emitNodeOverviewChanged as jest.Mock
+    ).mock.calls[0][0] as Record<string, unknown>;
+    expect(emittedPayload).not.toHaveProperty('fingerprint');
     expect(secondResult.emittedEvents).toBe(0);
   });
 });

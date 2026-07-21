@@ -14,6 +14,7 @@ import { GetNodeMonitoringStateUseCase } from './application/use-cases/get-node-
 import { GetNodeOverviewUseCase } from './application/use-cases/get-node-overview.use-case';
 import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
+import { NodeRealtimeSyncScheduler } from './application/use-cases/node-realtime-sync.scheduler';
 import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
 import { RackMonitoringPollingScheduler } from './application/use-cases/rack-monitoring-polling.scheduler';
 import { SyncExternalAlertsUseCase } from './application/use-cases/sync-external-alerts.use-case';
@@ -84,6 +85,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     GetNodeOverviewUseCase,
     GetRackMonitoringStateUseCase,
     GetRackOverviewUseCase,
+    NodeRealtimeSyncScheduler,
     PollRackMonitoringUseCase,
     RackMonitoringPollingScheduler,
     SyncExternalAlertsUseCase,

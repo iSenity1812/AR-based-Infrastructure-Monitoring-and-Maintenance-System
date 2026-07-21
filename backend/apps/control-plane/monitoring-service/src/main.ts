@@ -27,7 +27,10 @@ function loadBootstrapEnv(): void {
 async function bootstrap() {
   loadBootstrapEnv();
 
-  const app = await NestFactory.create(AppModule);
+  const bootstrapConfig = new MonitoringServiceConfig(process.env);
+  const app = await NestFactory.create(AppModule, {
+    logger: bootstrapConfig.appLogLevels,
+  });
   const config = app.get(MonitoringServiceConfig);
   const publicApiBasePath = process.env.PUBLIC_API_BASE_PATH ?? '';
 

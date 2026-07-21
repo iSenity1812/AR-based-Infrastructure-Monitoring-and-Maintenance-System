@@ -46,9 +46,23 @@ describe('SyncNodeMetricsRealtimeUseCase', () => {
     await useCase.execute();
     await useCase.execute();
 
-    expect(realtimePort.emitNodeMetricsUpdated).toHaveBeenCalledTimes(1);
+    expect(realtimePort.emitNodeMetricsUpdated).toHaveBeenCalledTimes(2);
     expect(realtimePort.emitNodeMetricsWorkloadsChanged).toHaveBeenCalledTimes(
       1,
+    );
+    expect(realtimePort.emitNodeMetricsUpdated).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        channel: 'monitoring.node.node-a1.metrics.minute',
+        bucketSec: 60,
+      }),
+    );
+    expect(realtimePort.emitNodeMetricsUpdated).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        channel: 'monitoring.node.node-a1.metrics.live',
+        bucketSec: 5,
+      }),
     );
   });
 });
@@ -85,6 +99,72 @@ function createRealtimePort(): MonitoringRealtimePort {
 }
 
 function createComposer(): NodeMetricsComposerService {
+  const buildUpdatedEvent = jest
+    .fn()
+    .mockResolvedValueOnce({
+      event: 'monitoring.node.metrics.updated',
+      nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.minute',
+      ts: '2026-07-12T09:13:00.000Z',
+      bucketSec: 60,
+      node: {
+        cpuUsagePct: 84.1,
+        memoryUsagePct: 76.8,
+        diskUsagePct: 71.4,
+        cpuTemperatureC: 81,
+        networkRxBytesSec: 2510000,
+        networkTxBytesSec: 1840000,
+      },
+      workloads: {
+        'container-api': {
+          cpuUsagePct: 47.3,
+          memoryUsagePct: 39.1,
+        },
+      },
+    })
+    .mockResolvedValueOnce({
+      event: 'monitoring.node.metrics.updated',
+      nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.live',
+      ts: '2026-07-12T09:13:05.000Z',
+      bucketSec: 5,
+      node: {
+        cpuUsagePct: 84.1,
+        memoryUsagePct: 76.8,
+        diskUsagePct: 71.4,
+        cpuTemperatureC: 81,
+        networkRxBytesSec: 2510000,
+        networkTxBytesSec: 1840000,
+      },
+      workloads: {
+        'container-api': {
+          cpuUsagePct: 47.3,
+          memoryUsagePct: 39.1,
+        },
+      },
+    })
+    .mockResolvedValue({
+      event: 'monitoring.node.metrics.updated',
+      nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.minute',
+      ts: '2026-07-12T09:13:00.000Z',
+      bucketSec: 60,
+      node: {
+        cpuUsagePct: 84.1,
+        memoryUsagePct: 76.8,
+        diskUsagePct: 71.4,
+        cpuTemperatureC: 81,
+        networkRxBytesSec: 2510000,
+        networkTxBytesSec: 1840000,
+      },
+      workloads: {
+        'container-api': {
+          cpuUsagePct: 47.3,
+          memoryUsagePct: 39.1,
+        },
+      },
+    });
+
   return {
     buildWorkloadsChangedEvent: jest.fn().mockResolvedValue({
       event: 'monitoring.node.metrics.workloads.changed',
@@ -107,26 +187,6 @@ function createComposer(): NodeMetricsComposerService {
         },
       ],
     }),
-    buildUpdatedEvent: jest.fn().mockResolvedValue({
-      event: 'monitoring.node.metrics.updated',
-      nodeId: 'node-a1',
-      channel: 'monitoring.node.node-a1.metrics.updated',
-      ts: '2026-07-12T09:13:00.000Z',
-      bucketSec: 60,
-      node: {
-        cpuUsagePct: 84.1,
-        memoryUsagePct: 76.8,
-        diskUsagePct: 71.4,
-        cpuTemperatureC: 81,
-        networkRxBytesSec: 2510000,
-        networkTxBytesSec: 1840000,
-      },
-      workloads: {
-        'container-api': {
-          cpuUsagePct: 47.3,
-          memoryUsagePct: 39.1,
-        },
-      },
-    }),
+    buildUpdatedEvent,
   } as unknown as NodeMetricsComposerService;
 }

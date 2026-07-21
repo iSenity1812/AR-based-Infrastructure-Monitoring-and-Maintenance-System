@@ -1,3 +1,5 @@
+import type { LogLevel } from '@nestjs/common';
+
 export class MonitoringServiceConfig {
   readonly port: number;
 
@@ -37,6 +39,12 @@ export class MonitoringServiceConfig {
 
   readonly monitoringRackPollIntervalMs: number;
 
+  readonly monitoringNodeRealtimeSyncEnabled: boolean;
+
+  readonly monitoringNodeRealtimeSyncIntervalMs: number;
+
+  readonly appLogLevels: LogLevel[];
+
   readonly externalAlertSyncSharedSecret: string;
 
   constructor(env: NodeJS.ProcessEnv) {
@@ -75,8 +83,47 @@ export class MonitoringServiceConfig {
     this.monitoringRackPollIntervalMs = Number(
       env.MONITORING_RACK_POLL_INTERVAL_MS ?? 30000,
     );
+    this.monitoringNodeRealtimeSyncEnabled =
+      env.MONITORING_NODE_REALTIME_SYNC_ENABLED != null
+        ? env.MONITORING_NODE_REALTIME_SYNC_ENABLED === 'true'
+        : this.monitoringRackPollEnabled;
+    this.monitoringNodeRealtimeSyncIntervalMs = Number(
+      env.MONITORING_NODE_REALTIME_SYNC_INTERVAL_MS ??
+        this.monitoringRackPollIntervalMs,
+    );
+    this.appLogLevels = resolveAppLogLevels(this.nodeEnv, env.LOG_LEVELS);
     this.externalAlertSyncSharedSecret =
       env.MONITORING_ALERT_SYNC_SHARED_SECRET ??
       'change-me-monitoring-sync-secret';
   }
+}
+
+function resolveAppLogLevels(
+  nodeEnv: string,
+  rawLogLevels?: string,
+): LogLevel[] {
+  const defaultLogLevels: LogLevel[] =
+    nodeEnv === 'production'
+      ? ['log', 'warn', 'error']
+      : ['log', 'warn', 'error', 'debug'];
+
+  if (!rawLogLevels) {
+    return defaultLogLevels;
+  }
+
+  const parsed = rawLogLevels
+    .split(',')
+    .map((level) => level.trim())
+    .filter((level): level is LogLevel => {
+      return (
+        level === 'log' ||
+        level === 'error' ||
+        level === 'warn' ||
+        level === 'debug' ||
+        level === 'verbose' ||
+        level === 'fatal'
+      );
+    });
+
+  return parsed.length > 0 ? parsed : defaultLogLevels;
 }

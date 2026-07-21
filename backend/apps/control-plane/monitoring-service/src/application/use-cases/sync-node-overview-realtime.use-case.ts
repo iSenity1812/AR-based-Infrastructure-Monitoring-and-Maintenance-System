@@ -69,7 +69,7 @@ export class SyncNodeOverviewRealtimeUseCase {
       this.fingerprintsByNodeId.set(nodeId, fingerprint);
       emittedEvents += 1;
       await this.monitoringRealtimePort.emitNodeOverviewChanged(
-        mapNodeOverviewToChangedEvent(overview, fingerprint),
+        mapNodeOverviewToChangedEvent(overview),
       );
     }
 

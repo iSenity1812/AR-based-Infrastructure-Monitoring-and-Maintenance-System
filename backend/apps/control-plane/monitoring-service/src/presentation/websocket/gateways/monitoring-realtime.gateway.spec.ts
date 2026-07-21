@@ -140,7 +140,6 @@ describe('MonitoringRealtimeGateway', () => {
       nodeId: 'node-a1',
       channel: 'monitoring.node.node-a1.overview.changed',
       changedAt: '2026-07-10T10:00:00.000Z',
-      fingerprint: 'fingerprint-a1',
     });
 
     expect(emit).toHaveBeenCalledWith(
@@ -152,7 +151,8 @@ describe('MonitoringRealtimeGateway', () => {
     expect(emit).toHaveBeenCalledWith(
       'monitoring.node.node-a1.overview.changed',
       expect.objectContaining({
-        fingerprint: 'fingerprint-a1',
+        nodeId: 'node-a1',
+        changedAt: '2026-07-10T10:00:00.000Z',
       }),
     );
   });
@@ -170,7 +170,7 @@ describe('MonitoringRealtimeGateway', () => {
     await gateway.emitNodeMetricsUpdated({
       event: 'monitoring.node.metrics.updated',
       nodeId: 'node-a1',
-      channel: 'monitoring.node.node-a1.metrics.updated',
+      channel: 'monitoring.node.node-a1.metrics.minute',
       ts: '2026-07-12T09:13:00.000Z',
       bucketSec: 60,
       node: {
@@ -197,9 +197,50 @@ describe('MonitoringRealtimeGateway', () => {
       }),
     );
     expect(emit).toHaveBeenCalledWith(
-      'monitoring.node.node-a1.metrics.updated',
+      'monitoring.node.node-a1.metrics.minute',
       expect.objectContaining({
         nodeId: 'node-a1',
+      }),
+    );
+  });
+
+  it('emits live node metrics updates on the dedicated live channel', async () => {
+    const emit = jest.fn();
+    const gateway = new MonitoringRealtimeGateway();
+
+    Object.assign(gateway as object, {
+      server: {
+        emit,
+      },
+    });
+
+    await gateway.emitNodeMetricsUpdated({
+      event: 'monitoring.node.metrics.updated',
+      nodeId: 'node-a1',
+      channel: 'monitoring.node.node-a1.metrics.live',
+      ts: '2026-07-12T09:13:05.000Z',
+      bucketSec: 5,
+      node: {
+        cpuUsagePct: 84.1,
+        memoryUsagePct: 76.8,
+        diskUsagePct: 71.4,
+        cpuTemperatureC: 81,
+        networkRxBytesSec: 2510000,
+        networkTxBytesSec: 1840000,
+      },
+      workloads: {
+        'container-api': {
+          cpuUsagePct: 47.3,
+          memoryUsagePct: 39.1,
+        },
+      },
+    });
+
+    expect(emit).toHaveBeenCalledWith(
+      'monitoring.node.node-a1.metrics.live',
+      expect.objectContaining({
+        nodeId: 'node-a1',
+        bucketSec: 5,
       }),
     );
   });

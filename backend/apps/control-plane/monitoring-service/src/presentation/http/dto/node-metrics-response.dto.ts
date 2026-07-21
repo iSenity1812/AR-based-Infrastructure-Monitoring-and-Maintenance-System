@@ -18,7 +18,7 @@ export class NodeMetricsConfigDto {
   transport!: 'socket.io';
 
   @ApiProperty({
-    example: 'monitoring.node.node-msi-341b683e.metrics.updated',
+    example: 'monitoring.node.node-msi-341b683e.metrics.minute',
   })
   channel!: string;
 

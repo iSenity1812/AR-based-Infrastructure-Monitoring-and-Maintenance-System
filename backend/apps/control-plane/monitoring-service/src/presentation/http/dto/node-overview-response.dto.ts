@@ -36,6 +36,33 @@ export class NodeOverviewStatusDto {
   freshnessSec!: number;
 
   @ApiProperty({
+    description: 'Collector heartbeat liveness derived from the latest heartbeat observation.',
+    enum: ['ONLINE', 'OFFLINE', 'UNKNOWN'],
+    example: 'ONLINE',
+  })
+  collectorStatus!: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
+
+  @ApiProperty({
+    description: 'Timestamp of the latest collector heartbeat observation.',
+    nullable: true,
+    example: '2026-07-21T08:15:30.000Z',
+  })
+  lastHeartbeatAt!: string | null;
+
+  @ApiProperty({
+    description: 'Age in seconds between now and the latest collector heartbeat observation.',
+    nullable: true,
+    example: 12,
+  })
+  collectorFreshnessSec!: number | null;
+
+  @ApiProperty({
+    description: 'Timeout window in seconds before the collector is considered offline.',
+    example: 90,
+  })
+  heartbeatTimeoutSec!: number;
+
+  @ApiProperty({
     description: 'Timestamp of the latest hardware fingerprint observed for the node.',
     nullable: true,
     example: '2026-07-17T18:04:34.000Z',

@@ -16,3 +16,7 @@ broker:
   domain: "telemetry"
   dataArea: "ingested"
   status: "received"
+monitoring:
+  base_url: "http://host.docker.internal:4003/api/v1"
+  shared_secret: "change-me-monitoring-sync-secret"
+  timeout_ms: 5000

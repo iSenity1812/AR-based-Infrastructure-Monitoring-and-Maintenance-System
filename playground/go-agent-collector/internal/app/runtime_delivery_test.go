@@ -130,6 +130,36 @@ func TestSendOnceDropsNonRetryableQueueBatch(t *testing.T) {
 	}
 }
 
+func TestSendOnceEmitsHeartbeatWhenQueueIsEmpty(t *testing.T) {
+	cfg := testConfig()
+	fSender := &fakeSender{}
+	r := &runner{
+		cfg: cfg,
+		deps: runtimeDeps{
+			queue:  newRecordQueue(10, "drop_oldest"),
+			sender: fSender,
+		},
+		retry:   &retryState{},
+		stats:   newRuntimeStats(time.Now().UTC()),
+		nowFn:   func() time.Time { return time.Date(2026, 5, 28, 12, 0, 0, 0, time.UTC) },
+		counter: newBatchCounter(),
+		loc:     vietnamLocation,
+	}
+
+	r.sendOnce(context.Background())
+
+	if len(fSender.sends) != 1 {
+		t.Fatalf("expected heartbeat-only payload to be sent, got %d sends", len(fSender.sends))
+	}
+	payload := fSender.sends[0]
+	if payload.Batch.RecordCount != 1 {
+		t.Fatalf("expected heartbeat-only payload to contain 1 metric, got %d", payload.Batch.RecordCount)
+	}
+	if payload.Metrics[0].MetricKey != heartbeatMetricKey {
+		t.Fatalf("expected heartbeat metric, got %#v", payload.Metrics[0])
+	}
+}
+
 type memoryBuffer struct {
 	items []sender.Payload
 }

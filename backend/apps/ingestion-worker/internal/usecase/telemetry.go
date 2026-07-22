@@ -11,9 +11,10 @@ import (
 
 type TelemetryUseCase struct {
 	// repo port.TelemetryRepositoryPort
-	nodeRepoPort port.NodeRepositoryPort
-	brokerPort    port.TelemetryBrokerPort
-	nowFn        func() time.Time
+	nodeRepoPort      port.NodeRepositoryPort
+	brokerPort        port.TelemetryBrokerPort
+	heartbeatSyncPort port.CollectorHeartbeatSyncPort
+	nowFn             func() time.Time
 }
 
 // Ko su dung broker
@@ -22,11 +23,16 @@ type TelemetryUseCase struct {
 // }
 
 // Sử dụng broker để chuyển giao dữ liệu đến hệ thống xử lý/ lưu trữ ngoại vi
-func NewTelemetryUseCase(nodeRepoPort port.NodeRepositoryPort, brokerPort port.TelemetryBrokerPort) *TelemetryUseCase {
+func NewTelemetryUseCase(
+	nodeRepoPort port.NodeRepositoryPort,
+	brokerPort port.TelemetryBrokerPort,
+	heartbeatSyncPort port.CollectorHeartbeatSyncPort,
+) *TelemetryUseCase {
 	return &TelemetryUseCase{
-		nodeRepoPort: nodeRepoPort,
-		brokerPort:    brokerPort,
-		nowFn:        time.Now,
+		nodeRepoPort:      nodeRepoPort,
+		brokerPort:        brokerPort,
+		heartbeatSyncPort: heartbeatSyncPort,
+		nowFn:             time.Now,
 	}
 }
 
@@ -55,6 +61,15 @@ func (uc *TelemetryUseCase) IngestBatch(ctx context.Context, clientDN string, re
 	// 3. Chuyển giao dữ liệu cho Adapter lưu trữ ngoại vi
 	if err := uc.brokerPort.PublishTelemetryEnvelope(ctx, envelope); err != nil {
 		return nil, err
+	}
+
+	if heartbeatSignal, ok := domain.ExtractCollectorHeartbeatSignal(req); ok && uc.heartbeatSyncPort != nil {
+		if heartbeatSignal.AgentID == "" {
+			heartbeatSignal.AgentID = agentID
+		}
+		if err := uc.heartbeatSyncPort.SyncCollectorHeartbeat(ctx, heartbeatSignal); err != nil {
+			fmt.Printf("collector heartbeat sync failed for node=%s agent=%s: %v\n", heartbeatSignal.NodeID, heartbeatSignal.AgentID, err)
+		}
 	}
 
 	return &domain.IngestBatchResponse{

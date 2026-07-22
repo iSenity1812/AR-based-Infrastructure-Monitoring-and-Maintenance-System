@@ -47,6 +47,8 @@ export class MonitoringServiceConfig {
 
   readonly externalAlertSyncSharedSecret: string;
 
+  readonly collectorHeartbeatTimeoutSec: number;
+
   constructor(env: NodeJS.ProcessEnv) {
     this.port = Number(env.PORT ?? 4003);
     this.apiPrefix = env.API_PREFIX ?? 'api/v1';
@@ -95,6 +97,9 @@ export class MonitoringServiceConfig {
     this.externalAlertSyncSharedSecret =
       env.MONITORING_ALERT_SYNC_SHARED_SECRET ??
       'change-me-monitoring-sync-secret';
+    this.collectorHeartbeatTimeoutSec = Number(
+      env.MONITORING_COLLECTOR_HEARTBEAT_TIMEOUT_SEC ?? 90,
+    );
   }
 }
 

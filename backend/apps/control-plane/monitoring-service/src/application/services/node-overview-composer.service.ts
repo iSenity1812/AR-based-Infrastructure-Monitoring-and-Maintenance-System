@@ -5,6 +5,7 @@ import {
   type NodeOverviewSnapshotRecord,
   type NodeOverviewWorkloadRecord,
 } from '../ports/node-overview-read.repository';
+import { CollectorLivenessService } from './collector-liveness.service';
 
 export type NodeOverviewStatus = 'healthy' | 'alerting' | 'unknown';
 export type NodeOverviewSeverity =
@@ -31,6 +32,10 @@ export type NodeOverviewResponseView = {
     severity: NodeOverviewSeverity;
     lastSeenAt: string;
     freshnessSec: number;
+    collectorStatus: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
+    lastHeartbeatAt: string | null;
+    collectorFreshnessSec: number | null;
+    heartbeatTimeoutSec: number;
     fingerprintSeenAt: string | null;
     batteryModel: string | null;
     cpuArchitecture: string | null;
@@ -89,6 +94,7 @@ export class NodeOverviewComposerService {
   constructor(
     @Inject(NodeOverviewReadRepository)
     private readonly nodeOverviewReadRepository: NodeOverviewReadRepository,
+    private readonly collectorLivenessService: CollectorLivenessService,
   ) {}
 
   async buildOverview(nodeId: string): Promise<NodeOverviewResponseView> {
@@ -102,6 +108,8 @@ export class NodeOverviewComposerService {
 
     const workloads =
       await this.nodeOverviewReadRepository.listNodeWorkloads(nodeId);
+    const collectorLiveness =
+      await this.collectorLivenessService.getByNodeId(nodeId);
     const lastSeenAt = toIsoString(snapshot.summaryTs);
     const freshnessSec = computeFreshnessSec(snapshot.summaryTs);
     const selectedWorkloads = selectOverviewWorkloads(workloads);
@@ -113,6 +121,10 @@ export class NodeOverviewComposerService {
         severity: deriveNodeOverviewSeverity(snapshot, freshnessSec),
         lastSeenAt,
         freshnessSec,
+        collectorStatus: collectorLiveness.collectorStatus,
+        lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
+        collectorFreshnessSec: collectorLiveness.collectorFreshnessSec,
+        heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
         fingerprintSeenAt: toOptionalIsoString(snapshot.fingerprintSeenAt),
         batteryModel: snapshot.batteryModel,
         cpuArchitecture: snapshot.cpuArchitecture,

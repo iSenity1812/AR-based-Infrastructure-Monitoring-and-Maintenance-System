@@ -11,6 +11,11 @@ import (
 	"github.com/iSenity1812/go-agent-collector/internal/sender"
 )
 
+const (
+	heartbeatMetricKey    = "agent.heartbeat"
+	heartbeatMetricSource = "collector.runtime.heartbeat"
+)
+
 type batchCounter struct {
 	sequence  int64
 	startedAt time.Time
@@ -24,7 +29,7 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 	counter.sequence++
 	collectedAt := latestCollectedAt(records, sentAt)
 
-	metrics := make([]sender.MetricRecord, 0, len(records))
+	metrics := make([]sender.MetricRecord, 0, len(records)+1)
 	for _, record := range records {
 		metrics = append(metrics, sender.MetricRecord{
 			MetricKey:    record.metric.Name,
@@ -38,6 +43,7 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 			Tags:         buildTags(cfg, record.metric),
 		})
 	}
+	metrics = append(metrics, buildHeartbeatMetric(cfg, sentAt))
 
 	return sender.Payload{
 		SchemaVersion: cfg.Agent.SchemaVersion,
@@ -59,6 +65,19 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 		},
 		Context: buildPayloadContext(cfg, records, sharedContext),
 		Metrics: metrics,
+	}
+}
+
+func buildHeartbeatMetric(cfg *config.Config, sentAt time.Time) sender.MetricRecord {
+	return sender.MetricRecord{
+		MetricKey:    heartbeatMetricKey,
+		ScopeType:    "node",
+		ScopeID:      cfg.Runtime.NodeID,
+		Value:        1,
+		Unit:         "state",
+		Timestamp:    formatCollectorTime(sentAt),
+		Source:       firstNonEmpty(cfg.Runtime.AgentSourceType, cfg.Agent.SourceType),
+		SourceMetric: heartbeatMetricSource,
 	}
 }
 

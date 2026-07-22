@@ -52,6 +52,11 @@ type Config struct {
 		DataArea string   `yaml:"dataArea"`
 		Status   string   `yaml:"status"`
 	} `yaml:"broker"`
+	Monitoring struct {
+		BaseURL      string `yaml:"base_url"`
+		SharedSecret string `yaml:"shared_secret"`
+		TimeoutMs    int    `yaml:"timeout_ms"`
+	} `yaml:"monitoring"`
 }
 
 func main() {
@@ -84,9 +89,14 @@ func main() {
 	}
 
 	var broker port.TelemetryBrokerPort = telemetryAdapter
+	heartbeatSyncAdapter := adapter.NewMonitoringHeartbeatAdapter(
+		cfg.Monitoring.BaseURL,
+		cfg.Monitoring.SharedSecret,
+		time.Duration(cfg.Monitoring.TimeoutMs)*time.Millisecond,
+	)
 
 	regUseCase := usecase.NewRegistrationUseCase(cfg.Auth.BootstrapToken, pkiAdapter, redisAdapter)
-	telemetryUseCase := usecase.NewTelemetryUseCase(redisAdapter, telemetryAdapter)
+	telemetryUseCase := usecase.NewTelemetryUseCase(redisAdapter, telemetryAdapter, heartbeatSyncAdapter)
 
 	grpcHandler := delivery.NewRegistrationHandler(regUseCase)
 	telemetryHandler := delivery.NewTelemetryIngestHandler(telemetryUseCase)
@@ -165,6 +175,17 @@ func applyEnvOverrides(cfg *Config) {
 	}
 	if value := os.Getenv("INGESTION_BROKER_STATUS"); value != "" {
 		cfg.Broker.Status = value
+	}
+	if value := os.Getenv("INGESTION_MONITORING_BASE_URL"); value != "" {
+		cfg.Monitoring.BaseURL = value
+	}
+	if value := os.Getenv("INGESTION_MONITORING_SHARED_SECRET"); value != "" {
+		cfg.Monitoring.SharedSecret = value
+	}
+	if value := os.Getenv("INGESTION_MONITORING_TIMEOUT_MS"); value != "" {
+		if _, err := fmt.Sscanf(value, "%d", &cfg.Monitoring.TimeoutMs); err != nil {
+			log.Printf("Ignoring invalid INGESTION_MONITORING_TIMEOUT_MS=%q: %v", value, err)
+		}
 	}
 }
 

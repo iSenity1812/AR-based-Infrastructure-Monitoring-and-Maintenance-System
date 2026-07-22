@@ -8,13 +8,11 @@ import {
 
 export function mapNodeOverviewToChangedEvent(
   overview: NodeOverviewResponseView,
-  fingerprint: string,
 ): NodeOverviewChangedEvent {
   return {
     event: 'monitoring.node.overview.changed',
     nodeId: overview.node.nodeId,
     channel: buildNodeOverviewChangedChannel(overview.node.nodeId),
     changedAt: new Date().toISOString(),
-    fingerprint,
   };
 }

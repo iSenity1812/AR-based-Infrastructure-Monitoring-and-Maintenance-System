@@ -20,7 +20,7 @@ describe('NodeMetricsController', () => {
       nodeId: 'node-a1',
       metricsConfig: {
         transport: 'socket.io',
-        channel: 'monitoring.node.metrics.updated',
+        channel: 'monitoring.node.node-a1.metrics.minute',
         bucketSec: 60,
         retentionSec: 900,
         nodeMetricKeys: ['cpuUsagePct'],
@@ -82,7 +82,7 @@ describe('NodeMetricsController', () => {
       nodeId: 'node-a1',
       metricsConfig: {
         transport: 'socket.io',
-        channel: 'monitoring.node.node-a1.metrics.updated',
+        channel: 'monitoring.node.node-a1.metrics.live',
         bucketSec: 5,
         retentionSec: 300,
         nodeMetricKeys: ['cpuUsagePct'],

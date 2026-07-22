@@ -50,7 +50,7 @@ export class PollRackMonitoringUseCase {
         )
       : await this.rackOverviewReadRepository.listCurrentRacks();
 
-    this.logger.log(
+    this.logger.verbose(
       `rack poll query completed (checkpoint=${input.changedSinceSummaryTs ?? 'none'}, fetchedRows=${rackRows.length})`,
     );
 
@@ -86,7 +86,7 @@ export class PollRackMonitoringUseCase {
       transitions.push(transition);
     }
 
-    this.logger.log(
+    this.logger.verbose(
       `rack poll evaluated (checkpoint=${input.changedSinceSummaryTs ?? 'none'}, processedRows=${processedRows}, skippedRows=${skippedRows}, transitions=${transitions.length}, nextCheckpoint=${nextCheckpointSummaryTs ?? 'none'}, durationMs=${Date.now() - startedAt})`,
     );
 

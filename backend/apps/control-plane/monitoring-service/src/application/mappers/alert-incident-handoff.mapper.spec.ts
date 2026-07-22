@@ -48,6 +48,13 @@ describe('alert incident handoff mapper', () => {
       buildAlertIncidentMetadata({
         alert,
         incidentSeverity: 'CRITICAL',
+        actor: {
+          userId: 'user-1',
+          username: 'ducpv',
+          sessionId: 'session-1',
+          fullName: 'Pham Van Duc',
+        },
+        requestedAt: '2026-07-22T10:00:00.000Z',
         operatorNote: ' Check cooling path ',
       }),
     ).toEqual(
@@ -67,6 +74,8 @@ describe('alert incident handoff mapper', () => {
         rawAnnotations: expect.objectContaining({
           description: 'CPU temp exceeded threshold',
         }),
+        requestedAt: '2026-07-22T10:00:00.000Z',
+        requestSessionId: 'session-1',
         operatorNote: 'Check cooling path',
       }),
     );

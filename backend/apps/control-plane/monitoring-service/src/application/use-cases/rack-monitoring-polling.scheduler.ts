@@ -12,8 +12,6 @@ import {
   formatRackMonitoringPollStartMessage,
 } from './rack-monitoring-poll-observability';
 import { PollRackMonitoringUseCase } from './poll-rack-monitoring.use-case';
-import { SyncNodeMetricsRealtimeUseCase } from './sync-node-metrics-realtime.use-case';
-import { SyncNodeOverviewRealtimeUseCase } from './sync-node-overview-realtime.use-case';
 
 export const RACK_MONITORING_POLL_INTERVAL_NAME = 'rack-monitoring-poll';
 
@@ -28,14 +26,12 @@ export class RackMonitoringPollingScheduler
 
   constructor(
     private readonly pollRackMonitoringUseCase: PollRackMonitoringUseCase,
-    private readonly syncNodeOverviewRealtimeUseCase: SyncNodeOverviewRealtimeUseCase,
-    private readonly syncNodeMetricsRealtimeUseCase: SyncNodeMetricsRealtimeUseCase,
     private readonly config: MonitoringServiceConfig,
   ) {}
 
   onModuleInit(): void {
     if (!this.config.monitoringRackPollEnabled) {
-      this.logger.log('Automatic rack monitoring polling is disabled.');
+      this.logger.debug('Automatic rack monitoring polling is disabled.');
       return;
     }
 
@@ -58,7 +54,7 @@ export class RackMonitoringPollingScheduler
       void this.handleInterval();
     }, this.config.monitoringRackPollIntervalMs);
 
-    this.logger.log(
+    this.logger.debug(
       `Automatic rack monitoring polling registered every ${this.config.monitoringRackPollIntervalMs}ms.`,
     );
   }
@@ -82,24 +78,18 @@ export class RackMonitoringPollingScheduler
     const startedAt = Date.now();
     const input = {};
 
-    this.logger.log(formatRackMonitoringPollStartMessage('scheduled', input));
+    this.logger.verbose(formatRackMonitoringPollStartMessage('scheduled', input));
 
     try {
       const result = await this.pollRackMonitoringUseCase.execute(input);
-      const nodeOverviewRealtimeResult =
-        await this.syncNodeOverviewRealtimeUseCase.execute();
 
-      this.logger.log(
+      this.logger.verbose(
         formatRackMonitoringPollCompletedMessage(
           'scheduled',
           Date.now() - startedAt,
           result,
         ),
       );
-      this.logger.log(
-        `node overview realtime sync completed (trigger=scheduled, emittedEvents=${nodeOverviewRealtimeResult.emittedEvents}, changedNodeIds=${nodeOverviewRealtimeResult.changedNodeIds}, initialized=${nodeOverviewRealtimeResult.initialized}, nextCheckpoint=${nodeOverviewRealtimeResult.nextCheckpointSummaryTs ?? 'none'})`,
-      );
-      await this.syncNodeMetricsRealtime();
     } catch (error) {
       this.logger.error(
         formatRackMonitoringPollFailedMessage('scheduled', input, error),
@@ -107,20 +97,6 @@ export class RackMonitoringPollingScheduler
       );
     } finally {
       this.isRunning = false;
-    }
-  }
-
-  private async syncNodeMetricsRealtime(): Promise<void> {
-    try {
-      const result = await this.syncNodeMetricsRealtimeUseCase.execute();
-      this.logger.log(
-        `node metrics realtime sync completed (trigger=scheduled, emittedMetricEvents=${result.emittedMetricEvents}, emittedWorkloadMembershipEvents=${result.emittedWorkloadMembershipEvents}, changedNodeIds=${result.changedNodeIds}, initialized=${result.initialized}, nextCheckpoint=${result.nextCheckpointSummaryTs ?? 'none'})`,
-      );
-    } catch (error) {
-      this.logger.warn(
-        `node metrics realtime sync failed (trigger=scheduled, reason=${error instanceof Error ? error.message : String(error)})`,
-        error instanceof Error ? error.stack : undefined,
-      );
     }
   }
 }

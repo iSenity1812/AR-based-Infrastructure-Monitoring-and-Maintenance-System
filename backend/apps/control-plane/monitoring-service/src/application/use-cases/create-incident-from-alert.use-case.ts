@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -13,6 +14,10 @@ import type {
   AlertIncidentLinkage,
   AlertIncidentSeverity,
 } from '../../domain/alert-current-state';
+import {
+  AlertIncidentHandoffAuditRepository,
+  type AlertIncidentHandoffAuditRecord,
+} from '../ports/alert-incident-handoff-audit.repository';
 import { AlertCurrentStateRepository } from '../ports/alert-current-state.repository';
 import {
   IncidentWorkflowClientPort,
@@ -25,11 +30,13 @@ import {
   buildIncidentCodeFromAlertFingerprint,
   mapAlertSeverityToIncidentSeverity,
 } from '../mappers/alert-incident-handoff.mapper';
+import type { AlertEscalationActorDto } from './dto/alert-escalation-actor.dto';
 
 export interface CreateIncidentFromAlertCommand {
   fingerprint: string;
   authorizationHeader: string | null;
   correlationId?: string;
+  actor?: AlertEscalationActorDto;
   title?: string;
   description?: string;
   operatorNote?: string;
@@ -62,16 +69,26 @@ export interface CreateIncidentFromAlertResult {
     title: string;
     createdAt: string;
     linkedAt: string;
+    createdBy?: {
+      userId: string;
+      username: string;
+      fullName?: string;
+      source: 'monitoring_alert_handoff' | 'incident_console' | 'system';
+    };
   };
 }
 
 @Injectable()
 export class CreateIncidentFromAlertUseCase {
+  private readonly logger = new Logger(CreateIncidentFromAlertUseCase.name);
+
   constructor(
     @Inject(AlertCurrentStateRepository)
     private readonly alertCurrentStateRepository: AlertCurrentStateRepository,
     @Inject(IncidentWorkflowClientPort)
     private readonly incidentWorkflowClient: IncidentWorkflowClientPort,
+    @Inject(AlertIncidentHandoffAuditRepository)
+    private readonly alertIncidentHandoffAuditRepository: AlertIncidentHandoffAuditRepository,
   ) {}
 
   async execute(
@@ -81,11 +98,22 @@ export class CreateIncidentFromAlertUseCase {
     const authorizationHeader = normalizeAuthorizationHeader(
       command.authorizationHeader,
     );
+    const actor = normalizeActor(command.actor);
+    const requestedAt = new Date().toISOString();
 
     const alert =
       await this.alertCurrentStateRepository.findByFingerprint(fingerprint);
 
     if (!alert) {
+      await this.appendAuditRecord({
+        fingerprint,
+        actor,
+        command,
+        requestedAt,
+        result: 'failed',
+        failureCode: 'ALERT_NOT_FOUND',
+        failureDetail: `Alert ${fingerprint} was not found.`,
+      });
       throw new NotFoundException({
         title: 'ALERT_NOT_FOUND',
         detail: `Alert ${fingerprint} was not found.`,
@@ -94,10 +122,28 @@ export class CreateIncidentFromAlertUseCase {
 
     const existingLinkage = buildExistingLinkedResult(alert);
     if (existingLinkage) {
+      await this.appendAuditRecord({
+        fingerprint,
+        actor,
+        command,
+        requestedAt,
+        result: 'already_linked',
+        incidentId: existingLinkage.incident.incidentId,
+        incidentCode: existingLinkage.incident.incidentCode,
+      });
       return existingLinkage;
     }
 
     if (alert.status !== 'firing') {
+      await this.appendAuditRecord({
+        fingerprint,
+        actor,
+        command,
+        requestedAt,
+        result: 'failed',
+        failureCode: 'ALERT_NOT_ACTIVE',
+        failureDetail: `Alert ${fingerprint} is not firing.`,
+      });
       throw new ConflictException({
         title: 'ALERT_NOT_ACTIVE',
         detail: `Alert ${fingerprint} is not firing.`,
@@ -112,6 +158,8 @@ export class CreateIncidentFromAlertUseCase {
     const metadata = buildAlertIncidentMetadata({
       alert,
       incidentSeverity,
+      actor,
+      requestedAt,
       operatorNote: command.operatorNote,
     });
 
@@ -128,28 +176,66 @@ export class CreateIncidentFromAlertUseCase {
         metadata: metadata as unknown as Record<string, unknown>,
       });
 
-      return this.persistLinkage({
+      const result = await this.persistLinkage({
         alert,
         incident: createdIncident,
         action: 'created',
       });
+      await this.appendAuditRecord({
+        fingerprint,
+        actor,
+        command,
+        requestedAt,
+        result: 'created',
+        incidentId: result.incident.incidentId,
+        incidentCode: result.incident.incidentCode,
+      });
+      return result;
     } catch (error) {
       if (error instanceof IncidentWorkflowConflictError) {
-        return this.recoverExistingIncidentLinkage({
+        const result = await this.recoverExistingIncidentLinkage({
           alert,
           authorizationHeader,
           correlationId: command.correlationId,
           incidentCode,
         });
+        await this.appendAuditRecord({
+          fingerprint,
+          actor,
+          command,
+          requestedAt,
+          result: 'linked_existing',
+          incidentId: result.incident.incidentId,
+          incidentCode: result.incident.incidentCode,
+        });
+        return result;
       }
 
       if (error instanceof IncidentWorkflowUnavailableError) {
+        await this.appendAuditRecord({
+          fingerprint,
+          actor,
+          command,
+          requestedAt,
+          result: 'failed',
+          failureCode: 'INCIDENT_SERVICE_UNAVAILABLE',
+          failureDetail: error.message,
+        });
         throw new BadGatewayException({
           title: 'INCIDENT_SERVICE_UNAVAILABLE',
           detail: error.message,
         });
       }
 
+      await this.appendAuditRecord({
+        fingerprint,
+        actor,
+        command,
+        requestedAt,
+        result: 'failed',
+        failureCode: 'UNEXPECTED_HANDOFF_ERROR',
+        failureDetail: error instanceof Error ? error.message : String(error),
+      });
       throw error;
     }
   }
@@ -221,7 +307,47 @@ export class CreateIncidentFromAlertUseCase {
       alert: updated,
       action: input.action,
       linkedAt,
+      incident: input.incident,
     });
+  }
+
+  private async appendAuditRecord(input: {
+    fingerprint: string;
+    actor: AlertEscalationActorDto;
+    command: Pick<
+      CreateIncidentFromAlertCommand,
+      'correlationId' | 'operatorNote' | 'severityOverride'
+    >;
+    requestedAt: string;
+    result: AlertIncidentHandoffAuditRecord['result'];
+    incidentId?: string;
+    incidentCode?: string;
+    failureCode?: string;
+    failureDetail?: string;
+  }): Promise<void> {
+    try {
+      await this.alertIncidentHandoffAuditRepository.append({
+        fingerprint: input.fingerprint,
+        action: 'incident_escalation_requested',
+        actorUserId: input.actor.userId,
+        actorUsername: input.actor.username,
+        actorDisplayName: input.actor.fullName ?? input.actor.username,
+        actorSessionId: input.actor.sessionId,
+        correlationId: input.command.correlationId ?? null,
+        severityOverride: input.command.severityOverride ?? null,
+        operatorNote: normalizeOptionalText(input.command.operatorNote) ?? null,
+        requestedAt: input.requestedAt,
+        result: input.result,
+        incidentId: input.incidentId ?? null,
+        incidentCode: input.incidentCode ?? null,
+        failureCode: input.failureCode ?? null,
+        failureDetail: input.failureDetail ?? null,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `alert incident handoff audit append failed (fingerprint=${input.fingerprint}, result=${input.result}, reason=${error instanceof Error ? error.message : String(error)})`,
+      );
+    }
   }
 }
 
@@ -253,6 +379,7 @@ function buildResult(input: {
   alert: AlertCurrentState;
   action: CreateIncidentFromAlertResult['action'];
   linkedAt: string;
+  incident?: IncidentWorkflowIncident;
 }): CreateIncidentFromAlertResult {
   const { alert } = input;
 
@@ -279,6 +406,16 @@ function buildResult(input: {
       title: alert.incidentTitle ?? '',
       createdAt: alert.incidentCreatedAt ?? input.linkedAt,
       linkedAt: input.linkedAt,
+      ...(input.incident?.createdBy
+        ? {
+            createdBy: {
+              userId: input.incident.createdBy.userId,
+              username: input.incident.createdBy.username,
+              fullName: input.incident.createdBy.fullName,
+              source: input.incident.createdBy.source,
+            },
+          }
+        : {}),
     },
   };
 }
@@ -341,6 +478,25 @@ function normalizeAuthorizationHeader(input: string | null): string {
   }
 
   return input.trim();
+}
+
+function normalizeActor(
+  actor: AlertEscalationActorDto | undefined,
+): AlertEscalationActorDto {
+  if (!actor?.userId?.trim() || !actor.username?.trim() || !actor.sessionId?.trim()) {
+    throw new BadRequestException({
+      title: 'AUTH_CONTEXT_REQUIRED',
+      detail: 'Authenticated actor context is required for incident handoff audit.',
+    });
+  }
+
+  return {
+    userId: actor.userId.trim(),
+    username: actor.username.trim(),
+    sessionId: actor.sessionId.trim(),
+    fullName: normalizeOptionalText(actor.fullName),
+    email: normalizeOptionalText(actor.email),
+  };
 }
 
 function normalizeOptionalText(input: string | undefined): string | undefined {

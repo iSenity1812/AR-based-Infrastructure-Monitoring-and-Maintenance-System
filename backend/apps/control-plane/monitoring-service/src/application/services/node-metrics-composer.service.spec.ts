@@ -38,9 +38,27 @@ describe('buildMetricsConfig', () => {
   it('keeps v1 metrics config aligned to 1 minute trend views', () => {
     expect(buildMetricsConfig('node-a1')).toEqual({
       transport: 'socket.io',
-      channel: 'monitoring.node.node-a1.metrics.updated',
+      channel: 'monitoring.node.node-a1.metrics.minute',
       bucketSec: 60,
       retentionSec: 900,
+      nodeMetricKeys: [
+        'cpuUsagePct',
+        'memoryUsagePct',
+        'diskUsagePct',
+        'cpuTemperatureC',
+        'networkRxBytesSec',
+        'networkTxBytesSec',
+      ],
+      workloadMetricKeys: ['cpuUsagePct', 'memoryUsagePct'],
+    });
+  });
+
+  it('uses a dedicated live channel for live bootstrap views', () => {
+    expect(buildMetricsConfig('node-a1', 5, 300, 'live')).toEqual({
+      transport: 'socket.io',
+      channel: 'monitoring.node.node-a1.metrics.live',
+      bucketSec: 5,
+      retentionSec: 300,
       nodeMetricKeys: [
         'cpuUsagePct',
         'memoryUsagePct',

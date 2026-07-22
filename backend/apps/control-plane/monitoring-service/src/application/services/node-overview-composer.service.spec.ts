@@ -11,6 +11,7 @@ import {
   deriveNodeOverviewStatus,
   selectOverviewWorkloads,
 } from './node-overview-composer.service';
+import type { CollectorLivenessService } from './collector-liveness.service';
 
 describe('deriveNodeOverviewStatus', () => {
   const baseSnapshot: NodeOverviewSnapshotRecord = {
@@ -224,7 +225,23 @@ describe('NodeOverviewComposerService', () => {
       getCurrentNode: jest.fn().mockResolvedValue(snapshot),
       listNodeWorkloads: jest.fn().mockResolvedValue([]),
     };
-    const service = new NodeOverviewComposerService(repository as never);
+    const collectorLivenessService = {
+      getByNodeId: jest.fn().mockResolvedValue({
+        nodeId: 'node-a1',
+        agentId: 'node-a1',
+        collectorStatus: 'ONLINE',
+        lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+        collectorFreshnessSec: 12,
+        heartbeatTimeoutSec: 90,
+        source: 'go-agent-collector',
+        metricKey: 'agent.heartbeat',
+        sourceMetric: 'collector.runtime.heartbeat',
+      }),
+    };
+    const service = new NodeOverviewComposerService(
+      repository as never,
+      collectorLivenessService as unknown as CollectorLivenessService,
+    );
 
     const overview = await service.buildOverview('node-a1');
 
@@ -232,5 +249,7 @@ describe('NodeOverviewComposerService', () => {
       value: 34880,
       unit: 'seconds',
     });
+    expect(overview.node.collectorStatus).toBe('ONLINE');
+    expect(overview.node.heartbeatTimeoutSec).toBe(90);
   });
 });

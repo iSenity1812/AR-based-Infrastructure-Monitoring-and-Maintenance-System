@@ -53,8 +53,8 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 	if payload.SchemaVersion != "v1" {
 		t.Fatalf("expected schema version v1, got %s", payload.SchemaVersion)
 	}
-	if payload.Batch.RecordCount != 1 {
-		t.Fatalf("expected 1 metric record, got %d", payload.Batch.RecordCount)
+	if payload.Batch.RecordCount != 2 {
+		t.Fatalf("expected 2 metric records including heartbeat, got %d", payload.Batch.RecordCount)
 	}
 	if payload.Metrics[0].Value != "MSI" {
 		t.Fatalf("expected text value MSI, got %#v", payload.Metrics[0].Value)
@@ -85,6 +85,19 @@ func TestBuildPayloadUsesTextValueAndTags(t *testing.T) {
 	}
 	if payload.Metrics[0].Timestamp != expectedCollectedAt {
 		t.Fatalf("expected metric timestamp to be formatted in Vietnam time, got %s", payload.Metrics[0].Timestamp)
+	}
+	heartbeat := payload.Metrics[1]
+	if heartbeat.MetricKey != heartbeatMetricKey {
+		t.Fatalf("expected heartbeat metric key %q, got %#v", heartbeatMetricKey, heartbeat)
+	}
+	if heartbeat.Value != 1 {
+		t.Fatalf("expected heartbeat value 1, got %#v", heartbeat.Value)
+	}
+	if heartbeat.SourceMetric != heartbeatMetricSource {
+		t.Fatalf("expected heartbeat source metric %q, got %#v", heartbeatMetricSource, heartbeat)
+	}
+	if heartbeat.Timestamp != collectedAt.Add(time.Second).In(vietnamLocation).Format(time.RFC3339) {
+		t.Fatalf("expected heartbeat timestamp to use send time, got %s", heartbeat.Timestamp)
 	}
 }
 
@@ -117,5 +130,8 @@ func TestBuildPayloadUsesLatestCollectedAtForBatch(t *testing.T) {
 	}
 	if got := payload.Batch.SentAt; got != sentAt.In(vietnamLocation).Format(time.RFC3339) {
 		t.Fatalf("expected batch sentAt to use send timestamp, got %s", got)
+	}
+	if got := payload.Batch.RecordCount; got != 3 {
+		t.Fatalf("expected latest-collected payload to include heartbeat record, got %d metrics", got)
 	}
 }

@@ -1,5 +1,6 @@
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
+import type { IncidentCreatedBy } from '@domain/entities/incident.entity';
 import { IncidentEntity } from '@domain/entities/incident.entity';
 import type { IncidentRepositoryPort } from '@domain/ports/incident-repository.port';
 import type { TicketRepositoryPort } from '@domain/ports/ticket-repository.port';
@@ -14,6 +15,7 @@ export interface CreateIncidentCommand {
   description?: string;
   severity: IncidentSeverity;
   ticketIds?: string[];
+  createdBy?: IncidentCreatedBy;
   metadata?: Record<string, unknown>;
 }
 
@@ -52,6 +54,7 @@ export class CreateIncidentUseCase {
       severity: command.severity,
       status: IncidentStatus.OPEN,
       ticketIds,
+      createdBy: command.createdBy,
       metadata: command.metadata ?? {},
     });
 

@@ -13,6 +13,7 @@ import {
 export const NODE_METRICS_UPDATED_EVENT = 'monitoring.node.metrics.updated';
 export const NODE_METRICS_WORKLOADS_CHANGED_EVENT =
   'monitoring.node.metrics.workloads.changed';
+export type NodeMetricsChannelKind = 'minute' | 'live';
 
 export const NODE_METRIC_KEYS = [
   'cpuUsagePct',
@@ -70,7 +71,7 @@ export type NodeMetricsUpdatedEventView = {
   nodeId: string;
   channel: string;
   ts: string;
-  bucketSec: 60;
+  bucketSec: number;
   node: NodeMetricsNodeValuesView;
   workloads: Record<string, Omit<NodeMetricsWorkloadValuesView, 'workloadId'>>;
 };
@@ -176,7 +177,7 @@ export class NodeMetricsComposerService {
 
     return {
       nodeId: currentNode.nodeId,
-      metricsConfig: buildMetricsConfig(nodeId),
+      metricsConfig: buildMetricsConfig(nodeId, BUCKET_SEC, RETENTION_SEC, 'minute'),
       meta: buildMetricsMeta(),
       workloads: trackedWorkloads.map(mapWorkloadView),
       seedWindow: buildSeedWindow(
@@ -224,6 +225,7 @@ export class NodeMetricsComposerService {
         nodeId,
         window.resolutionSec,
         computeRetentionSec(window),
+        'live',
       ),
       meta: buildMetricsMeta(),
       workloads: trackedWorkloads.map(mapWorkloadView),
@@ -238,6 +240,7 @@ export class NodeMetricsComposerService {
 
   async buildUpdatedEvent(
     nodeId: string,
+    channelKind: NodeMetricsChannelKind = 'minute',
   ): Promise<NodeMetricsUpdatedEventView | null> {
     const currentNode = await this.nodeMetricsReadRepository.getCurrentNode(
       nodeId,
@@ -250,18 +253,19 @@ export class NodeMetricsComposerService {
     const trackedWorkloadIds = selectNodeMetricsWorkloads(workloads).map(
       (workload) => workload.workloadId,
     );
-    const isNodeStale = computeFreshnessSec(currentNode.summaryTs) > BUCKET_SEC;
+    const bucketSec = channelKind === 'live' ? LIVE_DEFAULT_INTERVAL_SEC : BUCKET_SEC;
+    const isNodeStale = computeFreshnessSec(currentNode.summaryTs) > bucketSec;
     const eventTs = toBucketIsoString(
       isNodeStale ? new Date().toISOString() : currentNode.summaryTs,
-      BUCKET_SEC,
+      bucketSec,
     );
 
     return {
       event: NODE_METRICS_UPDATED_EVENT,
       nodeId,
-      channel: buildNodeMetricsChannel(nodeId),
+      channel: buildNodeMetricsChannel(nodeId, channelKind),
       ts: eventTs,
-      bucketSec: BUCKET_SEC,
+      bucketSec,
       node: isNodeStale
         ? buildNullNodeValues()
         : mapCurrentNodeValues(currentNode),
@@ -300,10 +304,11 @@ export function buildMetricsConfig(
   nodeId: string,
   bucketSec: number = BUCKET_SEC,
   retentionSec: number = RETENTION_SEC,
+  channelKind: NodeMetricsChannelKind = 'minute',
 ): NodeMetricsResponseView['metricsConfig'] {
   return {
     transport: 'socket.io',
-    channel: buildNodeMetricsChannel(nodeId),
+    channel: buildNodeMetricsChannel(nodeId, channelKind),
     bucketSec,
     retentionSec,
     nodeMetricKeys: [...NODE_METRIC_KEYS],
@@ -326,8 +331,11 @@ export function buildMetricsMeta(): NodeMetricsResponseView['meta'] {
   };
 }
 
-export function buildNodeMetricsChannel(nodeId: string): string {
-  return `monitoring.node.${nodeId}.metrics.updated`;
+export function buildNodeMetricsChannel(
+  nodeId: string,
+  channelKind: NodeMetricsChannelKind = 'minute',
+): string {
+  return `monitoring.node.${nodeId}.metrics.${channelKind}`;
 }
 
 export function buildNodeMetricsWorkloadsChangedChannel(nodeId: string): string {

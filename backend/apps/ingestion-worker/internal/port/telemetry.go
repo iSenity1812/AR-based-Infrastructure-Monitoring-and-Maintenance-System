@@ -19,3 +19,7 @@ type TelemetryBrokerPort interface {
 	PublishTelemetryEnvelope(ctx context.Context, envelope *domain.TelemetryEnvelope) error
 	Close() error
 }
+
+type CollectorHeartbeatSyncPort interface {
+	SyncCollectorHeartbeat(ctx context.Context, signal *domain.CollectorHeartbeatSignal) error
+}

@@ -39,6 +39,16 @@ func (m *mockTelemetryBroker) Close() error {
 	return nil
 }
 
+type mockCollectorHeartbeatSync struct {
+	signal *domain.CollectorHeartbeatSignal
+	err    error
+}
+
+func (m *mockCollectorHeartbeatSync) SyncCollectorHeartbeat(_ context.Context, signal *domain.CollectorHeartbeatSignal) error {
+	m.signal = signal
+	return m.err
+}
+
 var _ port.NodeRepositoryPort = (*mockTelemetryNodeRepo)(nil)
 var _ port.TelemetryBrokerPort = (*mockTelemetryBroker)(nil)
 
@@ -50,7 +60,7 @@ func TestIngestBatchRejectsUnassignedNodeBeforePublish(t *testing.T) {
 		},
 	}
 	broker := &mockTelemetryBroker{}
-	uc := NewTelemetryUseCase(nodeRepo, broker)
+	uc := NewTelemetryUseCase(nodeRepo, broker, nil)
 
 	_, err := uc.IngestBatch(context.Background(), "CN=node-msi-838958db, OU=Telemetry, O=ExampleCorp", &domain.IngestBatchRequest{
 		Batch: domain.BatchMeta{
@@ -74,7 +84,7 @@ func TestIngestBatchRejectsRetiredNodeBeforePublish(t *testing.T) {
 		},
 	}
 	broker := &mockTelemetryBroker{}
-	uc := NewTelemetryUseCase(nodeRepo, broker)
+	uc := NewTelemetryUseCase(nodeRepo, broker, nil)
 
 	_, err := uc.IngestBatch(context.Background(), "CN=node-msi-838958db, OU=Telemetry, O=ExampleCorp", &domain.IngestBatchRequest{
 		Batch: domain.BatchMeta{
@@ -98,12 +108,34 @@ func TestIngestBatchPublishesAssignedNode(t *testing.T) {
 		},
 	}
 	broker := &mockTelemetryBroker{}
-	uc := NewTelemetryUseCase(nodeRepo, broker)
+	heartbeatSync := &mockCollectorHeartbeatSync{}
+	uc := NewTelemetryUseCase(nodeRepo, broker, heartbeatSync)
 	uc.nowFn = func() time.Time { return fixedNow }
 
 	resp, err := uc.IngestBatch(context.Background(), "CN=node-msi-838958db, OU=Telemetry, O=ExampleCorp", &domain.IngestBatchRequest{
+		Agent: domain.AgentMeta{
+			AgentID: "node-msi-838958db",
+		},
 		Batch: domain.BatchMeta{
-			BatchID: "batch-001",
+			BatchID:     "batch-001",
+			CollectedAt: "2026-07-21T10:51:55Z",
+		},
+		Context: domain.PayloadContext{
+			Identity: domain.ContextIdentity{
+				NodeID: "node-msi-838958db",
+			},
+		},
+		Metrics: []domain.MetricRecord{
+			{
+				MetricKey:    domain.AgentHeartbeatMetricKey,
+				ScopeType:    "node",
+				ScopeID:      "node-msi-838958db",
+				Value:        1,
+				Unit:         "state",
+				Timestamp:    "2026-07-21T10:52:00Z",
+				Source:       "go-agent-collector",
+				SourceMetric: "collector.runtime.heartbeat",
+			},
 		},
 	})
 	if err != nil {
@@ -124,6 +156,12 @@ func TestIngestBatchPublishesAssignedNode(t *testing.T) {
 	if got := broker.published.ReceivedAt; !got.Equal(fixedNow.In(vietnamLocation)) {
 		t.Fatalf("expected envelope receivedAt to use Vietnam time, got %v", got)
 	}
+	if heartbeatSync.signal == nil {
+		t.Fatal("expected collector heartbeat to be synced")
+	}
+	if heartbeatSync.signal.NodeID != "node-msi-838958db" {
+		t.Fatalf("expected collector heartbeat node id to be forwarded, got %q", heartbeatSync.signal.NodeID)
+	}
 }
 
 func TestIngestBatchFailsWhenNodeLookupFails(t *testing.T) {
@@ -131,7 +169,7 @@ func TestIngestBatchFailsWhenNodeLookupFails(t *testing.T) {
 		err: errors.New("redis down"),
 	}
 	broker := &mockTelemetryBroker{}
-	uc := NewTelemetryUseCase(nodeRepo, broker)
+	uc := NewTelemetryUseCase(nodeRepo, broker, nil)
 
 	_, err := uc.IngestBatch(context.Background(), "CN=node-msi-838958db, OU=Telemetry, O=ExampleCorp", &domain.IngestBatchRequest{
 		Batch: domain.BatchMeta{
@@ -143,5 +181,36 @@ func TestIngestBatchFailsWhenNodeLookupFails(t *testing.T) {
 	}
 	if broker.published != nil {
 		t.Fatal("expected telemetry not to be published when lookup fails")
+	}
+}
+
+func TestIngestBatchSkipsHeartbeatSyncWhenMetricIsAbsent(t *testing.T) {
+	nodeRepo := &mockTelemetryNodeRepo{
+		node: &domain.Node{
+			AgentID:         "node-msi-838958db",
+			AssignmentState: domain.AssignmentAssigned,
+		},
+	}
+	broker := &mockTelemetryBroker{}
+	heartbeatSync := &mockCollectorHeartbeatSync{}
+	uc := NewTelemetryUseCase(nodeRepo, broker, heartbeatSync)
+
+	_, err := uc.IngestBatch(context.Background(), "CN=node-msi-838958db, OU=Telemetry, O=ExampleCorp", &domain.IngestBatchRequest{
+		Batch: domain.BatchMeta{
+			BatchID: "batch-001",
+		},
+		Metrics: []domain.MetricRecord{
+			{
+				MetricKey: "system.cpu.usage",
+				ScopeType: "node",
+				ScopeID:   "node-msi-838958db",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected assigned node telemetry to be accepted, got error: %v", err)
+	}
+	if heartbeatSync.signal != nil {
+		t.Fatal("expected collector heartbeat sync to be skipped when heartbeat metric is absent")
 	}
 }

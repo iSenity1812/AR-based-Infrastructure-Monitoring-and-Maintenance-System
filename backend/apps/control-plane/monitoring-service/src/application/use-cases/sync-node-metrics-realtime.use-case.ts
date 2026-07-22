@@ -21,7 +21,7 @@ export interface SyncNodeMetricsRealtimeResult {
 export class SyncNodeMetricsRealtimeUseCase {
   private readonly logger = new Logger(SyncNodeMetricsRealtimeUseCase.name);
   private checkpointSummaryTs: string | null = null;
-  private readonly metricFingerprintsByNodeId = new Map<string, string>();
+  private readonly metricFingerprintsByChannelKey = new Map<string, string>();
   private readonly workloadFingerprintsByNodeId = new Map<string, string>();
 
   constructor(
@@ -78,23 +78,11 @@ export class SyncNodeMetricsRealtimeUseCase {
           }
         }
 
-        const metricsUpdatedEvent =
-          await this.nodeMetricsComposerService.buildUpdatedEvent(nodeId);
-        if (!metricsUpdatedEvent) {
-          continue;
-        }
-
-        const metricFingerprint =
-          buildMetricsUpdatedFingerprint(metricsUpdatedEvent);
-        if (this.metricFingerprintsByNodeId.get(nodeId) === metricFingerprint) {
-          continue;
-        }
-
-        this.metricFingerprintsByNodeId.set(nodeId, metricFingerprint);
-        emittedMetricEvents += 1;
-        await this.monitoringRealtimePort.emitNodeMetricsUpdated(
-          metricsUpdatedEvent,
+        emittedMetricEvents += await this.emitMetricsUpdatedEvent(
+          nodeId,
+          'minute',
         );
+        emittedMetricEvents += await this.emitMetricsUpdatedEvent(nodeId, 'live');
       } catch (error) {
         this.logger.warn(
           `node metrics realtime skipped (nodeId=${nodeId}, reason=${error instanceof Error ? error.message : String(error)})`,
@@ -112,6 +100,32 @@ export class SyncNodeMetricsRealtimeUseCase {
       nextCheckpointSummaryTs: this.checkpointSummaryTs,
       initialized: false,
     };
+  }
+
+  private async emitMetricsUpdatedEvent(
+    nodeId: string,
+    channelKind: 'minute' | 'live',
+  ): Promise<number> {
+    const metricsUpdatedEvent =
+      await this.nodeMetricsComposerService.buildUpdatedEvent(
+        nodeId,
+        channelKind,
+      );
+    if (!metricsUpdatedEvent) {
+      return 0;
+    }
+
+    const metricFingerprint = buildMetricsUpdatedFingerprint(metricsUpdatedEvent);
+    const channelKey = `${nodeId}:${channelKind}`;
+    if (
+      this.metricFingerprintsByChannelKey.get(channelKey) === metricFingerprint
+    ) {
+      return 0;
+    }
+
+    this.metricFingerprintsByChannelKey.set(channelKey, metricFingerprint);
+    await this.monitoringRealtimePort.emitNodeMetricsUpdated(metricsUpdatedEvent);
+    return 1;
   }
 }
 

@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const AgentHeartbeatMetricKey = "agent.heartbeat"
+
 type IngestBatchRequest struct {
 	SchemaVersion string         `json:"schemaVersion"`
 	Agent         AgentMeta      `json:"agent"`
@@ -83,6 +85,14 @@ type TelemetryEnvelope struct {
 	Payload    IngestBatchRequest
 }
 
+type CollectorHeartbeatSignal struct {
+	NodeID       string `json:"nodeId"`
+	AgentID      string `json:"agentId"`
+	ObservedAt   string `json:"observedAt"`
+	Source       string `json:"source"`
+	MetricKey    string `json:"metricKey"`
+	SourceMetric string `json:"sourceMetric"`
+}
 
 func BuildEnvelopeID(req *IngestBatchRequest, clientDN string, receivedAt time.Time) string {
 	if req.Batch.BatchID != "" {
@@ -110,4 +120,40 @@ func ExtractAgentIDFromDN(clientDN string) string {
 		return clientDN[start:end]
 	}
 	return ""
+}
+
+func ExtractCollectorHeartbeatSignal(req *IngestBatchRequest) (*CollectorHeartbeatSignal, bool) {
+	if req == nil {
+		return nil, false
+	}
+
+	for _, metric := range req.Metrics {
+		if metric.MetricKey != AgentHeartbeatMetricKey {
+			continue
+		}
+
+		nodeID := metric.ScopeID
+		if nodeID == "" {
+			nodeID = req.Context.Identity.NodeID
+		}
+
+		observedAt := metric.Timestamp
+		if observedAt == "" {
+			observedAt = req.Batch.CollectedAt
+		}
+		if observedAt == "" {
+			observedAt = req.Batch.SentAt
+		}
+
+		return &CollectorHeartbeatSignal{
+			NodeID:       nodeID,
+			AgentID:      req.Agent.AgentID,
+			ObservedAt:   observedAt,
+			Source:       metric.Source,
+			MetricKey:    metric.MetricKey,
+			SourceMetric: metric.SourceMetric,
+		}, true
+	}
+
+	return nil, false
 }

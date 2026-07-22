@@ -1,5 +1,21 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class IncidentCreatorSummaryDto {
+  @ApiProperty()
+  userId!: string;
+
+  @ApiProperty()
+  username!: string;
+
+  @ApiPropertyOptional()
+  fullName?: string;
+
+  @ApiProperty({
+    enum: ['monitoring_alert_handoff', 'incident_console', 'system'],
+  })
+  source!: 'monitoring_alert_handoff' | 'incident_console' | 'system';
+}
+
 export class AlertIncidentSourceSummaryDto {
   @ApiProperty()
   alertName!: string;
@@ -59,6 +75,9 @@ export class IncidentLinkageSummaryDto {
 
   @ApiProperty()
   linkedAt!: string;
+
+  @ApiPropertyOptional({ type: IncidentCreatorSummaryDto })
+  createdBy?: IncidentCreatorSummaryDto;
 }
 
 export class CreateIncidentFromAlertResponseDto {

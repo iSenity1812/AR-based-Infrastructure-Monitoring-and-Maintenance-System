@@ -27,6 +27,14 @@ function mapIncident(document: IncidentDocument): IncidentEntity {
     severity: document.severity,
     status: document.status,
     ticketIds: document.ticketIds ?? [],
+    createdBy: document.createdBy
+      ? {
+          userId: document.createdBy.userId,
+          username: document.createdBy.username,
+          fullName: document.createdBy.fullName,
+          source: document.createdBy.source,
+        }
+      : undefined,
     metadata: document.metadata ?? {},
     createdAt: persisted.createdAt ?? new Date(),
     updatedAt: persisted.updatedAt ?? new Date(),

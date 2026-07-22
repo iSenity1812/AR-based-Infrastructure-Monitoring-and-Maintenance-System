@@ -11,28 +11,36 @@ import { DispatchRackAlertTransitionUseCase } from './application/use-cases/disp
 import { CreateIncidentFromAlertUseCase } from './application/use-cases/create-incident-from-alert.use-case';
 import { GetNodeMetricsUseCase } from './application/use-cases/get-node-metrics.use-case';
 import { GetNodeMonitoringStateUseCase } from './application/use-cases/get-node-monitoring-state.use-case';
+import { GetCollectorLivenessUseCase } from './application/use-cases/get-collector-liveness.use-case';
 import { GetNodeOverviewUseCase } from './application/use-cases/get-node-overview.use-case';
 import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
+import { NodeRealtimeSyncScheduler } from './application/use-cases/node-realtime-sync.scheduler';
 import { PollRackMonitoringUseCase } from './application/use-cases/poll-rack-monitoring.use-case';
 import { RackMonitoringPollingScheduler } from './application/use-cases/rack-monitoring-polling.scheduler';
 import { SyncExternalAlertsUseCase } from './application/use-cases/sync-external-alerts.use-case';
+import { SyncCollectorHeartbeatUseCase } from './application/use-cases/sync-collector-heartbeat.use-case';
 import { SyncNodeOverviewRealtimeUseCase } from './application/use-cases/sync-node-overview-realtime.use-case';
 import { SyncNodeMetricsRealtimeUseCase } from './application/use-cases/sync-node-metrics-realtime.use-case';
 import { MonitoringRealtimePort } from './application/ports/monitoring-realtime.port';
 import { IncidentWorkflowClientPort } from './application/ports/incident-workflow-client.port';
+import { CollectorLivenessService } from './application/services/collector-liveness.service';
 import { NodeMetricsComposerService } from './application/services/node-metrics-composer.service';
 import { NodeOverviewComposerService } from './application/services/node-overview-composer.service';
 import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.module';
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
 import { IncidentWorkflowHttpClient } from './infrastructure/http/incident-workflow-http.client';
 import { MonitoringClickhouseModule } from './infrastructure/database/clickhouse/monitoring-clickhouse.module';
+import { AlertIncidentHandoffAuditMongoModule } from './infrastructure/database/mongodb/alert-incident-handoff-audit-mongo.module';
 import { AlertCurrentStateMongoModule } from './infrastructure/database/mongodb/alert-current-state-mongo.module';
+import { CollectorLivenessMongoModule } from './infrastructure/database/mongodb/collector-liveness-mongo.module';
 import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/monitoring-state-mongo.module';
 import { MonitoringServiceConfigModule } from './infrastructure/config/monitoring-service-config.module';
 import { MonitoringDatabaseModule } from './infrastructure/database/monitoring-database.module';
 import { HealthController } from './presentation/http/controllers/health.controller';
 import { AlertIncidentHandoffController } from './presentation/http/controllers/alert-incident-handoff.controller';
+import { CollectorHeartbeatSyncController } from './presentation/http/controllers/collector-heartbeat-sync.controller';
+import { CollectorLivenessController } from './presentation/http/controllers/collector-liveness.controller';
 import { NodeMetricsController } from './presentation/http/controllers/node-metrics.controller';
 import { NodeMonitoringStateController } from './presentation/http/controllers/node-monitoring-state.controller';
 import { NodeOverviewController } from './presentation/http/controllers/node-overview.controller';
@@ -47,7 +55,9 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     MonitoringServiceConfigModule,
     MonitoringDatabaseModule,
     MonitoringStateMongoModule,
+    AlertIncidentHandoffAuditMongoModule,
     AlertCurrentStateMongoModule,
+    CollectorLivenessMongoModule,
     MonitoringClickhouseModule,
     AlertmanagerModule,
     AssetServiceGrpcModule,
@@ -56,6 +66,8 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
   controllers: [
     HealthController,
     AlertIncidentHandoffController,
+    CollectorHeartbeatSyncController,
+    CollectorLivenessController,
     NodeMetricsController,
     NodeMonitoringStateController,
     NodeOverviewController,
@@ -77,6 +89,8 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     },
     CreateIncidentFromAlertUseCase,
     DispatchRackAlertTransitionUseCase,
+    CollectorLivenessService,
+    GetCollectorLivenessUseCase,
     NodeMetricsComposerService,
     GetNodeMetricsUseCase,
     GetNodeMonitoringStateUseCase,
@@ -84,8 +98,10 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     GetNodeOverviewUseCase,
     GetRackMonitoringStateUseCase,
     GetRackOverviewUseCase,
+    NodeRealtimeSyncScheduler,
     PollRackMonitoringUseCase,
     RackMonitoringPollingScheduler,
+    SyncCollectorHeartbeatUseCase,
     SyncExternalAlertsUseCase,
     SyncNodeMetricsRealtimeUseCase,
     SyncNodeOverviewRealtimeUseCase,

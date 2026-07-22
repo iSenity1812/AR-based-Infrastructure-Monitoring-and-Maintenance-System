@@ -6,6 +6,7 @@ import {
   type AlertCurrentState,
   type AlertIncidentLinkage,
 } from '../../domain/alert-current-state';
+import type { AlertIncidentHandoffAuditRepository } from '../ports/alert-incident-handoff-audit.repository';
 import { AlertCurrentStateRepository } from '../ports/alert-current-state.repository';
 import {
   IncidentWorkflowClientPort,
@@ -47,7 +48,7 @@ describe('CreateIncidentFromAlertUseCase', () => {
       incidentCode: buildIncidentCodeFromAlertFingerprint(alert.fingerprint),
       severity: 'HIGH',
     });
-    const { useCase, repository, incidentClient } = setup({
+    const { useCase, repository, incidentClient, auditRepository } = setup({
       alert,
       createdIncident: incident,
     });
@@ -55,6 +56,7 @@ describe('CreateIncidentFromAlertUseCase', () => {
     const result = await useCase.execute({
       fingerprint: alert.fingerprint,
       authorizationHeader: 'Bearer token',
+      actor: buildActor(),
       operatorNote: 'Escalate manually',
     });
 
@@ -67,6 +69,7 @@ describe('CreateIncidentFromAlertUseCase', () => {
           fingerprint: alert.fingerprint,
           rawLabels: alert.rawLabels,
           rawAnnotations: alert.rawAnnotations,
+          requestSessionId: 'session-1',
           operatorNote: 'Escalate manually',
         }),
       }),
@@ -78,6 +81,19 @@ describe('CreateIncidentFromAlertUseCase', () => {
         incidentId: incident.incidentId,
       }),
     );
+    expect(auditRepository.append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fingerprint: alert.fingerprint,
+        actorUserId: 'user-1',
+        result: 'created',
+      }),
+    );
+    expect(result.incident.createdBy).toEqual({
+      userId: 'user-1',
+      username: 'ducpv',
+      fullName: 'Pham Van Duc',
+      source: 'monitoring_alert_handoff',
+    });
   });
 
   it('recovers linkage from an existing incident after a create conflict', async () => {
@@ -98,6 +114,7 @@ describe('CreateIncidentFromAlertUseCase', () => {
       useCase.execute({
         fingerprint: alert.fingerprint,
         authorizationHeader: 'Bearer token',
+        actor: buildActor(),
       }),
     ).resolves.toEqual(
       expect.objectContaining({
@@ -151,11 +168,30 @@ function setup(input: {
       IncidentWorkflowClientPort['findIncidentByCode']
     >(async () => input.foundIncident ?? null),
   } as unknown as jest.Mocked<IncidentWorkflowClientPort>;
+  const auditRepository = {
+    append: jest.fn<AlertIncidentHandoffAuditRepository['append']>(
+      async () => undefined,
+    ),
+  } as unknown as jest.Mocked<AlertIncidentHandoffAuditRepository>;
 
   return {
     repository,
     incidentClient,
-    useCase: new CreateIncidentFromAlertUseCase(repository, incidentClient),
+    auditRepository,
+    useCase: new CreateIncidentFromAlertUseCase(
+      repository,
+      incidentClient,
+      auditRepository,
+    ),
+  };
+}
+
+function buildActor() {
+  return {
+    userId: 'user-1',
+    username: 'ducpv',
+    sessionId: 'session-1',
+    fullName: 'Pham Van Duc',
   };
 }
 
@@ -209,6 +245,12 @@ function buildIncident(
     title: 'Incident title',
     severity: 'CRITICAL',
     status: 'OPEN',
+    createdBy: {
+      userId: 'user-1',
+      username: 'ducpv',
+      fullName: 'Pham Van Duc',
+      source: 'monitoring_alert_handoff',
+    },
     metadata: {
       fingerprint: 'fp-node-a1',
     },

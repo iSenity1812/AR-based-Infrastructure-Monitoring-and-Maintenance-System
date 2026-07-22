@@ -62,10 +62,7 @@ export class MonitoringRealtimeGateway implements MonitoringRealtimePort {
   async emitNodeMetricsWorkloadsChanged(
     payload: NodeMetricsWorkloadsChangedEvent,
   ): Promise<void> {
-    this.server?.emit(
-      MONITORING_NODE_METRICS_WORKLOADS_CHANGED_EVENT,
-      payload,
-    );
+    this.server?.emit(MONITORING_NODE_METRICS_WORKLOADS_CHANGED_EVENT, payload);
     this.server?.emit(payload.channel, payload);
   }
 }

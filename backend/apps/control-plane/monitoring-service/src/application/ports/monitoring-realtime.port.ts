@@ -86,7 +86,6 @@ export interface NodeOverviewChangedEvent {
   nodeId: string;
   channel: string;
   changedAt: string;
-  fingerprint: string;
 }
 
 export interface NodeMetricsUpdatedEvent {
@@ -94,7 +93,7 @@ export interface NodeMetricsUpdatedEvent {
   nodeId: string;
   channel: string;
   ts: string;
-  bucketSec: 60;
+  bucketSec: number;
   node: {
     cpuUsagePct: number | null;
     memoryUsagePct: number | null;

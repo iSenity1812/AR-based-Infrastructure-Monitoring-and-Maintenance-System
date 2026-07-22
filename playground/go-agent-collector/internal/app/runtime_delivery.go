@@ -26,10 +26,6 @@ func (r *runner) sendOnce(ctx context.Context) {
 	}
 
 	records, dropped := r.deps.queue.Drain(r.cfg.Send.MaxBatchItems)
-	if len(records) == 0 {
-		return
-	}
-
 	payload := buildPayload(r.cfg, records, dropped, r.counter, now, r.sharedContext())
 	result, err := r.sendPayload(ctx, payload, true)
 	if err != nil {

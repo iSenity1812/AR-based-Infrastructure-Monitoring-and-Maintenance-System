@@ -13,6 +13,7 @@ node_modules
 .idea/**
 
 **/*.log
+**/dist/
 # Added by code-review-graph
 .code-review-graph/
 docs/methodology/*

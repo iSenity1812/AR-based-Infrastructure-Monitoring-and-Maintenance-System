@@ -1,71 +1,42 @@
-import { PropsWithChildren } from 'react';
-import {
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { PropsWithChildren, useMemo } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, spacing } from '../theme/tokens';
+import { useTheme } from '../theme/theme-context';
+import { spacing, type ThemeColors } from '../theme/tokens';
 
 interface ScreenProps extends PropsWithChildren {
   scroll?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  padded?: boolean;
 }
 
-export function Screen({
-  children,
-  scroll = true,
-  refreshing = false,
-  onRefresh,
-}: ScreenProps) {
-  const content = <View style={styles.inner}>{children}</View>;
+export function Screen({ children, scroll = true, refreshing = false, onRefresh, padded = true }: ScreenProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const content = <View style={[styles.inner, !padded && styles.flush]}>{children}</View>;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView edges={['top']} style={styles.safeArea}>
       {scroll ? (
         <ScrollView
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            onRefresh ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.cyan}
-                colors={[colors.cyan]}
-                progressBackgroundColor={colors.panel}
-              />
-            ) : undefined
-          }
+          refreshControl={onRefresh ? (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.cyan} colors={[colors.cyan]} progressBackgroundColor={colors.panel} />
+          ) : undefined}
         >
           {content}
         </ScrollView>
-      ) : (
-        content
-      )}
+      ) : content}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  scroll: {
-    flexGrow: 1,
-  },
-  inner: {
-    flex: 1,
-    gap: spacing.md,
-    width: '100%',
-    maxWidth: 430,
-    alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingTop: spacing.sm,
-    paddingBottom: 104,
-  },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: colors.bg },
+  scroll: { flexGrow: 1 },
+  inner: { flex: 1, gap: spacing.lg, width: '100%', maxWidth: 520, alignSelf: 'center', paddingHorizontal: 18, paddingTop: spacing.sm, paddingBottom: 124 },
+  flush: { maxWidth: undefined, paddingHorizontal: 0 },
 });

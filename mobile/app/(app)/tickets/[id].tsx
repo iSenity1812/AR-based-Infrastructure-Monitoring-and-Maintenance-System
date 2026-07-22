@@ -1,735 +1,101 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Camera, CheckCircle2, ChevronDown, MessageSquare, UserPlus, UserRound } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Camera, Check, CheckCircle2, Clock3, Link2, MessageSquare, MoreHorizontal, ScanLine } from 'lucide-react-native';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import {
-  acknowledgeTicket,
-  addTicketComment,
-  assignTicket,
-  attachTicketEvidence,
-  closeTicket,
-  createEvidenceUploadUrl,
-  getTicket,
-  listTickets,
-  resolveTicket,
-} from '../../../src/api/tickets';
-import { listTechnicians, type TechnicianOption } from '../../../src/api/technicians';
+import { getIncident } from '../../../src/api/incidents';
+import { acknowledgeTicket, addTicketComment, attachTicketEvidence, createEvidenceUploadUrl, getTicket, resolveTicket } from '../../../src/api/tickets';
 import { useAuth } from '../../../src/auth/auth-context';
 import { ActionButton } from '../../../src/components/action-button';
-import { BrandHeader } from '../../../src/components/brand-header';
 import { CyberCard } from '../../../src/components/cyber-card';
 import { FieldInput } from '../../../src/components/field-input';
 import { Screen } from '../../../src/components/screen';
 import { StatusPill } from '../../../src/components/status-pill';
+import { relativeTime, statusTone } from '../../../src/components/ticket-card';
 import { PERMISSIONS } from '../../../src/constants/permissions';
-import { colors, spacing, typography } from '../../../src/theme/tokens';
+import { openWebAr } from '../../../src/ar/open-webar';
+import { useTheme } from '../../../src/theme/theme-context';
+import { radii, spacing, type ThemeColors } from '../../../src/theme/tokens';
+import type { IncidentProps } from '../../../src/types/incident';
 import type { TicketProps } from '../../../src/types/ticket';
 
 export default function TicketDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session, can } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [ticket, setTicket] = useState<TicketProps | null>(null);
+  const [incident, setIncident] = useState<IncidentProps | null>(null);
   const [comment, setComment] = useState('');
-  const [assigneeUserId, setAssigneeUserId] = useState('');
   const [busy, setBusy] = useState(false);
-  const [technicians, setTechnicians] = useState<TechnicianOption[]>([]);
-  const [technicianDropdownOpen, setTechnicianDropdownOpen] = useState(false);
-  const [technicianLoadError, setTechnicianLoadError] = useState<string | null>(null);
-  const [assignmentTickets, setAssignmentTickets] = useState<TicketProps[]>([]);
-  const [userNames, setUserNames] = useState<Record<string, string>>({});
 
-  const comments = useMemo(
-    () =>
-      (ticket?.activities ?? [])
-        .filter((activity) => activity.type === 'COMMENT_ADDED' && activity.message)
-        .slice()
-        .reverse(),
-    [ticket?.activities],
-  );
-  const evidenceItems = useMemo(
-    () => (ticket?.evidence ?? []).slice().reverse(),
-    [ticket?.evidence],
-  );
-  const selectedTechnician = useMemo(
-    () => technicians.find((technician) => technician.id === assigneeUserId) ?? null,
-    [assigneeUserId, technicians],
-  );
-
-  useEffect(() => {
-    if (!session) return;
-
-    let mounted = true;
-    const nextNames: Record<string, string> = {
-      [session.user.userId]: session.user.fullName,
-    };
-
-    void (async () => {
-      try {
-        const technicians = await listTechnicians(session.accessToken);
-        if (mounted) {
-          setTechnicians(technicians);
-          setTechnicianLoadError(null);
-        }
-
-        for (const technician of technicians) {
-          nextNames[technician.id] = technician.fullName;
-        }
-      } catch (caught) {
-        if (mounted) {
-          setTechnicians([]);
-          setTechnicianLoadError(
-            caught instanceof Error ? caught.message : 'Could not load technicians.',
-          );
-        }
-      }
-
-      try {
-        const tickets = await listTickets(session.accessToken);
-        if (mounted) {
-          setAssignmentTickets(tickets);
-        }
-      } catch {
-        if (mounted) {
-          setAssignmentTickets([]);
-        }
-      }
-
-      if (mounted) {
-        setUserNames(nextNames);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [session?.accessToken, session?.user.fullName, session?.user.userId]);
-
-  async function loadAssignmentTickets() {
-    if (!session) return;
-
-    try {
-      setAssignmentTickets(await listTickets(session.accessToken));
-    } catch {
-      setAssignmentTickets([]);
-    }
-  }
-
-  async function loadTicket() {
+  const load = useCallback(async () => {
     if (!session || !id) return;
     setBusy(true);
     try {
-      const nextTicket = await getTicket(id, session.accessToken);
-      setTicket(nextTicket);
-      setAssigneeUserId(nextTicket.assigneeUserId ?? '');
-    } catch (caught) {
-      Alert.alert('Ticket load failed', caught instanceof Error ? caught.message : 'Could not load ticket.');
-    } finally {
-      setBusy(false);
-    }
-  }
+      const next = await getTicket(id, session.accessToken); setTicket(next);
+      setIncident(next.incidentId ? await getIncident(next.incidentId, session.accessToken).catch(() => null) : null);
+    } catch (caught) { Alert.alert('Ticket unavailable', caught instanceof Error ? caught.message : 'Could not load ticket.'); }
+    finally { setBusy(false); }
+  }, [id, session]);
 
-  useEffect(() => {
-    void loadTicket();
-  }, [id, session?.accessToken]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  const comments = useMemo(() => (ticket?.activities ?? []).filter((item) => item.type === 'COMMENT_ADDED' && item.message).slice().reverse(), [ticket]);
+  const evidence = useMemo(() => (ticket?.evidence ?? []).slice().reverse(), [ticket]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!session || !id) return;
-      void loadTicket();
-      void loadAssignmentTickets();
-    }, [id, session?.accessToken]),
-  );
+  async function runAction(action: () => Promise<unknown>, failure: string) { setBusy(true); try { await action(); await load(); } catch (caught) { Alert.alert(failure, caught instanceof Error ? caught.message : failure); } finally { setBusy(false); } }
+  async function submitComment() { if (!session || !ticket || !comment.trim()) return; const value = comment.trim(); setComment(''); await runAction(() => addTicketComment(ticket.id, value, session.accessToken), 'Could not add update'); }
+  function completeWork() { if (!session || !ticket) return; Alert.alert('Complete field work?', 'The operations team will be notified that this ticket is ready for review.', [{ text: 'Not yet', style: 'cancel' }, { text: 'Complete', onPress: () => void runAction(() => resolveTicket(ticket.id, session.accessToken), 'Could not complete ticket') }]); }
+  async function handleOpenWebAr() { try { await openWebAr(); } catch (caught) { Alert.alert('Could not open WebAR', caught instanceof Error ? caught.message : 'Check the configured WebAR URL and try again.'); } }
 
-  async function handleAssign() {
-    if (!session || !ticket || !assigneeUserId.trim()) return;
-
-    const selectedActiveTickets = assignmentTickets.filter(
-      (item) =>
-        item.id !== ticket.id &&
-        item.assigneeUserId === assigneeUserId &&
-        isActiveTicket(item),
-    );
-
-    if (selectedActiveTickets.length > 0) {
-      const technicianName = selectedTechnician?.fullName ?? resolveUserName(assigneeUserId);
-      Alert.alert(
-        'Technician has active tickets',
-        `${technicianName} is already handling ${selectedActiveTickets.length} active ticket(s). You can still assign this ticket to them. Continue?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Assign anyway',
-            onPress: () => void performAssign(),
-          },
-        ],
-      );
-      return;
-    }
-
-    await performAssign();
-  }
-
-  async function performAssign() {
-    if (!session || !ticket || !assigneeUserId.trim()) return;
-
-    setBusy(true);
-    try {
-      setTicket(await assignTicket(ticket.id, assigneeUserId.trim(), session.accessToken));
-      await loadAssignmentTickets();
-    } catch (caught) {
-      Alert.alert('Assign failed', caught instanceof Error ? caught.message : 'Could not assign ticket.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleAcknowledge() {
+  async function uploadEvidence() {
     if (!session || !ticket) return;
-    setBusy(true);
-    try {
-      await acknowledgeTicket(ticket.id, session.accessToken);
-      await loadTicket();
-      await loadAssignmentTickets();
-    } catch (caught) {
-      Alert.alert('Acknowledge failed', caught instanceof Error ? caught.message : 'Could not acknowledge ticket.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleComment() {
-    if (!session || !ticket || !comment.trim()) return;
-    setBusy(true);
-    try {
-      await addTicketComment(ticket.id, comment.trim(), session.accessToken);
-      setComment('');
-      await loadTicket();
-    } catch (caught) {
-      Alert.alert('Comment failed', caught instanceof Error ? caught.message : 'Could not add comment.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleResolve() {
-    if (!session || !ticket) return;
-
-    Alert.alert(
-      'Mark ticket as completed?',
-      'This will notify the operator that field work is done and the ticket is ready for final confirmation.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete work',
-          onPress: () => void performResolve(),
-        },
-      ],
-    );
-  }
-
-  async function performResolve() {
-    if (!session || !ticket) return;
-
-    setBusy(true);
-    try {
-      await resolveTicket(ticket.id, session.accessToken);
-      await loadTicket();
-      await loadAssignmentTickets();
-    } catch (caught) {
-      Alert.alert('Resolve failed', caught instanceof Error ? caught.message : 'Could not mark ticket as resolved.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleClose() {
-    if (!session || !ticket) return;
-
-    Alert.alert(
-      'Final confirmation',
-      'Confirm this ticket is fully completed and remove it from the active ticket list?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm and close',
-          onPress: () => void performClose(),
-        },
-      ],
-    );
-  }
-
-  async function performClose() {
-    if (!session || !ticket) return;
-
-    setBusy(true);
-    try {
-      await closeTicket(ticket.id, session.accessToken);
-      router.replace('/(app)/tickets');
-    } catch (caught) {
-      Alert.alert('Close failed', caught instanceof Error ? caught.message : 'Could not close ticket.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleUploadEvidence() {
-    if (!session || !ticket) return;
-
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission required', 'Photo access is required for evidence upload.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.86,
-    });
-
+    if (!permission.granted) return Alert.alert('Photo permission required', 'Allow photo access to attach field evidence.');
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
     if (result.canceled || !result.assets[0]) return;
-
-    const asset = result.assets[0];
-    const fileName = asset.fileName ?? `evidence-${Date.now()}.jpg`;
-    const mimeType = asset.mimeType ?? 'image/jpeg';
-    setBusy(true);
-
-    try {
-      const upload = await createEvidenceUploadUrl(
-        ticket.id,
-        fileName,
-        mimeType,
-        session.accessToken,
-      );
-      const fileResponse = await fetch(asset.uri);
-      const blob = await fileResponse.blob();
-      const uploadResponse = await fetch(upload.uploadUrl, {
-        method: upload.method,
-        headers: upload.headers,
-        body: blob,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`R2 upload failed with ${uploadResponse.status}.`);
-      }
-
-      await attachTicketEvidence(
-        ticket.id,
-        {
-          type: upload.type,
-          storageKey: upload.storageKey,
-          url: upload.objectUrl,
-          fileName,
-          mimeType,
-        },
-        session.accessToken,
-      );
-      await loadTicket();
-    } catch (caught) {
-      Alert.alert('Evidence upload failed', caught instanceof Error ? caught.message : 'Could not upload evidence.');
-    } finally {
-      setBusy(false);
-    }
+    const asset = result.assets[0]; const fileName = asset.fileName ?? `field-evidence-${Date.now()}.jpg`; const mimeType = asset.mimeType ?? 'image/jpeg';
+    await runAction(async () => { const upload = await createEvidenceUploadUrl(ticket.id, fileName, mimeType, session.accessToken); const blob = await (await fetch(asset.uri)).blob(); const response = await fetch(upload.uploadUrl, { method: 'PUT', headers: upload.headers, body: blob }); if (!response.ok) throw new Error(`Upload failed (${response.status}).`); await attachTicketEvidence(ticket.id, { type: upload.type, storageKey: upload.storageKey, url: upload.objectUrl, fileName, mimeType }, session.accessToken); }, 'Could not attach evidence');
   }
 
-  function resolveUserName(userId?: string | null) {
-    if (!userId) return 'Unknown user';
-
-    return userNames[userId] ?? 'Unknown user';
-  }
-
-  function formatTimestamp(value: string) {
-    return new Intl.DateTimeFormat('vi-VN', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(value));
-  }
-
-  function selectedTechnicianSubtitle() {
-    if (selectedTechnician) {
-      return selectedTechnician.email;
-    }
-
-    if (assigneeUserId) {
-      return 'Assigned technician is no longer in the active technician list.';
-    }
-
-    return 'Tap to select a technician';
-  }
-
-  if (!ticket) {
-    return (
-      <Screen refreshing={busy} onRefresh={loadTicket}>
-        <BrandHeader
-          title="Ticket detail"
-          subtitle="Loading workflow state."
-          back
-          backHref="/(app)/tickets"
-        />
-      </Screen>
-    );
-  }
-
+  if (!ticket) return <Screen refreshing={busy} onRefresh={load}><DetailHeader title="Ticket details" styles={styles} colors={colors} /><CyberCard><Text style={styles.muted}>Loading field workflow…</Text></CyberCard></Screen>;
+  const isMine = ticket.assigneeUserId === session?.user.userId;
+  const resolved = ['RESOLVED', 'CLOSED'].includes(ticket.status);
   return (
-    <Screen refreshing={busy} onRefresh={loadTicket}>
-      <BrandHeader
-        eyebrow={ticket.ticketCode}
-        title={ticket.title}
-        subtitle={ticket.description ?? 'No description recorded.'}
-        back
-        backHref="/(app)/tickets"
-      />
+    <Screen refreshing={busy} onRefresh={load}>
+      <DetailHeader title={ticket.ticketCode} styles={styles} colors={colors} />
+      <View style={styles.titleBlock}><View style={styles.pills}><StatusPill label={ticket.priority} tone={ticket.priority === 'CRITICAL' ? 'red' : ticket.priority === 'HIGH' ? 'amber' : 'cyan'} /><StatusPill label={ticket.status} tone={statusTone(ticket.status)} /></View><Text style={styles.title}>{ticket.title}</Text><Text style={styles.description}>{ticket.description ?? 'No field instructions were recorded.'}</Text></View>
 
-      <CyberCard active>
-        <View style={styles.pillRow}>
-          <StatusPill label={ticket.status} tone={statusTone(ticket.status)} />
-          <StatusPill label={ticket.priority} tone={ticket.priority === 'CRITICAL' ? 'red' : 'amber'} />
-          {ticket.acknowledgedAt ? <StatusPill label="acknowledged" tone="green" /> : null}
-        </View>
-      </CyberCard>
+      {incident ? <Pressable onPress={() => router.push(`/(app)/incidents/${incident.id}`)} style={styles.incidentCard}><View style={styles.incidentIcon}><Link2 color={colors.purple} size={20} /></View><View style={styles.incidentCopy}><Text style={styles.incidentLabel}>SOURCE INCIDENT · {incident.incidentCode}</Text><Text numberOfLines={2} style={styles.incidentTitle}>{incident.title}</Text></View><StatusPill label={incident.severity} tone={incident.severity === 'CRITICAL' ? 'red' : 'amber'} /></Pressable> : null}
 
-      {can(PERMISSIONS.TICKETS_ASSIGN) ? (
-        <CyberCard>
-          <Text style={styles.section}>Assignment</Text>
-          <View style={styles.dropdownWrap}>
-            <Text style={styles.dropdownLabel}>Assignee Technician</Text>
-            <Pressable
-              style={styles.dropdownButton}
-              onPress={() => setTechnicianDropdownOpen((open) => !open)}
-            >
-              <View style={styles.assigneeIcon}>
-                <UserRound color={colors.text} size={18} />
-              </View>
-              <View style={styles.assigneeCopy}>
-                <Text style={styles.assigneeName}>
-                  {selectedTechnician?.fullName ?? (assigneeUserId ? resolveUserName(assigneeUserId) : 'Select technician')}
-                </Text>
-                <Text style={styles.assigneeMeta}>{selectedTechnicianSubtitle()}</Text>
-              </View>
-              <ChevronDown color={colors.textMuted} size={18} />
-            </Pressable>
-            {technicianLoadError ? (
-              <Text style={styles.dropdownError}>{technicianLoadError}</Text>
-            ) : null}
-            {technicianDropdownOpen ? (
-              <View style={styles.dropdownMenu}>
-                {technicians.length === 0 ? (
-                  <View style={styles.dropdownItem}>
-                    <Text style={styles.dropdownItemTitle}>No technicians available</Text>
-                    <Text style={styles.dropdownItemMeta}>Try refreshing this ticket.</Text>
-                  </View>
-                ) : null}
-                {technicians.map((technician) => {
-                  const activeCount = assignmentTickets.filter(
-                    (item) =>
-                      item.id !== ticket.id &&
-                      item.assigneeUserId === technician.id &&
-                      isActiveTicket(item),
-                  ).length;
+      <CyberCard><Text style={styles.sectionTitle}>Work progress</Text><View style={styles.steps}><Step label="Assigned" done /><View style={[styles.stepLine, ticket.acknowledgedAt && styles.stepLineDone]} /><Step label="Acknowledged" done={Boolean(ticket.acknowledgedAt)} /><View style={[styles.stepLine, resolved && styles.stepLineDone]} /><Step label="Completed" done={resolved} /></View><View style={styles.timeRow}><Clock3 color={colors.textMuted} size={14} /><Text style={styles.timeText}>Updated {relativeTime(ticket.updatedAt)}</Text></View></CyberCard>
 
-                  return (
-                    <Pressable
-                      key={technician.id}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setAssigneeUserId(technician.id);
-                        setTechnicianDropdownOpen(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemTitle}>{technician.fullName}</Text>
-                      <Text style={styles.dropdownItemMeta}>
-                        {technician.jobTitle ?? technician.username} - {technician.email}
-                      </Text>
-                      {activeCount > 0 ? (
-                        <Text style={styles.dropdownBusy}>
-                          Handling {activeCount} active ticket(s) - confirmation required
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-          </View>
-          <ActionButton
-            disabled={busy || !assigneeUserId}
-            icon={UserPlus}
-            label="Assign"
-            variant="secondary"
-            onPress={handleAssign}
-          />
-        </CyberCard>
-      ) : null}
+      <View style={styles.actionGrid}>
+        <Pressable accessibilityHint="Opens the WebAR experience in your browser" accessibilityRole="button" onPress={() => void handleOpenWebAr()} style={styles.arAction}><ScanLine color="#FFFFFF" size={23} /><View><Text style={styles.arTitle}>Open WebAR</Text><Text style={styles.arSubtitle}>Launch browser AR view</Text></View></Pressable>
+        {isMine && !ticket.acknowledgedAt && can(PERMISSIONS.TICKETS_ACKNOWLEDGE) ? <Pressable disabled={busy} onPress={() => session && runAction(() => acknowledgeTicket(ticket.id, session.accessToken), 'Could not acknowledge ticket')} style={styles.secondaryAction}><Check color={colors.cyan} size={22} /><Text style={styles.secondaryActionText}>Acknowledge</Text></Pressable> : null}
+      </View>
+      {isMine && ticket.acknowledgedAt && !resolved && can(PERMISSIONS.TICKETS_RESOLVE) ? <ActionButton disabled={busy} icon={CheckCircle2} label="Mark field work completed" onPress={completeWork} /> : null}
 
-      {can(PERMISSIONS.TICKETS_ACKNOWLEDGE) && ticket.assigneeUserId === session?.user.userId ? (
-        <ActionButton
-          disabled={busy || Boolean(ticket.acknowledgedAt)}
-          icon={CheckCircle2}
-          label={ticket.acknowledgedAt ? 'Acknowledged' : 'Acknowledge'}
-          onPress={handleAcknowledge}
-        />
-      ) : null}
+      <CyberCard><View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>Field updates</Text><Text style={styles.sectionSubtitle}>{comments.length} notes from the workflow</Text></View><MessageSquare color={colors.cyan} size={20} /></View>{can(PERMISSIONS.TICKETS_COMMENT) ? <><FieldInput label="Add a work note" multiline value={comment} onChangeText={setComment} placeholder="What did you inspect or repair?" style={styles.commentInput} /><ActionButton disabled={busy || !comment.trim()} label="Post update" variant="secondary" onPress={() => void submitComment()} /></> : null}<View style={styles.timeline}>{comments.slice(0, 5).map((item) => <View key={item.id} style={styles.timelineItem}><View style={styles.timelineDot} /><View style={styles.timelineCopy}><Text style={styles.comment}>{item.message}</Text><Text style={styles.commentMeta}>{formatDate(item.createdAt)}</Text></View></View>)}{!comments.length ? <Text style={styles.muted}>No field updates yet.</Text> : null}</View></CyberCard>
 
-      {can(PERMISSIONS.TICKETS_RESOLVE) &&
-      ticket.assigneeUserId === session?.user.userId &&
-      Boolean(ticket.acknowledgedAt) &&
-      ticket.status !== 'RESOLVED' &&
-      ticket.status !== 'CLOSED' ? (
-        <ActionButton
-          disabled={busy}
-          icon={CheckCircle2}
-          label="Mark work completed"
-          onPress={handleResolve}
-        />
-      ) : null}
-
-      {can(PERMISSIONS.TICKETS_CLOSE) && ticket.status === 'RESOLVED' ? (
-        <ActionButton
-          disabled={busy}
-          icon={CheckCircle2}
-          label="Confirm completion"
-          onPress={handleClose}
-        />
-      ) : null}
-
-      <CyberCard>
-        <Text style={styles.section}>Field updates</Text>
-        {can(PERMISSIONS.TICKETS_COMMENT) ? (
-          <>
-            <FieldInput
-              label="Comment"
-              multiline
-              style={styles.multiLine}
-              value={comment}
-              onChangeText={setComment}
-            />
-            <ActionButton
-              disabled={busy}
-              icon={MessageSquare}
-              label="Add comment"
-              variant="secondary"
-              onPress={handleComment}
-            />
-          </>
-        ) : null}
-        <View style={styles.commentList}>
-          {comments.length === 0 ? (
-            <Text style={styles.emptyText}>No comments yet.</Text>
-          ) : null}
-          {comments.map((activity) => (
-            <View key={activity.id} style={styles.commentItem}>
-              <Text style={styles.commentMessage}>{activity.message}</Text>
-              <Text style={styles.commentMeta}>
-                By {resolveUserName(activity.actorUserId)} - {formatTimestamp(activity.createdAt)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </CyberCard>
-
-      <CyberCard>
-        <Text style={styles.section}>Evidence</Text>
-        <View style={styles.evidenceList}>
-          {evidenceItems.length === 0 ? (
-            <Text style={styles.emptyText}>No evidence attached yet.</Text>
-          ) : null}
-          {evidenceItems.map((evidence) => {
-            const isImage = evidence.url && evidence.mimeType?.startsWith('image/');
-
-            return (
-              <View key={evidence.id} style={styles.evidenceItem}>
-                {isImage ? (
-                  <Image source={{ uri: evidence.url }} style={styles.preview} />
-                ) : null}
-                <Text style={styles.evidenceTitle}>
-                  {evidence.fileName ?? evidence.storageKey ?? evidence.type}
-                </Text>
-                <Text style={styles.evidenceMeta}>
-                  By {resolveUserName(evidence.attachedByUserId)} - {formatTimestamp(evidence.createdAt)}
-                </Text>
-                {evidence.storageKey ? (
-                  <Text numberOfLines={1} style={styles.evidencePath}>
-                    {evidence.storageKey}
-                  </Text>
-                ) : null}
-              </View>
-            );
-          })}
-        </View>
-        {can(PERMISSIONS.TICKETS_EVIDENCE_ATTACH) ? (
-          <ActionButton
-            disabled={busy}
-            icon={Camera}
-            label="Attach photo"
-            onPress={handleUploadEvidence}
-          />
-        ) : null}
-      </CyberCard>
+      <CyberCard><View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>Evidence</Text><Text style={styles.sectionSubtitle}>{evidence.length} attachments</Text></View><Camera color={colors.cyan} size={20} /></View><View style={styles.evidenceGrid}>{evidence.map((item) => item.url && item.mimeType?.startsWith('image/') ? <Image key={item.id} source={{ uri: item.url }} style={styles.evidenceImage} /> : <View key={item.id} style={styles.evidenceFile}><Camera color={colors.textMuted} size={20} /><Text numberOfLines={1} style={styles.evidenceName}>{item.fileName ?? item.type}</Text></View>)}</View>{can(PERMISSIONS.TICKETS_EVIDENCE_ATTACH) ? <ActionButton disabled={busy} icon={Camera} label="Attach field photo" variant="secondary" onPress={() => void uploadEvidence()} /> : null}</CyberCard>
     </Screen>
   );
+
+  function Step({ label, done }: { label: string; done?: boolean }) { return <View style={styles.step}><View style={[styles.stepDot, done && styles.stepDotDone]}>{done ? <Check color="#FFFFFF" size={13} /> : null}</View><Text style={[styles.stepLabel, done && styles.stepLabelDone]}>{label}</Text></View>; }
 }
 
-const styles = StyleSheet.create({
-  pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  section: {
-    color: colors.text,
-    fontSize: typography.body,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  multiLine: {
-    minHeight: 88,
-    paddingTop: spacing.md,
-    textAlignVertical: 'top',
-  },
-  preview: {
-    width: '100%',
-    height: 220,
-    borderRadius: 18,
-    backgroundColor: colors.black,
-  },
-  commentList: {
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  commentItem: {
-    gap: 4,
-    padding: spacing.md,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.cardDark,
-  },
-  commentMessage: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '800',
-    lineHeight: 20,
-  },
-  commentMeta: {
-    color: colors.textMuted,
-    fontSize: typography.micro,
-    fontWeight: '800',
-  },
-  evidenceList: {
-    gap: spacing.md,
-  },
-  evidenceItem: {
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: 20,
-    backgroundColor: colors.cardDark,
-  },
-  evidenceTitle: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  evidenceMeta: {
-    color: colors.textMuted,
-    fontSize: typography.micro,
-    fontWeight: '700',
-  },
-  evidencePath: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  dropdownWrap: {
-    gap: spacing.sm,
-  },
-  dropdownLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  dropdownButton: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    minHeight: 64,
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.cardDark,
-  },
-  assigneeIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    backgroundColor: colors.cyanSoft,
-  },
-  assigneeCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  assigneeName: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  assigneeMeta: {
-    color: colors.textSubtle,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  dropdownError: {
-    color: colors.amber,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  dropdownMenu: {
-    overflow: 'hidden',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.black,
-  },
-  dropdownItem: {
-    gap: 3,
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  dropdownItemTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '900',
-  },
-  dropdownItemMeta: {
-    color: colors.textSubtle,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  dropdownBusy: {
-    color: colors.amber,
-    fontSize: 11,
-    fontWeight: '800',
-  },
+function DetailHeader({ title, styles, colors }: { title: string; styles: ReturnType<typeof createStyles>; colors: ThemeColors }) { return <View style={styles.header}><Pressable onPress={() => router.back()} style={styles.headerButton}><ArrowLeft color={colors.text} size={20} /></Pressable><Text style={styles.headerTitle}>{title}</Text><View style={styles.headerButton}><MoreHorizontal color={colors.text} size={20} /></View></View>; }
+function formatDate(value: string) { return new Intl.DateTimeFormat('en', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
+
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }, headerButton: { alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel }, headerTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  titleBlock: { gap: spacing.md }, pills: { flexDirection: 'row', gap: spacing.sm }, title: { color: colors.text, fontSize: 26, fontWeight: '900', lineHeight: 32 }, description: { color: colors.textMuted, fontSize: 13, lineHeight: 20 },
+  incidentCard: { alignItems: 'center', flexDirection: 'row', gap: spacing.md, padding: spacing.lg, borderRadius: radii.xl, backgroundColor: colors.purpleSoft }, incidentIcon: { alignItems: 'center', justifyContent: 'center', width: 42, height: 42, borderRadius: 15, backgroundColor: colors.panel }, incidentCopy: { flex: 1, gap: 3 }, incidentLabel: { color: colors.purple, fontSize: 8, fontWeight: '900', letterSpacing: 0.7 }, incidentTitle: { color: colors.text, fontSize: 12, fontWeight: '800' },
+  sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }, sectionTitle: { color: colors.text, fontSize: 15, fontWeight: '900' }, sectionSubtitle: { marginTop: 3, color: colors.textMuted, fontSize: 10 },
+  steps: { alignItems: 'flex-start', flexDirection: 'row', marginTop: spacing.sm }, step: { alignItems: 'center', width: 74, gap: 7 }, stepDot: { alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 10, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.cardDark }, stepDotDone: { borderColor: colors.green, backgroundColor: colors.green }, stepLabel: { color: colors.textSubtle, fontSize: 8, fontWeight: '700', textAlign: 'center' }, stepLabelDone: { color: colors.text }, stepLine: { flex: 1, height: 2, marginTop: 12, backgroundColor: colors.border }, stepLineDone: { backgroundColor: colors.green }, timeRow: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', gap: 5, marginTop: spacing.sm }, timeText: { color: colors.textMuted, fontSize: 10 },
+  actionGrid: { flexDirection: 'row', gap: spacing.md }, arAction: { alignItems: 'center', flex: 2, flexDirection: 'row', gap: spacing.md, minHeight: 68, paddingHorizontal: spacing.lg, borderRadius: radii.xl, backgroundColor: colors.hero }, arTitle: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' }, arSubtitle: { marginTop: 2, color: '#9FB1D7', fontSize: 9 }, secondaryAction: { alignItems: 'center', justifyContent: 'center', flex: 1, gap: 5, minHeight: 68, borderRadius: radii.xl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel }, secondaryActionText: { color: colors.cyan, fontSize: 10, fontWeight: '800' },
+  commentInput: { minHeight: 90, paddingTop: spacing.md, textAlignVertical: 'top' }, timeline: { gap: spacing.md }, timelineItem: { flexDirection: 'row', gap: spacing.md }, timelineDot: { width: 9, height: 9, marginTop: 5, borderRadius: 5, backgroundColor: colors.cyan }, timelineCopy: { flex: 1, gap: 4, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border }, comment: { color: colors.text, fontSize: 12, lineHeight: 18 }, commentMeta: { color: colors.textSubtle, fontSize: 9 }, muted: { color: colors.textMuted, fontSize: 12 },
+  evidenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }, evidenceImage: { width: 88, height: 88, borderRadius: radii.lg, backgroundColor: colors.cardDark }, evidenceFile: { alignItems: 'center', justifyContent: 'center', gap: 5, width: 88, height: 88, padding: spacing.sm, borderRadius: radii.lg, backgroundColor: colors.cardDark }, evidenceName: { color: colors.textMuted, fontSize: 8 },
 });
-
-function isActiveTicket(ticket: TicketProps) {
-  return !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(ticket.status);
-}
-
-function statusTone(status: TicketProps['status']) {
-  if (status === 'RESOLVED' || status === 'CLOSED') return 'green';
-  if (status === 'CANCELLED') return 'muted';
-  if (status === 'WAITING_FOR_INFO') return 'amber';
-  if (status === 'OPEN') return 'cyan';
-  return 'purple';
-}

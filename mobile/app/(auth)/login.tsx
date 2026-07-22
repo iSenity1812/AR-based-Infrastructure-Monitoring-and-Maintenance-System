@@ -1,106 +1,18 @@
 import { router } from 'expo-router';
-import { Hexagon, Lock } from 'lucide-react-native';
-import { useState } from 'react';
+import { Fingerprint, ScanLine, ShieldCheck } from 'lucide-react-native';
+import { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
-
 import { useAuth } from '../../src/auth/auth-context';
 import { ActionButton } from '../../src/components/action-button';
-import { CyberCard } from '../../src/components/cyber-card';
 import { FieldInput } from '../../src/components/field-input';
 import { Screen } from '../../src/components/screen';
-import { colors, spacing } from '../../src/theme/tokens';
+import { useTheme } from '../../src/theme/theme-context';
+import { radii, spacing, type ThemeColors } from '../../src/theme/tokens';
 
 export default function LoginScreen() {
-  const { signIn, loading, error } = useAuth();
-  const [email, setEmail] = useState('technician01@example.com');
-  const [password, setPassword] = useState('Technician@123456');
-
-  async function handleLogin() {
-    try {
-      await signIn(email, password);
-      router.replace('/(app)');
-    } catch {
-      Alert.alert('Login failed', error ?? 'Please check the account and service URL.');
-    }
-  }
-
-  return (
-    <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.select({ ios: 'padding', android: undefined })}
-        style={styles.wrap}
-      >
-        <View style={styles.brandBlock}>
-          <View style={styles.logoBox}>
-            <Hexagon color={colors.text} size={34} />
-          </View>
-          <Text style={styles.appName}>AR-IMMS</Text>
-          <Text style={styles.appSubtitle}>Field Ticket Console</Text>
-        </View>
-
-        <CyberCard>
-          <FieldInput
-            autoCapitalize="none"
-            keyboardType="email-address"
-            label="Email"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <FieldInput
-            label="Password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <ActionButton
-            disabled={loading}
-            icon={Lock}
-            label={loading ? 'Signing in' : 'Sign in'}
-            onPress={handleLogin}
-          />
-        </CyberCard>
-
-      </KeyboardAvoidingView>
-    </Screen>
-  );
+  const { signIn, loading, error } = useAuth(); const { colors } = useTheme(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const [email, setEmail] = useState('technician01@example.com'); const [password, setPassword] = useState('Technician01@123456');
+  async function login() { try { await signIn(email, password); router.replace('/(app)'); } catch (caught) { Alert.alert('Sign in failed', caught instanceof Error ? caught.message : error ?? 'Check your account and service connection.'); } }
+  return <Screen><KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: undefined })} style={styles.wrap}><View style={styles.visual}><View style={styles.brandIcon}><ScanLine color="#FFFFFF" size={32} /></View><Text style={styles.brand}>AR-IMMS Field</Text><Text style={styles.tagline}>Technician workspace for faster, safer maintenance.</Text><View style={styles.trust}><ShieldCheck color="#9FB7FF" size={15} /><Text style={styles.trustText}>Secure field operations</Text></View></View><View style={styles.form}><View><Text style={styles.welcome}>Welcome back</Text><Text style={styles.copy}>Sign in with your technician account.</Text></View><FieldInput autoCapitalize="none" keyboardType="email-address" label="Work email" value={email} onChangeText={setEmail} /><FieldInput label="Password" secureTextEntry value={password} onChangeText={setPassword} />{error ? <Text style={styles.error}>{error}</Text> : null}<ActionButton disabled={loading} icon={Fingerprint} label={loading ? 'Signing in…' : 'Sign in securely'} onPress={() => void login()} /></View><Text style={styles.footer}>AR-assisted infrastructure maintenance</Text></KeyboardAvoidingView></Screen>;
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: spacing.lg,
-  },
-  brandBlock: {
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  logoBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 78,
-    height: 78,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: colors.borderBright,
-    backgroundColor: colors.cyan,
-  },
-  appName: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  appSubtitle: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  error: {
-    color: colors.red,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-});
+const createStyles = (colors: ThemeColors) => StyleSheet.create({ wrap: { flex: 1, justifyContent: 'center', gap: spacing.xl }, visual: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl, borderRadius: radii.xxl, backgroundColor: colors.hero }, brandIcon: { alignItems: 'center', justifyContent: 'center', width: 68, height: 68, borderRadius: 24, backgroundColor: colors.cyan }, brand: { color: '#FFFFFF', fontSize: 25, fontWeight: '900' }, tagline: { maxWidth: 280, color: '#AFC0DF', fontSize: 12, lineHeight: 18, textAlign: 'center' }, trust: { alignItems: 'center', flexDirection: 'row', gap: 6, marginTop: spacing.sm }, trustText: { color: '#9FB7FF', fontSize: 9, fontWeight: '800', letterSpacing: 0.6 }, form: { gap: spacing.lg, padding: spacing.xl, borderRadius: radii.xxl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel }, welcome: { color: colors.text, fontSize: 22, fontWeight: '900' }, copy: { marginTop: 4, color: colors.textMuted, fontSize: 12 }, error: { color: colors.red, fontSize: 12, fontWeight: '700' }, footer: { color: colors.textSubtle, fontSize: 10, textAlign: 'center' } });

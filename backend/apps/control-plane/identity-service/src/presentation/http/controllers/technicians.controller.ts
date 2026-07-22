@@ -15,7 +15,7 @@ import { PermissionsGuard } from '../guards/permissions.guard';
 @ApiBearerAuth()
 @Controller('technicians')
 @UseGuards(JwtAuthGuard, PasswordChangeRequiredGuard, PermissionsGuard)
-@RequirePermissions(PERMISSION_CODES.TICKETS_CREATE)
+@RequirePermissions(PERMISSION_CODES.TICKETS_READ)
 export class TechniciansController {
   constructor(
     @Inject(LIST_USERS_USE_CASE)

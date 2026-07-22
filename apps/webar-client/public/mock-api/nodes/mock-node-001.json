@@ -1,0 +1,13 @@
+{
+  "id": "mock-node-001",
+  "name": "Node AX-0421",
+  "rack": "Rack A1",
+  "status": "nominal",
+  "temperatureC": 41.8,
+  "cpuPercent": 38,
+  "memoryPercent": 62,
+  "networkLatencyMs": 12,
+  "activeTicketCount": 0,
+  "lastTicketCode": "TCK-R2-002",
+  "updatedAt": "Fetched from mock API"
+}

@@ -5,7 +5,7 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "arimms",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -29,7 +29,7 @@
     },
     "extra": {
       "identityApiUrl": "http://localhost:4001/api/v1",
-      "incidentApiUrl": "http://localhost:4003/api/v1"
+      "incidentApiUrl": "http://localhost:4004/api/v1"
     }
   }
 }

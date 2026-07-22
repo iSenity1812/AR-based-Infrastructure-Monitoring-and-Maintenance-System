@@ -17,3 +17,8 @@ node_modules
 .code-review-graph/
 docs/methodology/*
 docs/literature_matrix.md
+
+# Local environment and credential files
+**/.env
+**/.env.local
+**/.env.*.local

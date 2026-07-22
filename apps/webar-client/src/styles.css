@@ -1,0 +1,208 @@
+:root {
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f8fafc;
+  background: #0b1020;
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: #0b1020;
+}
+
+.mindar-shell,
+.mindar-shell a-scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mindar-shell a-scene {
+  z-index: 1;
+}
+
+.html-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 10px;
+  padding: max(12px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.top-bar,
+.operator-strip,
+.marker-card,
+.boot-panel {
+  border: 1px solid rgba(0, 209, 255, 0.28);
+  background: rgba(15, 23, 42, 0.84);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.brand {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.eyebrow,
+.label {
+  margin: 0;
+  color: #00d1ff;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 22px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-pill {
+  flex: 0 0 auto;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.status-nominal {
+  color: #3ddc97;
+  background: rgba(61, 220, 151, 0.12);
+}
+
+.status-warning {
+  color: #f5b84b;
+  background: rgba(245, 184, 75, 0.13);
+}
+
+.status-critical {
+  color: #e85d75;
+  background: rgba(232, 93, 117, 0.14);
+}
+
+.operator-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.operator-strip strong {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #f8fafc;
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.marker-card {
+  align-self: end;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 16px;
+}
+
+.marker-card img {
+  width: 76px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 209, 255, 0.38);
+  background: #f8fafc;
+}
+
+.marker-card strong {
+  display: block;
+  margin-top: 3px;
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.boot-panel {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.boot-panel h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.boot-copy {
+  max-width: 360px;
+  margin: 0;
+  color: #a7b0c4;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mindar-ui-overlay {
+  z-index: 4;
+}
+
+@media (min-width: 720px) {
+  .html-overlay {
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .operator-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

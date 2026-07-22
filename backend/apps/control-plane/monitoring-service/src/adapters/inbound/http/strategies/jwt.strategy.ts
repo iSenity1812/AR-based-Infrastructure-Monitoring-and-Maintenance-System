@@ -7,6 +7,7 @@ import { CurrentAuthContextDto } from '../../../../application/use-cases/dto/cur
 type JwtPayload = {
   userId: string;
   username: string;
+  fullName?: string;
   sessionId: string;
   roles?: string[];
   permissions?: string[];
@@ -27,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.userId,
       username: payload.username,
+      fullName: payload.fullName,
       sessionId: payload.sessionId,
       roles: payload.roles ?? [],
       permissions: payload.permissions ?? [],

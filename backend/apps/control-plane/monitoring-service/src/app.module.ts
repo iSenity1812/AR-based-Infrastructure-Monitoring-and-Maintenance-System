@@ -31,6 +31,7 @@ import { AlertmanagerModule } from './infrastructure/alertmanager/alertmanager.m
 import { AssetServiceGrpcModule } from './infrastructure/grpc/asset-service-grpc.module';
 import { IncidentWorkflowHttpClient } from './infrastructure/http/incident-workflow-http.client';
 import { MonitoringClickhouseModule } from './infrastructure/database/clickhouse/monitoring-clickhouse.module';
+import { AlertIncidentHandoffAuditMongoModule } from './infrastructure/database/mongodb/alert-incident-handoff-audit-mongo.module';
 import { AlertCurrentStateMongoModule } from './infrastructure/database/mongodb/alert-current-state-mongo.module';
 import { CollectorLivenessMongoModule } from './infrastructure/database/mongodb/collector-liveness-mongo.module';
 import { MonitoringStateMongoModule } from './infrastructure/database/mongodb/monitoring-state-mongo.module';
@@ -54,6 +55,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     MonitoringServiceConfigModule,
     MonitoringDatabaseModule,
     MonitoringStateMongoModule,
+    AlertIncidentHandoffAuditMongoModule,
     AlertCurrentStateMongoModule,
     CollectorLivenessMongoModule,
     MonitoringClickhouseModule,

@@ -5,6 +5,7 @@ import type {
   AlertCurrentStateSeverity,
   AlertIncidentSeverity,
 } from '../../domain/alert-current-state';
+import type { AlertEscalationActorDto } from '../use-cases/dto/alert-escalation-actor.dto';
 
 const INCIDENT_CODE_PREFIX = 'MON-ALERT';
 const INCIDENT_CODE_HASH_LENGTH = 32;
@@ -15,6 +16,8 @@ const MAX_METADATA_VALUE_LENGTH = 2048;
 export interface BuildAlertIncidentMetadataInput {
   alert: AlertCurrentState;
   incidentSeverity: AlertIncidentSeverity;
+  actor: AlertEscalationActorDto;
+  requestedAt: string;
   operatorNote?: string | null;
 }
 
@@ -43,6 +46,8 @@ export interface AlertIncidentMetadata {
   lastReceivedAt: string;
   rawLabels: Record<string, string>;
   rawAnnotations: Record<string, string>;
+  requestedAt: string;
+  requestSessionId: string;
   operatorNote?: string;
 }
 
@@ -97,6 +102,8 @@ export function buildAlertIncidentMetadata(
     lastReceivedAt: alert.lastReceivedAt,
     rawLabels: sanitizeMetadataMap(alert.rawLabels),
     rawAnnotations: sanitizeMetadataMap(alert.rawAnnotations),
+    requestedAt: input.requestedAt,
+    requestSessionId: input.actor.sessionId,
     ...(operatorNote ? { operatorNote } : {}),
   };
 }

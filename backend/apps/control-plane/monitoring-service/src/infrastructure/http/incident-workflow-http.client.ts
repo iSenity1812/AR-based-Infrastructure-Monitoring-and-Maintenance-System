@@ -147,6 +147,7 @@ function parseIncident(input: unknown): IncidentWorkflowIncident {
     title,
     severity,
     status,
+    createdBy: parseCreatedBy(raw.createdBy),
     metadata: isRecord(raw.metadata) ? raw.metadata : {},
     createdAt,
     updatedAt: readDateString(raw.updatedAt),
@@ -186,4 +187,33 @@ function readDateString(input: unknown): string | null {
 
 function isRecord(input: unknown): input is Record<string, unknown> {
   return Boolean(input && typeof input === 'object' && !Array.isArray(input));
+}
+
+function parseCreatedBy(
+  input: unknown,
+): IncidentWorkflowIncident['createdBy'] | undefined {
+  if (!isRecord(input)) {
+    return undefined;
+  }
+
+  const userId = readString(input.userId);
+  const username = readString(input.username);
+  const source = readString(input.source);
+
+  if (
+    !userId ||
+    !username ||
+    (source !== 'monitoring_alert_handoff' &&
+      source !== 'incident_console' &&
+      source !== 'system')
+  ) {
+    return undefined;
+  }
+
+  return {
+    userId,
+    username,
+    fullName: readString(input.fullName) ?? undefined,
+    source,
+  };
 }

@@ -6,6 +6,12 @@ export interface IncidentWorkflowIncident {
   title: string;
   severity: AlertIncidentSeverity;
   status: string;
+  createdBy?: {
+    userId: string;
+    username: string;
+    fullName?: string;
+    source: 'monitoring_alert_handoff' | 'incident_console' | 'system';
+  };
   metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string | null;

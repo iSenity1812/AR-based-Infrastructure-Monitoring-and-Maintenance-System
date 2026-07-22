@@ -17,9 +17,11 @@ import {
 import type { Request } from 'express';
 
 import { PERMISSION_CODES } from '@adapters/inbound/http/constants/permission-code.constant';
+import { CurrentAuthContext } from '@adapters/inbound/http/decorators/current-auth-context.decorator';
 import { RequirePermissions } from '@adapters/inbound/http/decorators/require-permissions.decorator';
 import { JwtAuthGuard } from '@adapters/inbound/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@adapters/inbound/http/guards/permissions.guard';
+import type { CurrentAuthContextDto } from '../../../application/use-cases/dto/current-auth-context.dto';
 import { CreateIncidentFromAlertUseCase } from '../../../application/use-cases/create-incident-from-alert.use-case';
 import { CreateIncidentFromAlertRequestDto } from '../dto/create-incident-from-alert-request.dto';
 import {
@@ -50,12 +52,21 @@ export class AlertIncidentHandoffController {
     @Param('fingerprint') fingerprint: string,
     @Body() input: CreateIncidentFromAlertRequestDto = {},
     @Headers('authorization') authorizationHeader?: string,
+    @CurrentAuthContext() authContext?: CurrentAuthContextDto,
     @Req() request?: Request,
   ): Promise<CreateIncidentFromAlertResponseDto> {
     return this.createIncidentFromAlertUseCase.execute({
       fingerprint,
       authorizationHeader: authorizationHeader ?? null,
       correlationId: getCorrelationId(request),
+      actor: authContext
+        ? {
+            userId: authContext.userId,
+            username: authContext.username,
+            sessionId: authContext.sessionId,
+            fullName: authContext.fullName,
+          }
+        : undefined,
       title: input.title,
       description: input.description,
       operatorNote: input.operatorNote,

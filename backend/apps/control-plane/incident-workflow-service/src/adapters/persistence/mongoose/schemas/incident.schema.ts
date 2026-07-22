@@ -4,6 +4,24 @@ import { HydratedDocument } from 'mongoose';
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
 
+@Schema({ _id: false, versionKey: false })
+export class IncidentCreatedByDocumentModel {
+  @Prop({ required: true, trim: true })
+  userId!: string;
+
+  @Prop({ required: true, trim: true })
+  username!: string;
+
+  @Prop({ trim: true })
+  fullName?: string;
+
+  @Prop({
+    required: true,
+    enum: ['monitoring_alert_handoff', 'incident_console', 'system'],
+  })
+  source!: 'monitoring_alert_handoff' | 'incident_console' | 'system';
+}
+
 @Schema({ collection: 'incidents', timestamps: true, versionKey: false })
 export class IncidentDocumentModel {
   @Prop({ required: true, unique: true, trim: true })
@@ -23,6 +41,9 @@ export class IncidentDocumentModel {
 
   @Prop({ type: [String], default: [] })
   ticketIds!: string[];
+
+  @Prop({ type: IncidentCreatedByDocumentModel })
+  createdBy?: IncidentCreatedByDocumentModel;
 
   @Prop({ type: Object, default: {} })
   metadata!: Record<string, unknown>;

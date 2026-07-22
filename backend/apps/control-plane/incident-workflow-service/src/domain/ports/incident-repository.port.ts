@@ -1,3 +1,4 @@
+import type { IncidentCreatedBy } from '@domain/entities/incident.entity';
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
 import { IncidentEntity } from '@domain/entities/incident.entity';
@@ -9,6 +10,7 @@ export interface CreateIncidentRecord {
   severity: IncidentSeverity;
   status: IncidentStatus;
   ticketIds?: string[];
+  createdBy?: IncidentCreatedBy;
   metadata?: Record<string, unknown>;
 }
 
@@ -26,6 +28,7 @@ export interface IncidentUpdateRecord {
   severity?: IncidentSeverity;
   status?: IncidentStatus;
   ticketIds?: string[];
+  createdBy?: IncidentCreatedBy;
   metadata?: Record<string, unknown>;
 }
 

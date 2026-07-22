@@ -22,6 +22,8 @@ import {
   GetIncidentUseCase,
   ListIncidentsUseCase,
 } from '@use-cases/commands/incident.commands';
+import type { CurrentAuthContextDto } from '@use-cases/dto/current-auth-context.dto';
+import { CurrentAuthContext } from '../decorators/current-auth-context.decorator';
 import { CreateIncidentRequestDto } from '../dto/create-incident-request.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
@@ -44,13 +46,25 @@ export class IncidentsController {
   @Post()
   @ApiOperation({ summary: 'Create an incident.' })
   @RequirePermissions(PERMISSION_CODES.INCIDENTS_CREATE)
-  async create(@Body() requestDto: CreateIncidentRequestDto) {
+  async create(
+    @Body() requestDto: CreateIncidentRequestDto,
+    @CurrentAuthContext() authContext: CurrentAuthContextDto,
+  ) {
     return this.createIncidentUseCase.execute({
       incidentCode: requestDto.incidentCode,
       title: requestDto.title,
       description: requestDto.description,
       severity: requestDto.severity,
       ticketIds: requestDto.ticketIds,
+      createdBy: {
+        userId: authContext.userId,
+        username: authContext.username,
+        fullName: authContext.fullName,
+        source:
+          requestDto.metadata?.source === 'monitoring_alert'
+            ? 'monitoring_alert_handoff'
+            : 'incident_console',
+      },
       metadata: requestDto.metadata,
     });
   }

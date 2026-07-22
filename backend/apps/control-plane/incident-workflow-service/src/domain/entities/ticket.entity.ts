@@ -2,6 +2,16 @@ import { TicketPriority } from '@domain/constants/ticket-priority.enum';
 import { TicketStatus } from '@domain/constants/ticket-status.enum';
 import { TicketActivityType } from '@domain/constants/ticket-activity-type.enum';
 import { TicketEvidenceType } from '@domain/constants/ticket-evidence-type.enum';
+import { TicketAssetType } from '@domain/constants/ticket-asset-type.enum';
+
+export interface TicketAssetReference {
+  type: TicketAssetType;
+  assetId: string;
+  code: string;
+  displayName: string;
+  rackId?: string;
+  rackCode?: string;
+}
 
 export interface TicketEvidence {
   id: string;
@@ -41,6 +51,7 @@ export interface TicketEntityProps {
   acknowledgedAt?: Date | null;
   activities?: TicketActivityEntry[];
   evidence?: TicketEvidence[];
+  assetRef?: TicketAssetReference | null;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;

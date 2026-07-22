@@ -55,6 +55,16 @@ function mapTicket(document: TicketDocument): TicketEntity {
       metadata: evidence.metadata ?? {},
       createdAt: evidence.createdAt,
     })),
+    assetRef: document.assetRef
+      ? {
+          type: document.assetRef.type,
+          assetId: document.assetRef.assetId,
+          code: document.assetRef.code,
+          displayName: document.assetRef.displayName,
+          rackId: document.assetRef.rackId,
+          rackCode: document.assetRef.rackCode,
+        }
+      : null,
     metadata: document.metadata ?? {},
     createdAt: persisted.createdAt ?? new Date(),
     updatedAt: persisted.updatedAt ?? new Date(),

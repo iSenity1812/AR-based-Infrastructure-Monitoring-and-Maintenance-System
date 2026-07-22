@@ -9,6 +9,15 @@ export type TicketStatus =
 
 export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
+export interface TicketAssetReference {
+  type: 'RACK' | 'NODE';
+  assetId: string;
+  code: string;
+  displayName: string;
+  rackId?: string;
+  rackCode?: string;
+}
+
 export type EvidenceType =
   | 'IMAGE'
   | 'NOTE'
@@ -56,6 +65,7 @@ export interface TicketProps {
   acknowledgedAt?: string | null;
   evidence?: TicketEvidence[];
   activities?: TicketActivity[];
+  assetRef?: TicketAssetReference | null;
   createdAt: string;
   updatedAt: string;
 }

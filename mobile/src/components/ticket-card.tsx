@@ -1,4 +1,4 @@
-import { ChevronRight, Clock3, Link2, MapPin } from 'lucide-react-native';
+import { Box, ChevronRight, Clock3, Link2, MapPin } from 'lucide-react-native';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -24,6 +24,7 @@ export function TicketCard({ ticket, onPress, assigneeName }: TicketCardProps) {
         <Text numberOfLines={2} style={styles.title}>{ticket.title}</Text>
         <View style={styles.metaRow}>
           {ticket.incidentId ? <View style={styles.meta}><Link2 color={colors.purple} size={13} /><Text style={styles.incident}>From incident</Text></View> : null}
+          {ticket.assetRef ? <View style={styles.meta}><Box color={colors.cyan} size={13} /><Text numberOfLines={1} style={styles.asset}>{ticket.assetRef.code}</Text></View> : null}
           <View style={styles.meta}><Clock3 color={colors.textSubtle} size={13} /><Text style={styles.metaText}>{relativeTime(ticket.updatedAt)}</Text></View>
         </View>
         <View style={styles.footer}>
@@ -71,6 +72,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   meta: { alignItems: 'center', flexDirection: 'row', gap: 5, flexShrink: 1 },
   metaText: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   incident: { color: colors.purple, fontSize: 11, fontWeight: '700' },
+  asset: { color: colors.cyan, fontSize: 11, fontWeight: '700' },
   footer: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
   priority: { marginLeft: 'auto', fontSize: 10, fontWeight: '900' },
 });

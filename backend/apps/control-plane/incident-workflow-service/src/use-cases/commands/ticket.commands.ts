@@ -8,6 +8,7 @@ import {
   TicketEntity,
   type TicketActivityEntry,
   type TicketEvidence,
+  type TicketAssetReference,
 } from '@domain/entities/ticket.entity';
 import type { IncidentRepositoryPort } from '@domain/ports/incident-repository.port';
 import type {
@@ -38,6 +39,7 @@ export interface CreateTicketCommand {
   incidentId?: string;
   ownerUserId?: string;
   assigneeUserId?: string;
+  assetRef?: TicketAssetReference;
   metadata?: Record<string, unknown>;
 }
 
@@ -149,11 +151,14 @@ export class CreateTicketUseCase {
       title: command.title,
       description: command.description,
       priority: command.priority,
-      status: command.assigneeUserId ? TicketStatus.ASSIGNED : TicketStatus.OPEN,
+      status: command.assigneeUserId
+        ? TicketStatus.ASSIGNED
+        : TicketStatus.OPEN,
       incidentId: command.incidentId,
       ownerUserId: command.ownerUserId,
       assigneeUserId: command.assigneeUserId,
       assignedAt: command.assigneeUserId ? new Date() : null,
+      assetRef: command.assetRef ?? null,
       activities: [
         createActivity({
           type: TicketActivityType.CREATED,
@@ -434,7 +439,9 @@ export class AcknowledgeTicketUseCase {
 
     const updated = await this.ticketRepository.update(ticketId, {
       acknowledgedAt: new Date(),
-      status: shouldMoveIntoWork ? TicketStatus.IN_PROGRESS : ticket.props.status,
+      status: shouldMoveIntoWork
+        ? TicketStatus.IN_PROGRESS
+        : ticket.props.status,
       activities: nextActivities,
     });
 

@@ -1,0 +1,13 @@
+{
+  "id": "node-rack-b7",
+  "name": "Harrogate Pure Storage Flash Array",
+  "rack": "Rack B7",
+  "status": "critical",
+  "temperatureC": 84.2,
+  "cpuPercent": 91,
+  "memoryPercent": 77,
+  "networkLatencyMs": 38,
+  "activeTicketCount": 2,
+  "lastTicketCode": "TCK-WEB-79528",
+  "updatedAt": "Fetched from mock API"
+}

@@ -3,6 +3,7 @@ import { TicketPriority } from '@domain/constants/ticket-priority.enum';
 import { TicketStatus } from '@domain/constants/ticket-status.enum';
 import {
   TicketEntity,
+  type TicketAssetReference,
   type TicketEvidence,
 } from '@domain/entities/ticket.entity';
 
@@ -27,6 +28,7 @@ export interface CreateTicketRecord {
     createdAt: Date;
   }>;
   evidence?: TicketEvidence[];
+  assetRef?: TicketAssetReference | null;
   metadata?: Record<string, unknown>;
 }
 
@@ -58,6 +60,7 @@ export interface TicketUpdateRecord {
     createdAt: Date;
   }>;
   evidence?: TicketEvidence[];
+  assetRef?: TicketAssetReference | null;
   metadata?: Record<string, unknown>;
 }
 

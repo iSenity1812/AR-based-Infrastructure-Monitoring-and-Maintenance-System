@@ -26,10 +26,17 @@ export async function requestJson<T>(
     headers.set('Authorization', `Bearer ${options.token}`);
   }
 
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (caught) {
+    const reason = caught instanceof Error ? caught.message : 'Network request failed';
+    throw new Error(`Cannot reach ${baseUrl}. ${reason}`);
+  }
   const payload = (await response.json().catch(() => null)) as
     | ApiEnvelope<T>
     | T

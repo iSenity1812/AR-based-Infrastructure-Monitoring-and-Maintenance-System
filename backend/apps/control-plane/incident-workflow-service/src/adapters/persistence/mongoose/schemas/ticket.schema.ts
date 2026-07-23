@@ -5,13 +5,35 @@ import { TicketActivityType } from '@domain/constants/ticket-activity-type.enum'
 import { TicketPriority } from '@domain/constants/ticket-priority.enum';
 import { TicketStatus } from '@domain/constants/ticket-status.enum';
 import { TicketEvidenceType } from '@domain/constants/ticket-evidence-type.enum';
+import { TicketAssetType } from '@domain/constants/ticket-asset-type.enum';
+
+@Schema({ _id: false, versionKey: false })
+export class TicketAssetReferenceDocumentModel {
+  @Prop({ type: String, required: true, enum: Object.values(TicketAssetType) })
+  type!: TicketAssetType;
+
+  @Prop({ required: true, trim: true })
+  assetId!: string;
+
+  @Prop({ required: true, trim: true })
+  code!: string;
+
+  @Prop({ required: true, trim: true })
+  displayName!: string;
+
+  @Prop({ type: String, trim: true })
+  rackId?: string;
+
+  @Prop({ type: String, trim: true })
+  rackCode?: string;
+}
 
 @Schema({ _id: false, versionKey: false })
 export class TicketEvidenceDocumentModel {
   @Prop({ required: true, trim: true })
   id!: string;
 
-  @Prop({ required: true, enum: Object.values(TicketEvidenceType) })
+  @Prop({ type: String, required: true, enum: Object.values(TicketEvidenceType) })
   type!: TicketEvidenceType;
 
   @Prop({ required: true, trim: true })
@@ -47,7 +69,7 @@ export class TicketActivityDocumentModel {
   @Prop({ required: true, trim: true })
   id!: string;
 
-  @Prop({ required: true, enum: Object.values(TicketActivityType) })
+  @Prop({ type: String, required: true, enum: Object.values(TicketActivityType) })
   type!: TicketActivityType;
 
   @Prop({ type: String })
@@ -77,10 +99,10 @@ export class TicketDocumentModel {
   @Prop()
   description?: string;
 
-  @Prop({ required: true, enum: Object.values(TicketPriority) })
+  @Prop({ type: String, required: true, enum: Object.values(TicketPriority) })
   priority!: TicketPriority;
 
-  @Prop({ required: true, enum: Object.values(TicketStatus) })
+  @Prop({ type: String, required: true, enum: Object.values(TicketStatus) })
   status!: TicketStatus;
 
   @Prop()
@@ -103,6 +125,13 @@ export class TicketDocumentModel {
 
   @Prop({ type: [TicketEvidenceDocumentModel], default: [] })
   evidence!: TicketEvidenceDocumentModel[];
+
+  @Prop({
+    type: TicketAssetReferenceDocumentModel,
+    required: false,
+    default: null,
+  })
+  assetRef?: TicketAssetReferenceDocumentModel | null;
 
   @Prop({ type: Object, default: {} })
   metadata!: Record<string, unknown>;

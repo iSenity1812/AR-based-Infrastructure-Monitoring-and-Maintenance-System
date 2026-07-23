@@ -1,0 +1,13 @@
+{
+  "id": "node-dx-2204",
+  "name": "Node DX-2204",
+  "rack": "Rack D5",
+  "status": "warning",
+  "temperatureC": 63.4,
+  "cpuPercent": 54,
+  "memoryPercent": 69,
+  "networkLatencyMs": 320,
+  "activeTicketCount": 1,
+  "lastTicketCode": "TCK-MOB-8361",
+  "updatedAt": "Fetched from mock API"
+}

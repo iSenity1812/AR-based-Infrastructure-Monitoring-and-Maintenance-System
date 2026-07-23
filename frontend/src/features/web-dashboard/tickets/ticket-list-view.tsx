@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useDeferredValue,
   useMemo,
   useState,
@@ -59,6 +60,17 @@ export default function TicketListView({ technicians }: TicketListViewProps) {
     useState<AssigneeFilter>("ALL");
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingListAction>(null);
+
+  useEffect(() => {
+    const pendingTicketId = window.sessionStorage.getItem("ar-imms:open-ticket");
+    if (!pendingTicketId) return;
+    window.sessionStorage.removeItem("ar-imms:open-ticket");
+    const timerId = window.setTimeout(
+      () => setSelectedTicketId(pendingTicketId),
+      0,
+    );
+    return () => window.clearTimeout(timerId);
+  }, []);
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
   const ticketsQuery = useTicketsQuery();
@@ -178,8 +190,8 @@ export default function TicketListView({ technicians }: TicketListViewProps) {
   }
 
   return (
-    <>
-      <div className="grid gap-3 md:grid-cols-4">
+    <section className="flex min-w-0 flex-col gap-5" aria-label="Ticket queue">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <SummaryStat label="Unassigned" value={stats.unassigned} tone="cyan" />
         <SummaryStat label="Active" value={stats.active} tone="purple" />
         <SummaryStat
@@ -202,7 +214,9 @@ export default function TicketListView({ technicians }: TicketListViewProps) {
         onAssigneeChange={setAssigneeFilter}
       />
 
-      <div className="panel flex flex-col overflow-hidden">
+      <div className="panel min-w-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <div className="min-w-[960px]">
         <div className="grid grid-cols-12 border-b border-border bg-surface-1/50 px-4 py-3">
           <div className="col-span-4 label-mono text-[10px]">Ticket</div>
           <div className="col-span-2 label-mono text-[10px] text-center">
@@ -220,7 +234,7 @@ export default function TicketListView({ technicians }: TicketListViewProps) {
           </div>
         </div>
 
-        <div className="min-h-[340px] divide-y divide-border/60 overflow-y-auto">
+        <div className="min-h-[340px] divide-y divide-border/60">
           {ticketsQuery.isLoading ? (
             <div className="space-y-3 p-4">
               {Array.from({ length: 5 }).map((_, index) => (
@@ -265,6 +279,11 @@ export default function TicketListView({ technicians }: TicketListViewProps) {
                       {!ticket.assigneeUserId ? (
                         <span className="label-mono rounded border border-amber/30 bg-amber/10 px-1.5 py-0.5 text-[9px] text-amber">
                           UNASSIGNED
+                        </span>
+                      ) : null}
+                      {ticket.assetRef ? (
+                        <span className="label-mono max-w-32 truncate rounded border border-cyan/25 bg-cyan/8 px-1.5 py-0.5 text-[9px] text-cyan-ice">
+                          {ticket.assetRef.type} · {ticket.assetRef.code}
                         </span>
                       ) : null}
                     </div>
@@ -342,6 +361,8 @@ export default function TicketListView({ technicians }: TicketListViewProps) {
             ))
           )}
         </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-[11px] font-mono uppercase tracking-[0.16em] text-muted-foreground">
@@ -401,7 +422,7 @@ export default function TicketListView({ technicians }: TicketListViewProps) {
           ) : null
         }
       />
-    </>
+    </section>
   );
 }
 

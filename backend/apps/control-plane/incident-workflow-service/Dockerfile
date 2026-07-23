@@ -1,39 +1,40 @@
 FROM node:22-alpine AS deps
 
-WORKDIR /app
+WORKDIR /app/control-plane/incident-workflow-service
 
 RUN corepack enable
 
-COPY package.json ./
+COPY control-plane/incident-workflow-service/package.json control-plane/incident-workflow-service/pnpm-workspace.yaml ./
 
 RUN pnpm install
 
 FROM deps AS build
 
-WORKDIR /app
+WORKDIR /app/control-plane/incident-workflow-service
 
-COPY tsconfig.json tsconfig.build.json nest-cli.json eslint.config.mjs ./ 
-COPY src ./src
-COPY tests ./tests
+COPY control-plane/incident-workflow-service/tsconfig.json control-plane/incident-workflow-service/tsconfig.build.json control-plane/incident-workflow-service/nest-cli.json control-plane/incident-workflow-service/eslint.config.mjs ./
+COPY control-plane/incident-workflow-service/src ./src
+COPY control-plane/incident-workflow-service/tests ./tests
+COPY shared /app/shared
 
 RUN pnpm build
 
 FROM node:22-alpine AS runtime
 
-WORKDIR /app
+WORKDIR /app/control-plane/incident-workflow-service
 
 ENV NODE_ENV=production
-ENV PORT=4003
+ENV PORT=4004
 
 RUN corepack enable
 
-COPY package.json ./
+COPY control-plane/incident-workflow-service/package.json control-plane/incident-workflow-service/pnpm-workspace.yaml ./
 
 RUN pnpm install --prod
 
-COPY --from=build /app/dist ./dist
-COPY .env.example ./.env.example
+COPY --from=build /app/control-plane/incident-workflow-service/dist ./dist
+COPY control-plane/incident-workflow-service/.env.example ./.env.example
 
-EXPOSE 4003
+EXPOSE 4004
 
 CMD ["pnpm", "start:prod"]

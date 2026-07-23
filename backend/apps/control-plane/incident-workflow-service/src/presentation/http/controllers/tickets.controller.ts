@@ -94,6 +94,7 @@ export class TicketsController {
       incidentId: requestDto.incidentId,
       ownerUserId: requestDto.ownerUserId,
       assigneeUserId: requestDto.assigneeUserId,
+      assetRef: requestDto.assetRef,
       metadata: requestDto.metadata,
     });
   }
@@ -157,7 +158,9 @@ export class TicketsController {
   }
 
   @Post(':id/close')
-  @ApiOperation({ summary: 'Close a resolved ticket with final operator confirmation.' })
+  @ApiOperation({
+    summary: 'Close a resolved ticket with final operator confirmation.',
+  })
   @RequirePermissions(PERMISSION_CODES.TICKETS_CLOSE)
   async close(
     @Param('id') ticketId: string,

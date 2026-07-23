@@ -1,6 +1,6 @@
 # AR-IMMS Mobile
 
-React Native mobile workspace for incident and ticket workflows.
+React Native field workspace dedicated to maintenance technicians.
 
 ## Run
 
@@ -13,16 +13,19 @@ pnpm start
 Default API targets are defined in `app.json`:
 
 - Identity service: `http://localhost:3001/api/v1`
-- Incident workflow service: `http://localhost:4003/api/v1`
+- Incident workflow service: `http://localhost:4004/api/v1`
 
 For physical devices, replace `localhost` with the machine LAN IP through Expo config or environment handling before running.
 
 ## Current Screens
 
-- Login with identity-service token handling
-- Role-aware operations home
-- Ticket list, create ticket, detail, assignment, acknowledge, comments, evidence upload
-- Incident list and incident detail
+- Technician login with persisted identity-service session
+- Workload overview with ticket KPIs, team pulse, incident context, and charts
+- Technician ticket queue with incident, urgency, waiting, and search filters
+- Ticket detail with acknowledge, completion, comments, evidence, and incident context
+- Completed-work history and technician profile
+- Center WebAR action that opens the configured browser experience directly
+- Persisted light and dark appearance modes
 
 ## Folder Layout
 

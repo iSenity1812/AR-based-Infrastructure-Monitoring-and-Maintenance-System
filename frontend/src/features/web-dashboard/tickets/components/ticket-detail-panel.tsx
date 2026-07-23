@@ -2,22 +2,26 @@
 
 import {
   AlertCircle,
+  Box,
   CheckCircle2,
   ChevronRight,
   FileImage,
-  MessageSquare,
+  Send,
+  Server,
   ShieldCheck,
   Trash2,
   Unlock,
   UserPlus,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import {
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/auth/use-auth";
 import {
   useAddTicketCommentMutation,
   useAssignTicketMutation,
@@ -62,6 +66,7 @@ export default function TicketDetailPanel({
   technicians,
   onClose,
 }: TicketDetailPanelProps) {
+  const { user: currentUser } = useAuth();
   const detailQuery = useTicketDetailQuery(ticket.id);
   const evidenceQuery = useTicketEvidenceQuery(ticket.id);
   const assignMutation = useAssignTicketMutation();
@@ -228,6 +233,30 @@ export default function TicketDetailPanel({
           <PanelStat label="Evidence" value={String(evidenceItems.length)} tone="text-cyan-ice" />
         </div>
 
+        {detailTicket.assetRef ? (
+          <section className="mt-7">
+            <div className="label-mono mb-3 text-[10px] text-muted-foreground">Related Asset</div>
+            <Link
+              href={detailTicket.assetRef.type === "NODE" && detailTicket.assetRef.rackId
+                ? `/assets/${detailTicket.assetRef.rackId}/${detailTicket.assetRef.assetId}`
+                : detailTicket.assetRef.type === "RACK"
+                  ? `/assets/${detailTicket.assetRef.assetId}`
+                  : "/assets"}
+              className="flex items-center gap-3 rounded-2xl border border-cyan/30 bg-cyan/10 p-4 transition hover:border-cyan/55"
+            >
+              <div className="grid size-11 shrink-0 place-items-center rounded-lg border border-cyan/25 bg-background/30">
+                {detailTicket.assetRef.type === "RACK" ? <Server className="size-5 text-cyan" /> : <Box className="size-5 text-cyan" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="label-mono text-[9px] text-cyan-ice">{detailTicket.assetRef.type} · {detailTicket.assetRef.code}</div>
+                <div className="mt-1 truncate text-sm font-semibold text-foreground">{detailTicket.assetRef.displayName}</div>
+                {detailTicket.assetRef.type === "NODE" && detailTicket.assetRef.rackCode ? <div className="mt-1 font-mono text-[10px] text-muted-foreground">Located in {detailTicket.assetRef.rackCode}</div> : null}
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </Link>
+          </section>
+        ) : null}
+
         <section className="mt-7">
           <div className="label-mono mb-3 text-[10px] text-muted-foreground">
             Workflow State
@@ -371,44 +400,92 @@ export default function TicketDetailPanel({
           </div>
         </section>
 
-        <section className="mt-7">
-          <div className="label-mono mb-3 text-[10px] text-muted-foreground">
-            Operator Notes
+        <section className="mt-7 overflow-hidden rounded-2xl border border-border bg-background/25">
+          <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-4">
+            <div>
+              <div className="label-mono text-[10px] text-cyan-ice">
+                Operator Notes
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Coordinate field work and keep an auditable conversation.
+              </p>
+            </div>
+            <div className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg border border-cyan/20 bg-cyan/10 px-2 font-mono text-xs font-semibold text-cyan-ice">
+              {comments.length}
+            </div>
           </div>
-          <textarea
-            value={comment}
-            onChange={(event) => setComment(event.target.value)}
-            disabled={isTerminal || isBusy}
-            className="ticket-input min-h-24 resize-none py-3"
-            placeholder="Add an operator note..."
-          />
-          <button
-            type="button"
-            onClick={handleAddComment}
-            disabled={isTerminal || isBusy || !comment.trim()}
-            className="label-mono mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-cyan/35 bg-cyan/10 px-3 text-[10px] text-cyan-ice transition hover:border-cyan/60 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <MessageSquare className="size-3.5" />
-            Add Comment
-          </button>
-          <div className="mt-3 grid gap-2">
+
+          <div className="p-4">
+            <label
+              htmlFor={`ticket-comment-${detailTicket.id}`}
+              className="mb-2 block text-xs font-semibold text-foreground"
+            >
+              Add an operator note
+            </label>
+            <textarea
+              id={`ticket-comment-${detailTicket.id}`}
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              disabled={isTerminal || isBusy}
+              className="block min-h-28 w-full resize-y rounded-xl border border-border bg-surface-1/80 px-4 py-3 text-sm leading-6 text-foreground outline-none transition placeholder:text-sm placeholder:text-muted-foreground/65 hover:border-cyan/30 focus:border-cyan/60 focus:ring-2 focus:ring-cyan/10 disabled:cursor-not-allowed disabled:opacity-50"
+              placeholder="Share an update, instruction, or follow-up for the technician..."
+            />
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {comment.length}/1000
+              </span>
+              <button
+                type="button"
+                onClick={handleAddComment}
+                disabled={isTerminal || isBusy || !comment.trim()}
+                className="label-mono inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-cyan/35 bg-cyan/10 px-4 text-[10px] text-cyan-ice transition hover:border-cyan/60 hover:bg-cyan/15 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Send className="size-3.5" />
+                {commentMutation.isPending ? "Posting..." : "Post Note"}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 border-t border-border bg-surface-1/35 p-4">
             {comments.length === 0 ? (
               <EmptyBox label="No comments yet." />
             ) : (
-              comments.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="rounded-xl border border-border bg-background/25 px-3 py-3"
-                >
-                  <div className="text-sm text-foreground">
-                    {activity.message}
-                  </div>
-                  <div className="mt-1 font-mono text-[11px] text-muted-foreground">
-                    By {resolveActorName(activity.actorUserId, technicians)} -{" "}
-                    {formatDateTime(activity.createdAt)}
-                  </div>
-                </div>
-              ))
+              comments.map((activity) => {
+                const actor = resolveActorProfile(
+                  activity.actorUserId,
+                  technicians,
+                  currentUser,
+                );
+
+                return (
+                  <article
+                    key={activity.id}
+                    className="rounded-xl border border-border bg-background/35 p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-cyan/20 bg-cyan/10 font-mono text-[11px] font-bold text-cyan-ice">
+                        {actor.initials}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="truncate text-sm font-semibold text-foreground">
+                            {actor.name}
+                          </span>
+                          <span className="rounded-md bg-white/5 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                            {actor.role}
+                          </span>
+                        </div>
+                        <time className="mt-1 block font-mono text-[10px] text-muted-foreground">
+                          {formatDateTime(activity.createdAt)}
+                        </time>
+                      </div>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap break-words border-l-2 border-cyan/25 pl-3 text-sm leading-6 text-foreground/90">
+                      {activity.message}
+                    </p>
+                  </article>
+                );
+              })
             )}
           </div>
         </section>
@@ -778,4 +855,57 @@ function resolveActorName(actorUserId: string, technicians: TechnicianOption[]) 
     technicians.find((technician) => technician.id === actorUserId)?.fullName ??
     actorUserId
   );
+}
+
+function resolveActorProfile(
+  actorUserId: string,
+  technicians: TechnicianOption[],
+  currentUser: {
+    id?: string;
+    fullName?: string;
+    username?: string;
+    roleCodes?: string[];
+  } | null,
+) {
+  if (currentUser?.id === actorUserId) {
+    return {
+      name: currentUser.fullName ?? currentUser.username ?? "Operator",
+      initials: getInitials(
+        currentUser.fullName ?? currentUser.username ?? "Operator",
+      ),
+      role: formatActorRole(currentUser.roleCodes),
+    };
+  }
+
+  const technician = technicians.find((item) => item.id === actorUserId);
+  if (technician) {
+    return {
+      name: technician.fullName,
+      initials: getInitials(technician.fullName),
+      role: technician.jobTitle ?? "Technician",
+    };
+  }
+
+  return {
+    name: "Former or unavailable user",
+    initials: "?",
+    role: "User unavailable",
+  };
+}
+
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(-2)
+    .map((part) => part.charAt(0))
+    .join("")
+    .toUpperCase();
+}
+
+function formatActorRole(roleCodes?: string[]) {
+  if (roleCodes?.includes("SYSTEM_MONITORING_OPERATOR")) return "Operator";
+  if (roleCodes?.includes("IT_ADMINISTRATOR")) return "Administrator";
+  if (roleCodes?.includes("MAINTENANCE_TECHNICIAN")) return "Technician";
+  return "Operator";
 }

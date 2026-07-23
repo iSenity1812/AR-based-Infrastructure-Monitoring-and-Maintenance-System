@@ -2,15 +2,15 @@
 
 ## Product Direction
 
-The mobile app is focused on field and operations workflows that benefit from a handheld device:
+The mobile app is a technician-only field workspace focused on workflows that benefit from a handheld device:
 
 - technician ticket handling
-- incident context lookup
+- incident context embedded into related tickets
 - evidence capture and upload
-- role-based operations actions
-- future AR inspection handoff
+- technician-scoped workflow actions
+- WebAR inspection handoff through the central browser-launch action
 
-The visual language follows the AR-IMMS command-center style: dark operational panels, cyan borders, compact information density, strong status pills, and clear action hierarchy.
+The visual language follows a modern industrial field-service system: rounded operational cards, calm enterprise accents, strong information hierarchy, focused data visualization, and complete light/dark modes.
 
 ## Phase 1 - Ticket and Incident Flow
 
@@ -45,7 +45,7 @@ Recommended next work:
 
 - camera capture flow in addition to image-library picking
 - offline draft comments and evidence queue
-- scan marker or QR entry point for asset context
+- deep-link or ticket metadata entry point for asset-specific WebAR context
 - route from asset context to active tickets
 - technician task filters: assigned, acknowledged, in progress, resolved
 

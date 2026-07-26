@@ -119,6 +119,7 @@ describe('Ticket workflow HTTP e2e', () => {
       findById: jest.fn().mockResolvedValue(null),
       findByCode: jest.fn(),
       findMany: jest.fn(),
+      findRelatedByScope: jest.fn().mockResolvedValue([]),
       update: jest.fn(),
     };
     const objectStorage = {

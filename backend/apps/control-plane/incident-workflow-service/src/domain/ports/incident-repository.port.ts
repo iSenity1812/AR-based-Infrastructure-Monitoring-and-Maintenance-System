@@ -1,4 +1,7 @@
-import type { IncidentCreatedBy } from '@domain/entities/incident.entity';
+import type {
+  IncidentCapturedSnapshot,
+  IncidentCreatedBy,
+} from '@domain/entities/incident.entity';
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
 import { IncidentEntity } from '@domain/entities/incident.entity';
@@ -12,6 +15,7 @@ export interface CreateIncidentRecord {
   ticketIds?: string[];
   createdBy?: IncidentCreatedBy;
   metadata?: Record<string, unknown>;
+  capturedSnapshot?: IncidentCapturedSnapshot;
 }
 
 export interface IncidentListQuery {
@@ -30,6 +34,7 @@ export interface IncidentUpdateRecord {
   ticketIds?: string[];
   createdBy?: IncidentCreatedBy;
   metadata?: Record<string, unknown>;
+  capturedSnapshot?: IncidentCapturedSnapshot;
 }
 
 export interface IncidentRepositoryPort {
@@ -37,6 +42,12 @@ export interface IncidentRepositoryPort {
   findById(incidentId: string): Promise<IncidentEntity | null>;
   findByCode(incidentCode: string): Promise<IncidentEntity | null>;
   findMany(query?: IncidentListQuery): Promise<IncidentEntity[]>;
+  findRelatedByScope(input: {
+    scopeType: string;
+    scopeId: string;
+    excludeIncidentId: string;
+    limit?: number;
+  }): Promise<IncidentEntity[]>;
   update(
     incidentId: string,
     input: IncidentUpdateRecord,

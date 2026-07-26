@@ -2,11 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { IncidentEntity } from '@domain/entities/incident.entity';
+import {
+  IncidentEntity,
+  type IncidentCapturedSnapshot,
+} from '@domain/entities/incident.entity';
 import type {
   CreateIncidentRecord,
   IncidentListQuery,
   IncidentRepositoryPort,
+  IncidentUpdateRecord,
 } from '@domain/ports/incident-repository.port';
 import {
   IncidentDocument,
@@ -36,9 +40,68 @@ function mapIncident(document: IncidentDocument): IncidentEntity {
         }
       : undefined,
     metadata: document.metadata ?? {},
+    capturedSnapshot: parseCapturedSnapshot(document.capturedSnapshot),
     createdAt: persisted.createdAt ?? new Date(),
     updatedAt: persisted.updatedAt ?? new Date(),
   });
+}
+
+function isRecord(
+  input: unknown,
+): input is Record<string, unknown> {
+  return Boolean(input && typeof input === 'object' && !Array.isArray(input));
+}
+
+function isIsoDateString(input: unknown): input is string {
+  return (
+    typeof input === 'string' &&
+    input.trim().length > 0 &&
+    !Number.isNaN(Date.parse(input))
+  );
+}
+
+function parseCapturedSnapshot(
+  input: unknown,
+): IncidentCapturedSnapshot | undefined {
+  if (!isRecord(input)) {
+    return undefined;
+  }
+
+  const window = isRecord(input.window) ? input.window : null;
+  const scope = isRecord(input.scope) ? input.scope : null;
+  const unavailableSources = Array.isArray(input.unavailableSources)
+    ? input.unavailableSources
+    : [];
+
+  if (
+    input.schemaVersion !== 'incident.context.v1' ||
+    !isIsoDateString(input.capturedAt) ||
+    !window ||
+    !isIsoDateString(window.from) ||
+    !isIsoDateString(window.to) ||
+    window.interval !== '1m' ||
+    (input.completeness !== 'complete' &&
+      input.completeness !== 'partial' &&
+      input.completeness !== 'minimal') ||
+    !unavailableSources.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.source === 'string' &&
+        item.source.trim().length > 0 &&
+        typeof item.reasonCode === 'string' &&
+        item.reasonCode.trim().length > 0,
+    ) ||
+    !isRecord(input.alert) ||
+    !scope ||
+    typeof scope.scopeType !== 'string' ||
+    scope.scopeType.trim().length === 0 ||
+    typeof scope.scopeId !== 'string' ||
+    scope.scopeId.trim().length === 0
+  ) {
+    return undefined;
+  }
+
+  return input as unknown as IncidentCapturedSnapshot;
 }
 
 @Injectable()
@@ -87,20 +150,76 @@ export class MongooseIncidentRepository implements IncidentRepositoryPort {
     return documents.map((document) => mapIncident(document));
   }
 
+  async findRelatedByScope(input: {
+    scopeType: string;
+    scopeId: string;
+    excludeIncidentId: string;
+    limit?: number;
+  }): Promise<IncidentEntity[]> {
+    const scopeType = input.scopeType.trim();
+    const scopeId = input.scopeId.trim();
+    if (!scopeType || !scopeId) {
+      return [];
+    }
+
+    const documents = await this.incidentModel
+      .find({
+        _id: { $ne: input.excludeIncidentId },
+        $or: [
+          {
+            'capturedSnapshot.scope.scopeType': scopeType,
+            'capturedSnapshot.scope.scopeId': scopeId,
+          },
+          buildMetadataScopeFilter(scopeType, scopeId),
+        ],
+      })
+      .sort({ createdAt: -1 })
+      .limit(input.limit ?? 10);
+
+    return documents.map((document) => mapIncident(document));
+  }
+
   async update(
     incidentId: string,
-    input:
-      | Partial<Omit<IncidentEntity, 'props' | 'id'>>
-      | Partial<CreateIncidentRecord>,
+    input: IncidentUpdateRecord | Partial<CreateIncidentRecord>,
   ): Promise<IncidentEntity | null> {
-    const document = await this.incidentModel.findByIdAndUpdate(
-      incidentId,
-      input,
-      {
-        returnDocument: 'after',
-      },
-    );
+    const document = await this.incidentModel.findById(incidentId);
 
-    return document ? mapIncident(document) : null;
+    if (!document) {
+      return null;
+    }
+
+    const nextInput = { ...input };
+
+    if (document.capturedSnapshot && 'capturedSnapshot' in nextInput) {
+      delete nextInput.capturedSnapshot;
+    }
+
+    document.set(nextInput);
+    await document.save();
+    return mapIncident(document as IncidentDocument);
+  }
+}
+
+function buildMetadataScopeFilter(
+  scopeType: string,
+  scopeId: string,
+): Record<string, unknown> {
+  switch (scopeType) {
+    case 'node':
+      return {
+        'metadata.scopeType': 'node',
+        'metadata.nodeId': scopeId,
+      };
+    case 'rack':
+      return {
+        'metadata.scopeType': 'rack',
+        'metadata.rackId': scopeId,
+      };
+    default:
+      return {
+        'metadata.scopeType': scopeType,
+        'metadata.scopeId': scopeId,
+      };
   }
 }

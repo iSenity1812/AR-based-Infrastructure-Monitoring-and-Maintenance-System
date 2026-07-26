@@ -25,7 +25,9 @@ import {
 import type { CurrentAuthContextDto } from '@use-cases/dto/current-auth-context.dto';
 import { CurrentAuthContext } from '../decorators/current-auth-context.decorator';
 import { CreateIncidentRequestDto } from '../dto/create-incident-request.dto';
+import { ListIncidentsQueryDto } from '../dto/list-incidents-query.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { IncidentPresenter } from '../presenters/incident.presenter';
 import { PermissionsGuard } from '../guards/permissions.guard';
 import { RequirePermissions } from '../decorators/require-permissions.decorator';
 
@@ -50,7 +52,7 @@ export class IncidentsController {
     @Body() requestDto: CreateIncidentRequestDto,
     @CurrentAuthContext() authContext: CurrentAuthContextDto,
   ) {
-    return this.createIncidentUseCase.execute({
+    const incident = await this.createIncidentUseCase.execute({
       incidentCode: requestDto.incidentCode,
       title: requestDto.title,
       description: requestDto.description,
@@ -66,26 +68,37 @@ export class IncidentsController {
             : 'incident_console',
       },
       metadata: requestDto.metadata,
+      capturedSnapshot: requestDto.capturedSnapshot
+        ? {
+            ...requestDto.capturedSnapshot,
+            unavailableSources: requestDto.capturedSnapshot.unavailableSources ?? [],
+            metricEvidence: requestDto.capturedSnapshot.metricEvidence ?? [],
+            sourceRefs: requestDto.capturedSnapshot.sourceRefs ?? [],
+          }
+        : undefined,
     });
+
+    return IncidentPresenter.toResponse(incident);
   }
 
   @Get()
   @ApiOperation({ summary: 'List incidents.' })
   @RequirePermissions(PERMISSION_CODES.INCIDENTS_READ)
-  async list(
-    @Query('incidentCode') incidentCode?: string,
-    @Query('status') status?: IncidentStatus,
-  ) {
-    return this.listIncidentsUseCase.execute({
-      incidentCode,
-      status,
+  async list(@Query() query: ListIncidentsQueryDto) {
+    const incidents = await this.listIncidentsUseCase.execute({
+      incidentCode: query.incidentCode,
+      status: query.status,
     });
+
+    return IncidentPresenter.toResponseList(incidents);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get an incident by id.' })
   @RequirePermissions(PERMISSION_CODES.INCIDENTS_READ)
   async get(@Param('id') incidentId: string) {
-    return this.getIncidentUseCase.execute(incidentId);
+    return IncidentPresenter.toDetailResponse(
+      await this.getIncidentUseCase.execute(incidentId),
+    );
   }
 }

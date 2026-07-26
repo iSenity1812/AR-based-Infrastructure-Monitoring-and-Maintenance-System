@@ -1,6 +1,9 @@
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
-import type { IncidentCreatedBy } from '@domain/entities/incident.entity';
+import type {
+  IncidentCapturedSnapshot,
+  IncidentCreatedBy,
+} from '@domain/entities/incident.entity';
 import { IncidentEntity } from '@domain/entities/incident.entity';
 import type { IncidentRepositoryPort } from '@domain/ports/incident-repository.port';
 import type { TicketRepositoryPort } from '@domain/ports/ticket-repository.port';
@@ -17,6 +20,7 @@ export interface CreateIncidentCommand {
   ticketIds?: string[];
   createdBy?: IncidentCreatedBy;
   metadata?: Record<string, unknown>;
+  capturedSnapshot?: IncidentCapturedSnapshot;
 }
 
 export class CreateIncidentUseCase {
@@ -56,6 +60,7 @@ export class CreateIncidentUseCase {
       ticketIds,
       createdBy: command.createdBy,
       metadata: command.metadata ?? {},
+      capturedSnapshot: command.capturedSnapshot,
     });
 
     await Promise.all(
@@ -88,12 +93,70 @@ export class ListIncidentsUseCase {
 export class GetIncidentUseCase {
   constructor(private readonly incidentRepository: IncidentRepositoryPort) {}
 
-  async execute(incidentId: string): Promise<IncidentEntity> {
+  async execute(incidentId: string): Promise<{
+    incident: IncidentEntity;
+    relatedIncidents: IncidentEntity[];
+  }> {
     const incident = await this.incidentRepository.findById(incidentId);
     if (!incident) {
       throw new NotFoundUseCaseError(`Incident ${incidentId} was not found.`);
     }
 
-    return incident;
+    const scope = deriveIncidentScope(incident);
+    if (!scope) {
+      return {
+        incident,
+        relatedIncidents: [],
+      };
+    }
+
+    const relatedIncidents = await this.incidentRepository.findRelatedByScope({
+      scopeType: scope.scopeType,
+      scopeId: scope.scopeId,
+      excludeIncidentId: incident.props.id,
+      limit: 10,
+    });
+
+    return {
+      incident,
+      relatedIncidents,
+    };
+  }
+}
+
+function deriveIncidentScope(
+  incident: IncidentEntity,
+): { scopeType: string; scopeId: string } | null {
+  const snapshotScope = incident.props.capturedSnapshot?.scope;
+  if (
+    snapshotScope?.scopeType?.trim() &&
+    snapshotScope.scopeId?.trim()
+  ) {
+    return {
+      scopeType: snapshotScope.scopeType.trim(),
+      scopeId: snapshotScope.scopeId.trim(),
+    };
+  }
+
+  const metadata = incident.props.metadata ?? {};
+  const scopeType =
+    typeof metadata.scopeType === 'string' ? metadata.scopeType.trim() : '';
+  if (!scopeType) {
+    return null;
+  }
+
+  switch (scopeType) {
+    case 'node':
+      return typeof metadata.nodeId === 'string' && metadata.nodeId.trim()
+        ? { scopeType, scopeId: metadata.nodeId.trim() }
+        : null;
+    case 'rack':
+      return typeof metadata.rackId === 'string' && metadata.rackId.trim()
+        ? { scopeType, scopeId: metadata.rackId.trim() }
+        : null;
+    default:
+      return typeof metadata.scopeId === 'string' && metadata.scopeId.trim()
+        ? { scopeType, scopeId: metadata.scopeId.trim() }
+        : null;
   }
 }

@@ -3,10 +3,12 @@ import { Module } from '@nestjs/common';
 
 import { MonitoringClickhouseConfig } from '../../config/monitoring-clickhouse-config';
 import { MonitoringClickhouseConfigModule } from '../../config/monitoring-clickhouse-config.module';
+import { IncidentContextReadRepository } from '../../../application/ports/incident-context-read.repository';
 import { CLICKHOUSE_CLIENT } from './clickhouse.constants';
 import { NodeMetricsReadRepository } from '../../../application/ports/node-metrics-read.repository';
 import { NodeOverviewReadRepository } from '../../../application/ports/node-overview-read.repository';
 import { RackOverviewReadRepository } from '../../../application/ports/rack-overview-read.repository';
+import { IncidentContextClickhouseRepository } from './incident-context-clickhouse.repository';
 import { NodeMetricsClickhouseRepository } from './node-metrics-clickhouse.repository';
 import { NodeOverviewClickhouseRepository } from './node-overview-clickhouse.repository';
 import { RackOverviewClickhouseRepository } from './rack-overview-clickhouse.repository';
@@ -28,9 +30,14 @@ import { RackOverviewClickhouseRepository } from './rack-overview-clickhouse.rep
         });
       },
     },
+    IncidentContextClickhouseRepository,
     NodeMetricsClickhouseRepository,
     NodeOverviewClickhouseRepository,
     RackOverviewClickhouseRepository,
+    {
+      provide: IncidentContextReadRepository,
+      useExisting: IncidentContextClickhouseRepository,
+    },
     {
       provide: NodeMetricsReadRepository,
       useExisting: NodeMetricsClickhouseRepository,
@@ -46,6 +53,7 @@ import { RackOverviewClickhouseRepository } from './rack-overview-clickhouse.rep
   ],
   exports: [
     CLICKHOUSE_CLIENT,
+    IncidentContextReadRepository,
     NodeMetricsReadRepository,
     NodeOverviewReadRepository,
     RackOverviewReadRepository,

@@ -2,9 +2,12 @@ import { Injectable } from '@nestjs/common';
 
 import {
   CreateIncidentWorkflowCommand,
+  CreateTicketWorkflowCommand,
   IncidentWorkflowClientPort,
   IncidentWorkflowConflictError,
   type IncidentWorkflowIncident,
+  type IncidentWorkflowTicket,
+  IncidentWorkflowTicketConflictError,
   IncidentWorkflowUnavailableError,
 } from '../../application/ports/incident-workflow-client.port';
 import { MonitoringServiceConfig } from '../config/monitoring-service-config';
@@ -26,6 +29,7 @@ export class IncidentWorkflowHttpClient implements IncidentWorkflowClientPort {
         description: command.description,
         severity: command.severity,
         metadata: command.metadata,
+        capturedSnapshot: command.capturedSnapshot,
       },
     });
 
@@ -68,6 +72,37 @@ export class IncidentWorkflowHttpClient implements IncidentWorkflowClientPort {
         (incident) => incident.incidentCode === input.incidentCode,
       ) ?? null
     );
+  }
+
+  async createTicket(
+    command: CreateTicketWorkflowCommand,
+  ): Promise<IncidentWorkflowTicket> {
+    const response = await this.request('/tickets', {
+      method: 'POST',
+      authorizationHeader: command.authorizationHeader,
+      correlationId: command.correlationId,
+      body: {
+        ticketCode: command.ticketCode,
+        title: command.title,
+        description: command.description,
+        priority: command.priority,
+        incidentId: command.incidentId,
+        ownerUserId: command.ownerUserId,
+        metadata: command.metadata,
+      },
+    });
+
+    if (response.status === 409) {
+      throw new IncidentWorkflowTicketConflictError(command.ticketCode);
+    }
+
+    if (!response.ok) {
+      throw new IncidentWorkflowUnavailableError(
+        `Incident Workflow Service ticket create failed with status ${response.status}.`,
+      );
+    }
+
+    return parseTicket(await response.json());
   }
 
   private async request(
@@ -149,6 +184,9 @@ function parseIncident(input: unknown): IncidentWorkflowIncident {
     status,
     createdBy: parseCreatedBy(raw.createdBy),
     metadata: isRecord(raw.metadata) ? raw.metadata : {},
+    capturedSnapshot: isRecord(raw.capturedSnapshot)
+      ? (raw.capturedSnapshot as unknown as IncidentWorkflowIncident['capturedSnapshot'])
+      : undefined,
     createdAt,
     updatedAt: readDateString(raw.updatedAt),
   };
@@ -163,6 +201,48 @@ function parseIncidentList(input: unknown): IncidentWorkflowIncident[] {
       : [];
 
   return rawItems.map(parseIncident);
+}
+
+function parseTicket(input: unknown): IncidentWorkflowTicket {
+  const payload = unwrapEnvelope(input);
+  const raw =
+    isRecord(payload) && isRecord(payload.props) ? payload.props : payload;
+
+  if (!isRecord(raw)) {
+    throw new IncidentWorkflowUnavailableError(
+      'Incident Workflow Service returned an invalid ticket payload.',
+    );
+  }
+
+  const ticketId = readString(raw.id);
+  const ticketCode = readString(raw.ticketCode);
+  const title = readString(raw.title);
+  const priority = readString(raw.priority);
+  const status = readString(raw.status);
+
+  if (
+    !ticketId ||
+    !ticketCode ||
+    !title ||
+    (priority !== 'LOW' &&
+      priority !== 'MEDIUM' &&
+      priority !== 'HIGH' &&
+      priority !== 'CRITICAL') ||
+    !status
+  ) {
+    throw new IncidentWorkflowUnavailableError(
+      'Incident Workflow Service returned incomplete ticket fields.',
+    );
+  }
+
+  return {
+    ticketId,
+    ticketCode,
+    title,
+    priority,
+    status,
+    incidentId: readString(raw.incidentId),
+  };
 }
 
 function unwrapEnvelope(input: unknown): unknown {

@@ -48,6 +48,19 @@ export interface AlertIncidentMetadata {
   rawAnnotations: Record<string, string>;
   requestedAt: string;
   requestSessionId: string;
+  summary: {
+    whatHappened: string;
+    where: {
+      scopeType: AlertCurrentState['scopeType'];
+      nodeId?: string;
+      rackId?: string;
+      workloadId?: string;
+      serviceId?: string;
+    };
+    urgency: 'review_now' | 'wake_now';
+    evidence: string[];
+    firstActions: string[];
+  };
   operatorNote?: string;
 }
 
@@ -104,6 +117,7 @@ export function buildAlertIncidentMetadata(
     rawAnnotations: sanitizeMetadataMap(alert.rawAnnotations),
     requestedAt: input.requestedAt,
     requestSessionId: input.actor.sessionId,
+    summary: buildOperatorSummary(alert),
     ...(operatorNote ? { operatorNote } : {}),
   };
 }
@@ -165,4 +179,61 @@ function normalizeMetadataString(
 
   const normalized = input.trim();
   return normalized ? normalized : null;
+}
+
+function buildOperatorSummary(
+  alert: AlertCurrentState,
+): AlertIncidentMetadata['summary'] {
+  return {
+    whatHappened: alert.description || alert.summary,
+    where: {
+      scopeType: alert.scopeType,
+      ...mapScopeIdentity(alert),
+    },
+    urgency:
+      alert.alertName === 'RackSignalLossPresent' ||
+      alert.alertName === 'RackCritical' ||
+      alert.alertName === 'NodeCpuTempCritical'
+        ? 'wake_now'
+        : 'review_now',
+    evidence: [
+      `summary=${alert.summary}`,
+      ...(alert.currentValue ? [`currentValue=${alert.currentValue}`] : []),
+      ...(alert.threshold ? [`threshold=${alert.threshold}`] : []),
+      `startedAt=${alert.startsAt}`,
+      `lastReceivedAt=${alert.lastReceivedAt}`,
+    ],
+    firstActions: buildFirstActions(alert),
+  };
+}
+
+function buildFirstActions(alert: AlertCurrentState): string[] {
+  switch (alert.alertName) {
+    case 'RackSignalLossPresent':
+    case 'RackCritical':
+      return [
+        'Check rack power, uplink, and node reachability first.',
+        'Confirm whether the rack issue is affecting multiple nodes or services.',
+      ];
+    case 'NodeCpuTempCritical':
+      return [
+        'Check node thermal condition and fan or airflow state first.',
+        'Reduce workload pressure or isolate the node if temperature keeps rising.',
+      ];
+    case 'NodeStale':
+      return [
+        'Check whether the node is reachable right now.',
+        'Check collector or telemetry agent health on the node.',
+      ];
+    case 'ServicePartialOutage':
+      return [
+        'Check which replicas are missing or unhealthy first.',
+        'Verify whether the remaining capacity is still serving traffic safely.',
+      ];
+    default:
+      return [
+        'Open the dashboard and confirm the current signal is still active.',
+        'Use the runbook to verify the most likely first remediation step.',
+      ];
+  }
 }

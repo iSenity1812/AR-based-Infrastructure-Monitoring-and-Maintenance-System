@@ -12,6 +12,7 @@ import {
   NODE_REALTIME_SYNC_INTERVAL_NAME,
   NodeRealtimeSyncScheduler,
 } from './node-realtime-sync.scheduler';
+import type { SyncNodeLivenessTransitionsUseCase } from './sync-node-liveness-transitions.use-case';
 import type { SyncNodeMetricsRealtimeUseCase } from './sync-node-metrics-realtime.use-case';
 import type { SyncNodeOverviewRealtimeUseCase } from './sync-node-overview-realtime.use-case';
 
@@ -24,6 +25,10 @@ describe('NodeRealtimeSyncScheduler', () => {
   >;
   let syncNodeMetricsRealtimeUseCase: Pick<
     SyncNodeMetricsRealtimeUseCase,
+    'execute'
+  >;
+  let syncNodeLivenessTransitionsUseCase: Pick<
+    SyncNodeLivenessTransitionsUseCase,
     'execute'
   >;
 
@@ -46,6 +51,13 @@ describe('NodeRealtimeSyncScheduler', () => {
         changedNodeIds: 0,
         nextCheckpointSummaryTs: null,
         initialized: true,
+      }),
+    };
+    syncNodeLivenessTransitionsUseCase = {
+      execute: jest.fn().mockResolvedValue({
+        evaluatedNodeIds: 0,
+        transitionedNodeIds: 0,
+        emittedEvents: 0,
       }),
     };
   });
@@ -79,11 +91,13 @@ describe('NodeRealtimeSyncScheduler', () => {
     expect(setIntervalSpy).not.toHaveBeenCalled();
   });
 
-  it('syncs overview and metrics on every scheduled tick', async () => {
+  it('syncs overview, metrics, and liveness on every scheduled tick', async () => {
     const syncOverviewExecute =
       syncNodeOverviewRealtimeUseCase.execute as jest.Mock;
     const syncMetricsExecute =
       syncNodeMetricsRealtimeUseCase.execute as jest.Mock;
+    const syncLivenessExecute =
+      syncNodeLivenessTransitionsUseCase.execute as jest.Mock;
 
     const scheduler = createScheduler({
       MONITORING_NODE_REALTIME_SYNC_ENABLED: 'true',
@@ -94,6 +108,7 @@ describe('NodeRealtimeSyncScheduler', () => {
 
     expect(syncOverviewExecute).toHaveBeenCalledTimes(2);
     expect(syncMetricsExecute).toHaveBeenCalledTimes(2);
+    expect(syncLivenessExecute).toHaveBeenCalledTimes(2);
   });
 
   it('still syncs metrics when overview sync fails', async () => {
@@ -101,6 +116,8 @@ describe('NodeRealtimeSyncScheduler', () => {
       syncNodeOverviewRealtimeUseCase.execute as jest.Mock;
     const syncMetricsExecute =
       syncNodeMetricsRealtimeUseCase.execute as jest.Mock;
+    const syncLivenessExecute =
+      syncNodeLivenessTransitionsUseCase.execute as jest.Mock;
     syncOverviewExecute.mockRejectedValueOnce(new Error('overview failed'));
 
     const scheduler = createScheduler({
@@ -111,6 +128,7 @@ describe('NodeRealtimeSyncScheduler', () => {
 
     expect(syncOverviewExecute).toHaveBeenCalledTimes(1);
     expect(syncMetricsExecute).toHaveBeenCalledTimes(1);
+    expect(syncLivenessExecute).toHaveBeenCalledTimes(1);
   });
 
   it('skips a new tick while the previous sync is still running', async () => {
@@ -162,6 +180,7 @@ describe('NodeRealtimeSyncScheduler', () => {
     return new NodeRealtimeSyncScheduler(
       syncNodeOverviewRealtimeUseCase as SyncNodeOverviewRealtimeUseCase,
       syncNodeMetricsRealtimeUseCase as SyncNodeMetricsRealtimeUseCase,
+      syncNodeLivenessTransitionsUseCase as SyncNodeLivenessTransitionsUseCase,
       config,
     );
   }

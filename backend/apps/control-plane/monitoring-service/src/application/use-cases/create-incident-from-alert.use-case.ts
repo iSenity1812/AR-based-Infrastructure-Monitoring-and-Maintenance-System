@@ -30,6 +30,7 @@ import {
   buildIncidentCodeFromAlertFingerprint,
   mapAlertSeverityToIncidentSeverity,
 } from '../mappers/alert-incident-handoff.mapper';
+import { IncidentContextSnapshotComposerService } from '../services/incident-context-snapshot-composer.service';
 import type { AlertEscalationActorDto } from './dto/alert-escalation-actor.dto';
 
 export interface CreateIncidentFromAlertCommand {
@@ -89,6 +90,7 @@ export class CreateIncidentFromAlertUseCase {
     private readonly incidentWorkflowClient: IncidentWorkflowClientPort,
     @Inject(AlertIncidentHandoffAuditRepository)
     private readonly alertIncidentHandoffAuditRepository: AlertIncidentHandoffAuditRepository,
+    private readonly incidentContextSnapshotComposerService: IncidentContextSnapshotComposerService,
   ) {}
 
   async execute(
@@ -162,6 +164,20 @@ export class CreateIncidentFromAlertUseCase {
       requestedAt,
       operatorNote: command.operatorNote,
     });
+    const capturedSnapshot =
+      alert.scopeType === 'node'
+        ? await this.incidentContextSnapshotComposerService.composeNodeSnapshot({
+            alert,
+            authorizationHeader,
+            correlationId: command.correlationId,
+            capturedAt: requestedAt,
+          })
+        : alert.scopeType === 'rack'
+          ? await this.incidentContextSnapshotComposerService.composeRackSnapshot({
+              alert,
+              capturedAt: requestedAt,
+            })
+        : undefined;
 
     try {
       const createdIncident = await this.incidentWorkflowClient.createIncident({
@@ -174,6 +190,7 @@ export class CreateIncidentFromAlertUseCase {
           buildDefaultDescription(alert),
         severity: incidentSeverity,
         metadata: metadata as unknown as Record<string, unknown>,
+        capturedSnapshot,
       });
 
       const result = await this.persistLinkage({

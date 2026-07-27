@@ -14,6 +14,7 @@ import {
   type IncidentWorkflowIncident,
 } from '../ports/incident-workflow-client.port';
 import { buildIncidentCodeFromAlertFingerprint } from '../mappers/alert-incident-handoff.mapper';
+import { IncidentContextSnapshotComposerService } from '../services/incident-context-snapshot-composer.service';
 import { CreateIncidentFromAlertUseCase } from './create-incident-from-alert.use-case';
 
 describe('CreateIncidentFromAlertUseCase', () => {
@@ -72,6 +73,13 @@ describe('CreateIncidentFromAlertUseCase', () => {
           requestSessionId: 'session-1',
           operatorNote: 'Escalate manually',
         }),
+        capturedSnapshot: expect.objectContaining({
+          schemaVersion: 'incident.context.v1',
+          scope: expect.objectContaining({
+            scopeType: 'node',
+            scopeId: 'node-a1',
+          }),
+        }),
       }),
     );
     expect(repository.updateIncidentLinkage).toHaveBeenCalledWith(
@@ -125,6 +133,90 @@ describe('CreateIncidentFromAlertUseCase', () => {
       }),
     );
   });
+
+  it('creates a rack incident with a captured rack snapshot', async () => {
+    const alert = buildAlert({
+      fingerprint: 'fp-rack-a1',
+      alertName: 'RackCritical',
+      severity: 'critical',
+      summary: 'Rack severity critical',
+      description: 'Rack critical',
+      metricKey: 'rack_severity_code',
+      currentValue: '3',
+      threshold: '3',
+      scopeType: 'rack',
+      rackId: 'rack-a1',
+    } as Partial<AlertCurrentState> as AlertCurrentState);
+    const incident = buildIncident({
+      incidentCode: buildIncidentCodeFromAlertFingerprint(alert.fingerprint),
+      metadata: {
+        fingerprint: alert.fingerprint,
+      },
+    });
+    const { useCase, incidentClient, snapshotComposer } = setup({
+      alert,
+      createdIncident: incident,
+    });
+    snapshotComposer.composeRackSnapshot = jest
+      .fn()
+      .mockResolvedValue({
+        schemaVersion: 'incident.context.v1',
+        capturedAt: '2026-07-23T04:18:45.000Z',
+        window: {
+          from: '2026-07-23T03:48:45.000Z',
+          to: '2026-07-23T04:18:45.000Z',
+          interval: '1m',
+        },
+        completeness: 'complete',
+        unavailableSources: [],
+        alert: {
+          fingerprint: 'fp-rack-a1',
+          alertName: 'RackCritical',
+          category: 'availability',
+          severity: 'critical',
+          metricKey: 'rack_severity_code',
+          currentValue: '3',
+          threshold: '3',
+          startsAt: '2026-07-15T20:01:30Z',
+          summary: 'Rack severity critical',
+        },
+        scope: {
+          scopeType: 'rack',
+          scopeId: 'rack-a1',
+          rackId: 'rack-a1',
+        },
+        asset: {
+          rackId: 'rack-a1',
+          rackCode: 'LOCAL-LAB-01',
+          displayName: 'Local Lab Rack 01',
+        },
+        impact: {
+          affectedNodeCount: 4,
+          totalNodeCount: 10,
+          affectedRatio: 0.4,
+        },
+        metricEvidence: [],
+        sourceRefs: [],
+      });
+
+    await useCase.execute({
+      fingerprint: alert.fingerprint,
+      authorizationHeader: 'Bearer token',
+      actor: buildActor(),
+    });
+
+    expect(snapshotComposer.composeRackSnapshot).toHaveBeenCalled();
+    expect(incidentClient.createIncident).toHaveBeenCalledWith(
+      expect.objectContaining({
+        capturedSnapshot: expect.objectContaining({
+          scope: expect.objectContaining({
+            scopeType: 'rack',
+            scopeId: 'rack-a1',
+          }),
+        }),
+      }),
+    );
+  });
 });
 
 function setup(input: {
@@ -173,15 +265,83 @@ function setup(input: {
       async () => undefined,
     ),
   } as unknown as jest.Mocked<AlertIncidentHandoffAuditRepository>;
+  const snapshotComposer = {
+    composeNodeSnapshot:
+      jest.fn<IncidentContextSnapshotComposerService['composeNodeSnapshot']>(
+        async () => ({
+          schemaVersion: 'incident.context.v1',
+          capturedAt: '2026-07-23T04:18:45.000Z',
+          window: {
+            from: '2026-07-23T03:48:45.000Z',
+            to: '2026-07-23T04:18:45.000Z',
+            interval: '1m',
+          },
+          completeness: 'complete',
+          unavailableSources: [],
+          alert: {
+            fingerprint: 'fp-node-a1',
+            alertName: 'NodeCpuTempCritical',
+            category: 'thermal',
+            severity: 'critical',
+            metricKey: 'cpu_temp_celsius',
+            currentValue: '94',
+            threshold: '90',
+            startsAt: '2026-07-15T20:01:30Z',
+            summary: 'Node node-a1 CPU temperature 94C > 90C',
+          },
+          scope: {
+            scopeType: 'node',
+            scopeId: 'node-a1',
+            rackId: 'rack-a1',
+          },
+          metricEvidence: [],
+          sourceRefs: [],
+        }),
+      ),
+    composeRackSnapshot:
+      jest.fn<IncidentContextSnapshotComposerService['composeRackSnapshot']>(
+        async () => ({
+          schemaVersion: 'incident.context.v1',
+          capturedAt: '2026-07-23T04:18:45.000Z',
+          window: {
+            from: '2026-07-23T03:48:45.000Z',
+            to: '2026-07-23T04:18:45.000Z',
+            interval: '1m',
+          },
+          completeness: 'complete',
+          unavailableSources: [],
+          alert: {
+            fingerprint: 'fp-rack-a1',
+            alertName: 'RackCritical',
+            category: 'availability',
+            severity: 'critical',
+            metricKey: 'rack_severity_code',
+            currentValue: '3',
+            threshold: '3',
+            startsAt: '2026-07-15T20:01:30Z',
+            summary: 'Rack severity critical',
+          },
+          scope: {
+            scopeType: 'rack',
+            scopeId: 'rack-a1',
+            rackId: 'rack-a1',
+          },
+          metricEvidence: [],
+          sourceRefs: [],
+        }),
+      ),
+  } as unknown as jest.Mocked<IncidentContextSnapshotComposerService>;
 
   return {
     repository,
     incidentClient,
     auditRepository,
+    snapshotComposer,
     useCase: new CreateIncidentFromAlertUseCase(
       repository,
       incidentClient,
       auditRepository,
+      snapshotComposer,
     ),
   };
 }

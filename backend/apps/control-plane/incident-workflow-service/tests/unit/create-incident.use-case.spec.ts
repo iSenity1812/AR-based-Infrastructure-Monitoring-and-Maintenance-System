@@ -54,6 +54,7 @@ describe('CreateIncidentUseCase', () => {
       findById: jest.fn(),
       findByCode: jest.fn().mockResolvedValue(null),
       findMany: jest.fn(),
+      findRelatedByScope: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };

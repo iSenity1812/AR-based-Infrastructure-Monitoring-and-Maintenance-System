@@ -3,6 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
+import type { IncidentCapturedSnapshot } from '@domain/entities/incident.entity';
 
 @Schema({ _id: false, versionKey: false })
 export class IncidentCreatedByDocumentModel {
@@ -47,6 +48,9 @@ export class IncidentDocumentModel {
 
   @Prop({ type: Object, default: {} })
   metadata!: Record<string, unknown>;
+
+  @Prop({ type: Object, required: false })
+  capturedSnapshot?: IncidentCapturedSnapshot;
 }
 
 export type IncidentDocument = HydratedDocument<IncidentDocumentModel>;

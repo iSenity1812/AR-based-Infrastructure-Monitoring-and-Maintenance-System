@@ -46,6 +46,7 @@ describe('CreateTicketUseCase', () => {
       findById: jest.fn().mockResolvedValue(incident),
       findByCode: jest.fn(),
       findMany: jest.fn(),
+      findRelatedByScope: jest.fn(),
       update: jest.fn().mockResolvedValue({
         ...incident,
         props: {
@@ -105,6 +106,7 @@ describe('CreateTicketUseCase', () => {
       findById: jest.fn(),
       findByCode: jest.fn(),
       findMany: jest.fn(),
+      findRelatedByScope: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };
@@ -137,6 +139,7 @@ describe('CreateTicketUseCase', () => {
       findById: jest.fn().mockResolvedValue(null),
       findByCode: jest.fn(),
       findMany: jest.fn(),
+      findRelatedByScope: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
     };

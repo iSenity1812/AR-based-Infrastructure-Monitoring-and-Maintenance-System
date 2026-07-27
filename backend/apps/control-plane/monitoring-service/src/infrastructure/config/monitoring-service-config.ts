@@ -35,6 +35,26 @@ export class MonitoringServiceConfig {
 
   readonly incidentWorkflowTimeoutMs: number;
 
+  readonly assetServiceBaseUrl: string;
+
+  readonly assetServiceTimeoutMs: number;
+
+  readonly monitoringIncidentContextWindowMinutes: number;
+
+  readonly monitoringIncidentNodeStaleThresholdSec: number;
+
+  readonly monitoringInvestigationMaxRangeDays: number;
+
+  readonly monitoringInvestigationMaxPoints: number;
+
+  readonly monitoringWorkflowSystemUserId: string;
+
+  readonly monitoringWorkflowSystemUsername: string;
+
+  readonly monitoringWorkflowSystemFullName: string;
+
+  readonly monitoringWorkflowSystemSessionId: string;
+
   readonly monitoringRackPollEnabled: boolean;
 
   readonly monitoringRackPollIntervalMs: number;
@@ -80,6 +100,31 @@ export class MonitoringServiceConfig {
     this.incidentWorkflowTimeoutMs = Number(
       env.INCIDENT_WORKFLOW_TIMEOUT_MS ?? 5000,
     );
+    this.assetServiceBaseUrl = (
+      env.ASSET_SERVICE_BASE_URL ?? 'http://127.0.0.1:4002/api/v1'
+    ).replace(/\/+$/, '');
+    this.assetServiceTimeoutMs = Number(env.ASSET_SERVICE_TIMEOUT_MS ?? 3000);
+    this.monitoringIncidentContextWindowMinutes = Number(
+      env.MONITORING_INCIDENT_CONTEXT_WINDOW_MINUTES ?? 30,
+    );
+    this.monitoringIncidentNodeStaleThresholdSec = Number(
+      env.MONITORING_INCIDENT_NODE_STALE_THRESHOLD_SEC ?? 1800,
+    );
+    this.monitoringInvestigationMaxRangeDays = Number(
+      env.MONITORING_INVESTIGATION_MAX_RANGE_DAYS ?? 7,
+    );
+    this.monitoringInvestigationMaxPoints = Number(
+      env.MONITORING_INVESTIGATION_MAX_POINTS ?? 400,
+    );
+    this.monitoringWorkflowSystemUserId =
+      env.MONITORING_WORKFLOW_SYSTEM_USER_ID ?? 'system-monitoring-service';
+    this.monitoringWorkflowSystemUsername =
+      env.MONITORING_WORKFLOW_SYSTEM_USERNAME ?? 'monitoring-service';
+    this.monitoringWorkflowSystemFullName =
+      env.MONITORING_WORKFLOW_SYSTEM_FULL_NAME ?? 'Monitoring Service';
+    this.monitoringWorkflowSystemSessionId =
+      env.MONITORING_WORKFLOW_SYSTEM_SESSION_ID ??
+      'system-monitoring-service-session';
     this.monitoringRackPollEnabled =
       env.MONITORING_RACK_POLL_ENABLED === 'true';
     this.monitoringRackPollIntervalMs = Number(

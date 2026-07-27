@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 
 import { MonitoringServiceConfig } from '../../infrastructure/config/monitoring-service-config';
+import { SyncNodeLivenessTransitionsUseCase } from './sync-node-liveness-transitions.use-case';
 import { SyncNodeMetricsRealtimeUseCase } from './sync-node-metrics-realtime.use-case';
 import { SyncNodeOverviewRealtimeUseCase } from './sync-node-overview-realtime.use-case';
 
@@ -21,6 +22,7 @@ export class NodeRealtimeSyncScheduler implements OnModuleInit, OnModuleDestroy 
   constructor(
     private readonly syncNodeOverviewRealtimeUseCase: SyncNodeOverviewRealtimeUseCase,
     private readonly syncNodeMetricsRealtimeUseCase: SyncNodeMetricsRealtimeUseCase,
+    private readonly syncNodeLivenessTransitionsUseCase: SyncNodeLivenessTransitionsUseCase,
     private readonly config: MonitoringServiceConfig,
   ) {}
 
@@ -74,6 +76,7 @@ export class NodeRealtimeSyncScheduler implements OnModuleInit, OnModuleDestroy 
     try {
       await this.syncNodeOverviewRealtime();
       await this.syncNodeMetricsRealtime();
+      await this.syncNodeLivenessTransitions();
     } finally {
       this.isRunning = false;
     }
@@ -102,6 +105,20 @@ export class NodeRealtimeSyncScheduler implements OnModuleInit, OnModuleDestroy 
     } catch (error) {
       this.logger.warn(
         `node metrics realtime sync failed (trigger=scheduled, reason=${error instanceof Error ? error.message : String(error)})`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
+  }
+
+  private async syncNodeLivenessTransitions(): Promise<void> {
+    try {
+      const result = await this.syncNodeLivenessTransitionsUseCase.execute();
+      this.logger.verbose(
+        `node liveness transition sync completed (trigger=scheduled, evaluatedNodeIds=${result.evaluatedNodeIds}, transitionedNodeIds=${result.transitionedNodeIds}, emittedEvents=${result.emittedEvents})`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `node liveness transition sync failed (trigger=scheduled, reason=${error instanceof Error ? error.message : String(error)})`,
         error instanceof Error ? error.stack : undefined,
       );
     }

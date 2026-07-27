@@ -4,6 +4,7 @@ import {
   RackOverviewClickhouseRepository,
   mapRackOverviewCurrentRackRow,
   mapRackOverviewHistoryRow,
+  mapRackOverviewNodeSnapshotRow,
 } from './rack-overview-clickhouse.repository';
 
 describe('mapRackOverviewCurrentRackRow', () => {
@@ -27,6 +28,12 @@ describe('mapRackOverviewCurrentRackRow', () => {
       worstMetricTagsJson: '{"host":"node-17"}',
       worstMetricValueNumeric: '98.4',
       worstMetricValueText: '98.4',
+      avgCpuUsagePct: '71.2',
+      avgMemoryUsedPct: '82.3',
+      maxDiskUsedPct: '91.4',
+      maxCpuTemperatureC: '88.5',
+      sumNetworkRxBytesSec: '1024',
+      sumNetworkTxBytesSec: '2048',
     });
 
     expect(record).toEqual({
@@ -48,6 +55,12 @@ describe('mapRackOverviewCurrentRackRow', () => {
       worstMetricTagsJson: '{"host":"node-17"}',
       worstMetricValueNumeric: 98.4,
       worstMetricValueText: '98.4',
+      avgCpuUsagePct: 71.2,
+      avgMemoryUsedPct: 82.3,
+      maxDiskUsedPct: 91.4,
+      maxCpuTemperatureC: 88.5,
+      sumNetworkRxBytesSec: 1024,
+      sumNetworkTxBytesSec: 2048,
     });
   });
 
@@ -117,5 +130,133 @@ describe('RackOverviewClickhouseRepository incremental polling', () => {
     );
     expect(query.mock.calls[0][0].query).toContain('summary_ts ASC');
     expect(query.mock.calls[0][0].query).toContain('rack_id ASC');
+  });
+});
+
+describe('RackOverviewClickhouseRepository rack investigation queries', () => {
+  it('queries one current rack by rack id', async () => {
+    const json = jest.fn().mockResolvedValue([]);
+    const query = jest.fn().mockResolvedValue({ json });
+    const repository = new RackOverviewClickhouseRepository({
+      query,
+    } as never);
+
+    await repository.getCurrentRack('rack-a1');
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: 'JSONEachRow',
+        query_params: {
+          rackId: 'rack-a1',
+        },
+      }),
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      'rack_id = {rackId: String}',
+    );
+    expect(query.mock.calls[0][0].query).toContain('LIMIT 1');
+  });
+
+  it('queries recent rack history scoped to one rack id', async () => {
+    const json = jest.fn().mockResolvedValue([]);
+    const query = jest.fn().mockResolvedValue({ json });
+    const repository = new RackOverviewClickhouseRepository({
+      query,
+    } as never);
+
+    await repository.listRecentRackHistoryByRackId('rack-a1');
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: 'JSONEachRow',
+        query_params: {
+          rackId: 'rack-a1',
+        },
+      }),
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      'rack_id = {rackId: String}',
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      "bucket_granularity IN ('1m', '5m')",
+    );
+  });
+
+  it('queries node snapshots by explicit node ids', async () => {
+    const json = jest.fn().mockResolvedValue([]);
+    const query = jest.fn().mockResolvedValue({ json });
+    const repository = new RackOverviewClickhouseRepository({
+      query,
+    } as never);
+
+    await repository.listNodeSnapshotsByNodeIds(['node-a1', 'node-b2']);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: 'JSONEachRow',
+        query_params: {
+          nodeIds: ['node-a1', 'node-b2'],
+        },
+      }),
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      'FROM telemetry_db.node_current_summary',
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      'node_id IN ({nodeIds: Array(String)})',
+    );
+  });
+
+  it('skips the ClickHouse query when there are no usable node ids', async () => {
+    const json = jest.fn().mockResolvedValue([]);
+    const query = jest.fn().mockResolvedValue({ json });
+    const repository = new RackOverviewClickhouseRepository({
+      query,
+    } as never);
+
+    await expect(
+      repository.listNodeSnapshotsByNodeIds(['', 'null', 'undefined']),
+    ).resolves.toEqual([]);
+    expect(query).not.toHaveBeenCalled();
+  });
+});
+
+describe('mapRackOverviewNodeSnapshotRow', () => {
+  it('normalizes compact node snapshot rows for rack investigation', () => {
+    const record = mapRackOverviewNodeSnapshotRow({
+      nodeId: 'node-a1',
+      summaryTs: '2026-07-01 10:15:00',
+      maxSeverityCode: '4',
+      hasOverrideFlag: '1',
+      isAnyStale: '0',
+      staleMetricCount: '0',
+      criticalMetricCount: '2',
+      warningMetricCount: '1',
+      cpuUsagePctCurrent: '98.4',
+      memoryUsagePctCurrent: '83.2',
+      diskUsagePctCurrent: '71.5',
+      cpuTemperatureCCurrent: '92.7',
+      worstMetricKey: 'cpu_usage_pct',
+      worstMetricValueNumeric: '98.4',
+      worstMetricValueText: '98.4',
+    });
+
+    expect(record).toEqual({
+      nodeId: 'node-a1',
+      summaryTs: '2026-07-01 10:15:00',
+      maxSeverityCode: 4,
+      hasOverrideFlag: 1,
+      isAnyStale: 0,
+      staleMetricCount: 0,
+      criticalMetricCount: 2,
+      warningMetricCount: 1,
+      cpuUsagePctCurrent: 98.4,
+      memoryUsagePctCurrent: 83.2,
+      diskUsagePctCurrent: 71.5,
+      cpuTemperatureCCurrent: 92.7,
+      worstMetricKey: 'cpu_usage_pct',
+      worstMetricValueNumeric: 98.4,
+      worstMetricValueText: '98.4',
+    });
   });
 });

@@ -243,10 +243,16 @@ export class RackOverviewClickhouseRepository implements RackOverviewReadReposit
       .filter((row) => isUsableRackId(row.rackId));
   }
 
-  async listRackNodeSnapshot(
-    rackId: string,
-    limit: number,
+  async listNodeSnapshotsByNodeIds(
+    nodeIds: string[],
   ): Promise<RackOverviewNodeSnapshotRecord[]> {
+    const normalizedNodeIds = Array.from(
+      new Set(nodeIds.filter((nodeId) => isUsableNodeId(nodeId))),
+    );
+    if (normalizedNodeIds.length === 0) {
+      return [];
+    }
+
     const result = await this.clickhouseClient.query({
       query: `
         SELECT
@@ -266,11 +272,11 @@ export class RackOverviewClickhouseRepository implements RackOverviewReadReposit
           worst_metric_numeric_value AS worstMetricValueNumeric,
           worst_metric_text_value AS worstMetricValueText
         FROM telemetry_db.node_current_summary
-        WHERE rack_id = {rackId: String}
-          AND node_id IS NOT NULL
+        WHERE node_id IS NOT NULL
           AND node_id != ''
-          AND lower(trim(node_id)) != 'null'
-          AND lower(trim(node_id)) != 'undefined'
+          AND lower(trimBoth(node_id)) != 'null'
+          AND lower(trimBoth(node_id)) != 'undefined'
+          AND node_id IN ({nodeIds: Array(String)})
         ORDER BY
           overall_health_code DESC,
           critical_metric_count DESC,
@@ -279,11 +285,9 @@ export class RackOverviewClickhouseRepository implements RackOverviewReadReposit
           stale_metric_count DESC,
           summary_ts DESC,
           node_id ASC
-        LIMIT {limit: UInt32}
       `,
       query_params: {
-        rackId,
-        limit: Math.max(1, Math.floor(limit)),
+        nodeIds: normalizedNodeIds,
       },
       format: 'JSONEachRow',
     });
@@ -481,6 +485,20 @@ function isUsableRackId(rackId: string | null | undefined): rackId is string {
   }
 
   const normalized = rackId.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const lowered = normalized.toLowerCase();
+  return lowered !== 'null' && lowered !== 'undefined';
+}
+
+function isUsableNodeId(nodeId: string | null | undefined): nodeId is string {
+  if (typeof nodeId !== 'string') {
+    return false;
+  }
+
+  const normalized = nodeId.trim();
   if (!normalized) {
     return false;
   }

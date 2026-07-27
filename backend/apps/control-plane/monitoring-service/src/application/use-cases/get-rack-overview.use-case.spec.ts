@@ -56,7 +56,7 @@ describe('GetRackOverviewUseCase', () => {
       listRecentRackHistory: jest.fn().mockResolvedValue(history),
       getCurrentRack: jest.fn(),
       listRecentRackHistoryByRackId: jest.fn(),
-      listRackNodeSnapshot: jest.fn(),
+      listNodeSnapshotsByNodeIds: jest.fn(),
     };
     const batchGetRacks = jest.fn().mockResolvedValue(
       new Map([
@@ -187,7 +187,7 @@ describe('GetRackOverviewUseCase', () => {
       listRecentRackHistory: jest.fn().mockResolvedValue([]),
       getCurrentRack: jest.fn(),
       listRecentRackHistoryByRackId: jest.fn(),
-      listRackNodeSnapshot: jest.fn(),
+      listNodeSnapshotsByNodeIds: jest.fn(),
     };
     const rackContextProvider: RackContextProvider = {
       batchGetRacks: jest.fn().mockResolvedValue(new Map()),
@@ -236,7 +236,7 @@ describe('GetRackOverviewUseCase', () => {
       listRecentRackHistory: jest.fn().mockResolvedValue([]),
       getCurrentRack: jest.fn(),
       listRecentRackHistoryByRackId: jest.fn(),
-      listRackNodeSnapshot: jest.fn(),
+      listNodeSnapshotsByNodeIds: jest.fn(),
     };
     const rackContextProvider: RackContextProvider = {
       batchGetRacks: jest.fn().mockResolvedValue(new Map()),

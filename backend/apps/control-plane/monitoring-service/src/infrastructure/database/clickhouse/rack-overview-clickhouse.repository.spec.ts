@@ -182,21 +182,20 @@ describe('RackOverviewClickhouseRepository rack investigation queries', () => {
     );
   });
 
-  it('queries a problem-first limited node snapshot for one rack id', async () => {
+  it('queries node snapshots by explicit node ids', async () => {
     const json = jest.fn().mockResolvedValue([]);
     const query = jest.fn().mockResolvedValue({ json });
     const repository = new RackOverviewClickhouseRepository({
       query,
     } as never);
 
-    await repository.listRackNodeSnapshot('rack-a1', 5);
+    await repository.listNodeSnapshotsByNodeIds(['node-a1', 'node-b2']);
 
     expect(query).toHaveBeenCalledWith(
       expect.objectContaining({
         format: 'JSONEachRow',
         query_params: {
-          rackId: 'rack-a1',
-          limit: 5,
+          nodeIds: ['node-a1', 'node-b2'],
         },
       }),
     );
@@ -204,9 +203,21 @@ describe('RackOverviewClickhouseRepository rack investigation queries', () => {
       'FROM telemetry_db.node_current_summary',
     );
     expect(query.mock.calls[0][0].query).toContain(
-      'rack_id = {rackId: String}',
+      'node_id IN ({nodeIds: Array(String)})',
     );
-    expect(query.mock.calls[0][0].query).toContain('LIMIT {limit: UInt32}');
+  });
+
+  it('skips the ClickHouse query when there are no usable node ids', async () => {
+    const json = jest.fn().mockResolvedValue([]);
+    const query = jest.fn().mockResolvedValue({ json });
+    const repository = new RackOverviewClickhouseRepository({
+      query,
+    } as never);
+
+    await expect(
+      repository.listNodeSnapshotsByNodeIds(['', 'null', 'undefined']),
+    ).resolves.toEqual([]);
+    expect(query).not.toHaveBeenCalled();
   });
 });
 

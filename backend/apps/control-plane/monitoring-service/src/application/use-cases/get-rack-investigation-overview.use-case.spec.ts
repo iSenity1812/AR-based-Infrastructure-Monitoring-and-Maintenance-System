@@ -45,7 +45,7 @@ describe('GetRackInvestigationOverviewUseCase', () => {
     const rackOverviewReadRepository = createRackRepository({
       getCurrentRack: jest.fn().mockResolvedValue(rack),
       listRecentRackHistoryByRackId: jest.fn().mockResolvedValue(history),
-      listRackNodeSnapshot: jest.fn().mockResolvedValue(nodeSnapshot),
+      listNodeSnapshotsByNodeIds: jest.fn().mockResolvedValue(nodeSnapshot),
     });
     const alertCurrentStateRepository = createAlertRepository([
       createAlert({
@@ -56,6 +56,13 @@ describe('GetRackInvestigationOverviewUseCase', () => {
       createAlert({
         scopeType: 'node',
         nodeId: 'node-critical',
+        rackId: 'rack-a1',
+        severity: 'warning',
+      }),
+      createAlert({
+        scopeType: 'workload',
+        nodeId: 'node-warning',
+        workloadId: 'workload-1',
         rackId: 'rack-a1',
         severity: 'warning',
       }),
@@ -92,8 +99,8 @@ describe('GetRackInvestigationOverviewUseCase', () => {
       rackOverviewReadRepository.listRecentRackHistoryByRackId,
     ).toHaveBeenCalledWith('rack-a1');
     expect(
-      rackOverviewReadRepository.listRackNodeSnapshot,
-    ).toHaveBeenCalledWith('rack-a1', 5);
+      rackOverviewReadRepository.listNodeSnapshotsByNodeIds,
+    ).toHaveBeenCalledWith(['node-critical', 'node-warning']);
     expect(alertCurrentStateRepository.listActiveByRackId).toHaveBeenCalledWith(
       'rack-a1',
     );
@@ -122,12 +129,15 @@ describe('GetRackInvestigationOverviewUseCase', () => {
       alerts: {
         summary: {
           rackAlertCount: 1,
-          childAlertCount: 1,
+          childAlertCount: 2,
           criticalCount: 1,
-          warningCount: 1,
+          warningCount: 2,
         },
         rack: [{ scopeType: 'rack', fingerprint: 'rack-alert' }],
-        child: [{ scopeType: 'node', fingerprint: 'node-alert' }],
+        child: [
+          { scopeType: 'node', fingerprint: 'node-alert' },
+          { scopeType: 'workload', fingerprint: 'workload-alert' },
+        ],
       },
       nodeSnapshot: {
         totalNodes: 12,
@@ -186,7 +196,7 @@ function createRackRepository(
     listRecentRackHistory: jest.fn().mockResolvedValue([]),
     getCurrentRack: jest.fn().mockResolvedValue(createRack()),
     listRecentRackHistoryByRackId: jest.fn().mockResolvedValue([]),
-    listRackNodeSnapshot: jest.fn().mockResolvedValue([]),
+    listNodeSnapshotsByNodeIds: jest.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -300,6 +310,13 @@ function createAlert(
         nodeId: string;
         rackId: string;
         severity: 'critical' | 'warning';
+      }
+    | {
+        scopeType: 'workload';
+        nodeId: string;
+        workloadId: string;
+        rackId: string;
+        severity: 'critical' | 'warning';
       },
 ): AlertCurrentState {
   const base = {
@@ -343,6 +360,17 @@ function createAlert(
     return {
       ...base,
       scopeType: 'rack',
+      rackId: input.rackId,
+    };
+  }
+
+  if (input.scopeType === 'workload') {
+    return {
+      ...base,
+      fingerprint: 'workload-alert',
+      scopeType: 'workload',
+      workloadId: input.workloadId,
+      nodeId: input.nodeId,
       rackId: input.rackId,
     };
   }

@@ -137,14 +137,10 @@ export class GetRackInvestigationOverviewUseCase {
     }
 
     const generatedAt = new Date();
-    const [history, rackContextMap, alerts, nodeSnapshot] = await Promise.all([
+    const [history, rackContextMap, alerts] = await Promise.all([
       this.rackOverviewReadRepository.listRecentRackHistoryByRackId(rackId),
       this.rackContextProvider.batchGetRacks([rackId]),
       this.alertCurrentStateRepository.listActiveByRackId(rackId),
-      this.rackOverviewReadRepository.listRackNodeSnapshot(
-        rackId,
-        DEFAULT_NODE_SNAPSHOT_LIMIT,
-      ),
     ]);
     const mappedAlerts = alerts.map(mapActiveAlert);
     const rackAlerts = mappedAlerts.filter(
@@ -153,6 +149,16 @@ export class GetRackInvestigationOverviewUseCase {
     const childAlerts = mappedAlerts.filter(
       (alert) => alert.scopeType === 'node' || alert.scopeType === 'workload',
     );
+    const snapshotNodeIds = collectProblemFirstNodeIds(
+      rack,
+      history,
+      childAlerts,
+      DEFAULT_NODE_SNAPSHOT_LIMIT,
+    );
+    const nodeSnapshot =
+      await this.rackOverviewReadRepository.listNodeSnapshotsByNodeIds(
+        snapshotNodeIds,
+      );
 
     return {
       generatedAt: generatedAt.toISOString(),
@@ -180,6 +186,39 @@ export class GetRackInvestigationOverviewUseCase {
       },
     };
   }
+}
+
+function collectProblemFirstNodeIds(
+  rack: RackOverviewItemView['rackInfo'] extends never
+    ? never
+    : {
+        worstNodeId: string;
+      },
+  history: Array<{
+    worstNodeId: string;
+  }>,
+  childAlerts: RackInvestigationActiveAlertView[],
+  limit: number,
+): string[] {
+  const nodeIds: string[] = [];
+
+  for (const alert of childAlerts) {
+    if (isUsableNodeId(alert.nodeId)) {
+      nodeIds.push(alert.nodeId);
+    }
+  }
+
+  if (isUsableNodeId(rack.worstNodeId)) {
+    nodeIds.push(rack.worstNodeId);
+  }
+
+  for (const entry of history) {
+    if (isUsableNodeId(entry.worstNodeId)) {
+      nodeIds.push(entry.worstNodeId);
+    }
+  }
+
+  return Array.from(new Set(nodeIds)).slice(0, limit);
 }
 
 function buildAlertSummary(
@@ -353,4 +392,18 @@ function parseSummaryDate(summaryTs: string): Date | null {
   }
 
   return parsed;
+}
+
+function isUsableNodeId(nodeId: string | null | undefined): nodeId is string {
+  if (typeof nodeId !== 'string') {
+    return false;
+  }
+
+  const normalized = nodeId.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const lowered = normalized.toLowerCase();
+  return lowered !== 'null' && lowered !== 'undefined';
 }

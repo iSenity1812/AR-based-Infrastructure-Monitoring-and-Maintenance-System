@@ -91,8 +91,7 @@ export abstract class RackOverviewReadRepository {
     rackId: string,
   ): Promise<RackOverviewHistoryRecord[]>;
 
-  abstract listRackNodeSnapshot(
-    rackId: string,
-    limit: number,
+  abstract listNodeSnapshotsByNodeIds(
+    nodeIds: string[],
   ): Promise<RackOverviewNodeSnapshotRecord[]>;
 }

@@ -8,6 +8,7 @@ Mobile-facing backend entry point for marker-based AR workflows.
 - Authenticated marker scan endpoint backed by Asset Service marker resolution
 - Authenticated AR asset overview backed by Asset Service and Monitoring Service
 - Authenticated AR work-order list/create backed by Incident Workflow Service
+- Authenticated AR overlay composition backed by Asset Service, Monitoring Service, and Incident Workflow Service
 - API envelope response
 - Request and correlation IDs
 - JWT/permission guard wiring for future protected AR endpoints
@@ -24,10 +25,20 @@ execution.
 - `GET /api/v1/ar/assets/:assetType/:assetCode/overview`
 - `GET /api/v1/ar/assets/:assetType/:assetCode/work-orders`
 - `POST /api/v1/ar/assets/:assetType/:assetCode/work-orders`
+- `POST /api/v1/ar/overlay`
 
 ```json
 {
   "markerCode": "MK-RACK-A1"
+}
+```
+
+```json
+{
+  "asset": {
+    "assetType": "node",
+    "assetCode": "NODE-A1-01"
+  }
 }
 ```
 
@@ -48,6 +59,11 @@ endpoint and filters normalized ticket summaries by `assetRef.assetId`. This is
 the narrowest compatible behavior for ticket 04; a future Incident Workflow
 extension can add first-class asset-linked ticket filtering without changing the
 AR-facing BFF response.
+
+The overlay endpoint treats Asset Service resolution as blocking because the AR
+view cannot be anchored without an asset. Monitoring and work-order reads are
+best-effort: each section returns availability metadata so the mobile client can
+render partial overlays without exposing raw downstream payloads.
 
 ## Environment
 

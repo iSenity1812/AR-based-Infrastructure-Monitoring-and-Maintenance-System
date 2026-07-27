@@ -9,3 +9,4 @@ export const LIST_AR_WORK_ORDERS_USE_CASE = Symbol(
 export const CREATE_AR_WORK_ORDER_USE_CASE = Symbol(
   'CREATE_AR_WORK_ORDER_USE_CASE',
 );
+export const GET_AR_OVERLAY_USE_CASE = Symbol('GET_AR_OVERLAY_USE_CASE');

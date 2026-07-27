@@ -1,4 +1,4 @@
-export type ArAssetType = 'rack' | 'node';
+import type { ArAssetType } from './ar-asset.dto';
 
 export interface ArMarkerScanResultDto {
   markerCode: string;

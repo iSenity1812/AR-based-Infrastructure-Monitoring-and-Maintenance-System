@@ -6,7 +6,12 @@ import {
   type ResolveMarkerOptions,
 } from '@application/ports/asset-service-client.port';
 import { ArBffServiceConfig } from '@infrastructure/config/ar-bff-service-config';
+import type {
+  ArAssetType,
+  ArResolvedAssetDto,
+} from '@use-cases/dto/ar-asset.dto';
 import type { AssetMarkerResolutionDto } from '@use-cases/dto/asset-marker-resolution.dto';
+import { DownstreamServiceError } from '@application/errors/downstream-service.error';
 
 interface AssetServiceEnvelope<TData> {
   data?: TData;
@@ -44,10 +49,128 @@ export class AssetServiceHttpClient implements AssetServiceClientPort {
     return body.data;
   }
 
+  async resolveAsset(
+    assetType: ArAssetType,
+    assetCode: string,
+    options: ResolveMarkerOptions = {},
+  ): Promise<ArResolvedAssetDto> {
+    const response = await this.fetchAssetByCode(assetCode, options);
+    const body = await this.readEnvelope<{
+      id: string;
+      type: string;
+      code: string;
+      name: string;
+    }>(response);
+
+    if (!response.ok || !body.data) {
+      throw new DownstreamServiceError(
+        'asset-service',
+        response.status === 404 ? 'NOT_FOUND' : 'UNAVAILABLE',
+        `Asset ${assetCode} was not found.`,
+      );
+    }
+
+    const normalizedType = body.data.type.toLowerCase();
+    if (normalizedType !== assetType) {
+      throw new DownstreamServiceError(
+        'asset-service',
+        'NOT_FOUND',
+        `Asset ${assetCode} is not a ${assetType}.`,
+      );
+    }
+
+    const asset: ArResolvedAssetDto = {
+      assetId: body.data.id,
+      assetType,
+      assetCode: body.data.code,
+      displayName: body.data.name,
+    };
+
+    if (assetType === 'node') {
+      asset.parentRack = await this.resolveNodeParentRack(
+        asset.assetId,
+        options,
+      );
+    }
+
+    return asset;
+  }
+
   private async fetchMarkerResolution(
     markerCode: string,
     options: ResolveMarkerOptions,
   ): Promise<Response> {
+    try {
+      return await fetch(
+        `${this.config.assetServiceBaseUrl}/markers/resolve/${encodeURIComponent(markerCode)}`,
+        { method: 'GET', headers: this.buildHeaders(options) },
+      );
+    } catch {
+      throw new AssetServiceClientError(
+        'ASSET_SERVICE_UNAVAILABLE',
+        'Asset Service is unavailable.',
+      );
+    }
+  }
+
+  private async fetchAssetByCode(
+    assetCode: string,
+    options: ResolveMarkerOptions,
+  ): Promise<Response> {
+    return this.fetchAssetService(
+      `/assets/by-code/${encodeURIComponent(assetCode)}`,
+      options,
+    );
+  }
+
+  private async resolveNodeParentRack(
+    nodeId: string,
+    options: ResolveMarkerOptions,
+  ): Promise<ArResolvedAssetDto['parentRack']> {
+    try {
+      const response = await this.fetchAssetService(
+        `/nodes/${encodeURIComponent(nodeId)}/context`,
+        options,
+      );
+      const body = await this.readEnvelope<{
+        rack?: { id: string; rackCode: string; displayName?: string };
+        topologyPath?: { rackId?: string; rackCode?: string };
+      }>(response);
+      const rackId = body.data?.rack?.id ?? body.data?.topologyPath?.rackId;
+      const rackCode =
+        body.data?.rack?.rackCode ?? body.data?.topologyPath?.rackCode;
+
+      return rackId && rackCode
+        ? {
+            rackId,
+            rackCode,
+            displayName: body.data?.rack?.displayName,
+          }
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async fetchAssetService(
+    path: string,
+    options: ResolveMarkerOptions,
+  ): Promise<Response> {
+    try {
+      return await fetch(`${this.config.assetServiceBaseUrl}${path}`, {
+        method: 'GET',
+        headers: this.buildHeaders(options),
+      });
+    } catch {
+      throw new DownstreamServiceError(
+        'asset-service',
+        'UNAVAILABLE',
+        'Asset Service is unavailable.',
+      );
+    }
+  }
+
+  private buildHeaders(options: ResolveMarkerOptions): Record<string, string> {
     const headers: Record<string, string> = {
       Accept: 'application/json',
     };
@@ -64,17 +187,7 @@ export class AssetServiceHttpClient implements AssetServiceClientPort {
       headers['x-correlation-id'] = options.correlationId;
     }
 
-    try {
-      return await fetch(
-        `${this.config.assetServiceBaseUrl}/markers/resolve/${encodeURIComponent(markerCode)}`,
-        { method: 'GET', headers },
-      );
-    } catch {
-      throw new AssetServiceClientError(
-        'ASSET_SERVICE_UNAVAILABLE',
-        'Asset Service is unavailable.',
-      );
-    }
+    return headers;
   }
 
   private async readEnvelope<TData>(

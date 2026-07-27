@@ -10,14 +10,18 @@ describe('ScanMarkerUseCase', () => {
   const assetClient = {
     serviceName: 'asset-service',
     resolveMarker: jest.fn(),
+    resolveAsset: jest.fn(),
   } satisfies jest.Mocked<AssetServiceClientPort>;
 
   const monitoringClient = {
     serviceName: 'monitoring-service',
+    getAssetOverview: jest.fn(),
   } satisfies jest.Mocked<MonitoringServiceClientPort>;
 
   const incidentClient = {
     serviceName: 'incident-workflow-service',
+    listWorkOrders: jest.fn(),
+    createWorkOrder: jest.fn(),
   } satisfies jest.Mocked<IncidentWorkflowServiceClientPort>;
 
   beforeEach(() => {
@@ -117,10 +121,9 @@ describe('ScanMarkerUseCase', () => {
     const useCase = new ScanMarkerUseCase(assetClient);
 
     await expect(useCase.execute('UNKNOWN')).rejects.toThrow(NotFoundException);
-    expect(monitoringClient).toEqual({ serviceName: 'monitoring-service' });
-    expect(incidentClient).toEqual({
-      serviceName: 'incident-workflow-service',
-    });
+    expect(monitoringClient.getAssetOverview).not.toHaveBeenCalled();
+    expect(incidentClient.listWorkOrders).not.toHaveBeenCalled();
+    expect(incidentClient.createWorkOrder).not.toHaveBeenCalled();
   });
 
   it('maps Asset Service availability failure to service unavailable', async () => {

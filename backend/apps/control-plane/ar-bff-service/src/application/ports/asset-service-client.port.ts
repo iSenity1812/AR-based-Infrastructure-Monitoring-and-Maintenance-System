@@ -1,4 +1,8 @@
 import type { AssetMarkerResolutionDto } from '@use-cases/dto/asset-marker-resolution.dto';
+import type {
+  ArAssetType,
+  ArResolvedAssetDto,
+} from '@use-cases/dto/ar-asset.dto';
 
 export interface ResolveMarkerOptions {
   authorization?: string;
@@ -13,4 +17,10 @@ export abstract class AssetServiceClientPort {
     markerCode: string,
     options?: ResolveMarkerOptions,
   ): Promise<AssetMarkerResolutionDto>;
+
+  abstract resolveAsset(
+    assetType: ArAssetType,
+    assetCode: string,
+    options?: ResolveMarkerOptions,
+  ): Promise<ArResolvedAssetDto>;
 }

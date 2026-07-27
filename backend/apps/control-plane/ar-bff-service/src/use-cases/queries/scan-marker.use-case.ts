@@ -12,10 +12,8 @@ import { AssetServiceClientPort } from '@application/ports/asset-service-client.
 import type { ResolveMarkerOptions } from '@application/ports/asset-service-client.port';
 import { ASSET_SERVICE_CLIENT } from '@application/ports/client.tokens';
 import type { AssetMarkerResolutionDto } from '@use-cases/dto/asset-marker-resolution.dto';
-import type {
-  ArAssetType,
-  ArMarkerScanResultDto,
-} from '@use-cases/dto/ar-marker-scan-result.dto';
+import type { ArAssetType } from '@use-cases/dto/ar-asset.dto';
+import type { ArMarkerScanResultDto } from '@use-cases/dto/ar-marker-scan-result.dto';
 
 @Injectable()
 export class ScanMarkerUseCase {

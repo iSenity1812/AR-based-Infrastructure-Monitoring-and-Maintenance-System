@@ -15,6 +15,7 @@ import { GetNodeMonitoringStateUseCase } from './application/use-cases/get-node-
 import { GetCollectorLivenessUseCase } from './application/use-cases/get-collector-liveness.use-case';
 import { GetNodeOverviewUseCase } from './application/use-cases/get-node-overview.use-case';
 import { GetRackMonitoringStateUseCase } from './application/use-cases/get-rack-monitoring-state.use-case';
+import { GetRackInvestigationOverviewUseCase } from './application/use-cases/get-rack-investigation-overview.use-case';
 import { GetRackOverviewUseCase } from './application/use-cases/get-rack-overview.use-case';
 import { GetScopeInvestigationUseCase } from './application/use-cases/get-scope-investigation.use-case';
 import { NodeRealtimeSyncScheduler } from './application/use-cases/node-realtime-sync.scheduler';
@@ -118,6 +119,7 @@ import { MonitoringRealtimeGateway } from './presentation/websocket/gateways/mon
     NodeOverviewComposerService,
     GetNodeOverviewUseCase,
     GetRackMonitoringStateUseCase,
+    GetRackInvestigationOverviewUseCase,
     GetRackOverviewUseCase,
     GetScopeInvestigationUseCase,
     InvestigationWindowPolicyService,

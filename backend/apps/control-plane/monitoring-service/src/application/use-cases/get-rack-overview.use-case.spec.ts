@@ -54,6 +54,9 @@ describe('GetRackOverviewUseCase', () => {
         rackLevelFailureRacks: 0,
       }),
       listRecentRackHistory: jest.fn().mockResolvedValue(history),
+      getCurrentRack: jest.fn(),
+      listRecentRackHistoryByRackId: jest.fn(),
+      listRackNodeSnapshot: jest.fn(),
     };
     const batchGetRacks = jest.fn().mockResolvedValue(
       new Map([
@@ -182,6 +185,9 @@ describe('GetRackOverviewUseCase', () => {
       listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
       getCurrentRackSummary: jest.fn(),
       listRecentRackHistory: jest.fn().mockResolvedValue([]),
+      getCurrentRack: jest.fn(),
+      listRecentRackHistoryByRackId: jest.fn(),
+      listRackNodeSnapshot: jest.fn(),
     };
     const rackContextProvider: RackContextProvider = {
       batchGetRacks: jest.fn().mockResolvedValue(new Map()),
@@ -206,14 +212,31 @@ describe('GetRackOverviewUseCase', () => {
 
   it('supports severity filter by numeric codes and paginates after sorting', async () => {
     const rackOverviewReadRepository: RackOverviewReadRepository = {
-      listCurrentRacks: jest.fn().mockResolvedValue([
-        createRack({ rackId: 'rack-a', rackSeverityCode: 4, badNodeRatio: 0.9 }),
-        createRack({ rackId: 'rack-b', rackSeverityCode: 3, badNodeRatio: 0.5 }),
-        createRack({ rackId: 'rack-c', rackSeverityCode: 2, badNodeRatio: 0.7 }),
-      ]),
+      listCurrentRacks: jest
+        .fn()
+        .mockResolvedValue([
+          createRack({
+            rackId: 'rack-a',
+            rackSeverityCode: 4,
+            badNodeRatio: 0.9,
+          }),
+          createRack({
+            rackId: 'rack-b',
+            rackSeverityCode: 3,
+            badNodeRatio: 0.5,
+          }),
+          createRack({
+            rackId: 'rack-c',
+            rackSeverityCode: 2,
+            badNodeRatio: 0.7,
+          }),
+        ]),
       listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
       getCurrentRackSummary: jest.fn(),
       listRecentRackHistory: jest.fn().mockResolvedValue([]),
+      getCurrentRack: jest.fn(),
+      listRecentRackHistoryByRackId: jest.fn(),
+      listRackNodeSnapshot: jest.fn(),
     };
     const rackContextProvider: RackContextProvider = {
       batchGetRacks: jest.fn().mockResolvedValue(new Map()),

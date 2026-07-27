@@ -5,6 +5,7 @@ import {
   RackOverviewCurrentRackRecord,
   RackOverviewCurrentRackSummary,
   RackOverviewHistoryRecord,
+  RackOverviewNodeSnapshotRecord,
   RackOverviewReadRepository,
 } from '../../../application/ports/rack-overview-read.repository';
 import { CLICKHOUSE_CLIENT } from './clickhouse.constants';
@@ -65,10 +66,26 @@ type RackOverviewHistoryRow = {
   worstMetricValueText: string;
 };
 
+type RackOverviewNodeSnapshotRow = {
+  nodeId: string;
+  summaryTs: string;
+  maxSeverityCode: number | string;
+  hasOverrideFlag: number | string;
+  isAnyStale: number | string;
+  staleMetricCount: number | string;
+  criticalMetricCount: number | string;
+  warningMetricCount: number | string;
+  cpuUsagePctCurrent: number | string | null;
+  memoryUsagePctCurrent: number | string | null;
+  diskUsagePctCurrent: number | string | null;
+  cpuTemperatureCCurrent: number | string | null;
+  worstMetricKey: string | null;
+  worstMetricValueNumeric: number | string | null;
+  worstMetricValueText: string | null;
+};
+
 @Injectable()
-export class RackOverviewClickhouseRepository
-  implements RackOverviewReadRepository
-{
+export class RackOverviewClickhouseRepository implements RackOverviewReadRepository {
   constructor(
     @Inject(CLICKHOUSE_CLIENT)
     private readonly clickhouseClient: ClickHouseClient,
@@ -156,6 +173,125 @@ export class RackOverviewClickhouseRepository
       .filter((row) => isUsableRackId(row.rackId));
   }
 
+  async getCurrentRack(
+    rackId: string,
+  ): Promise<RackOverviewCurrentRackRecord | null> {
+    const result = await this.clickhouseClient.query({
+      query: `
+        ${CURRENT_RACK_SELECT}
+        FROM telemetry_db.rack_current_summary
+        WHERE rack_id = {rackId: String}
+          AND rack_id IS NOT NULL
+          AND rack_id != ''
+          AND rack_id != 'null'
+        LIMIT 1
+      `,
+      query_params: { rackId },
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<RackOverviewCurrentRackRow>();
+    const row = rows
+      .map(mapRackOverviewCurrentRackRow)
+      .find((item) => isUsableRackId(item.rackId));
+
+    return row ?? null;
+  }
+
+  async listRecentRackHistoryByRackId(
+    rackId: string,
+  ): Promise<RackOverviewHistoryRecord[]> {
+    const result = await this.clickhouseClient.query({
+      query: `
+        SELECT
+          bucket_granularity AS bucketGranularity,
+          toString(bucket_start) AS bucketStart,
+          rack_id AS rackId,
+          toString(summary_ts) AS summaryTs,
+          rack_severity_code AS rackSeverityCode,
+          has_override_flag AS hasOverrideFlag,
+          total_nodes AS totalNodes,
+          bad_nodes AS badNodes,
+          critical_nodes AS criticalNodes,
+          warning_nodes AS warningNodes,
+          bad_node_ratio AS badNodeRatio,
+          is_rack_level_failure AS isRackLevelFailure,
+          worst_node_id AS worstNodeId,
+          worst_metric_key AS worstMetricKey,
+          worst_metric_tags_json AS worstMetricTagsJson,
+          worst_metric_value_numeric AS worstMetricValueNumeric,
+          worst_metric_value_text AS worstMetricValueText
+        FROM telemetry_db.v_rack_summary_history
+        WHERE rack_id = {rackId: String}
+          AND bucket_granularity IN ('1m', '5m')
+          AND bucket_start >= now() - INTERVAL 24 HOUR
+          AND rack_id IS NOT NULL
+          AND rack_id != ''
+          AND rack_id != 'null'
+        ORDER BY
+          bucket_granularity ASC,
+          bucket_start DESC,
+          rack_id ASC
+      `,
+      query_params: { rackId },
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<RackOverviewHistoryRow>();
+    return rows
+      .map(mapRackOverviewHistoryRow)
+      .filter((row) => isUsableRackId(row.rackId));
+  }
+
+  async listRackNodeSnapshot(
+    rackId: string,
+    limit: number,
+  ): Promise<RackOverviewNodeSnapshotRecord[]> {
+    const result = await this.clickhouseClient.query({
+      query: `
+        SELECT
+          node_id AS nodeId,
+          toString(summary_ts) AS summaryTs,
+          overall_health_code AS maxSeverityCode,
+          has_override_flag AS hasOverrideFlag,
+          is_any_stale AS isAnyStale,
+          stale_metric_count AS staleMetricCount,
+          critical_metric_count AS criticalMetricCount,
+          warning_metric_count AS warningMetricCount,
+          cpu_usage_pct_current AS cpuUsagePctCurrent,
+          memory_used_pct_current AS memoryUsagePctCurrent,
+          disk_used_pct_max_current AS diskUsagePctCurrent,
+          cpu_temperature_c_max_current AS cpuTemperatureCCurrent,
+          worst_metric_key AS worstMetricKey,
+          worst_metric_numeric_value AS worstMetricValueNumeric,
+          worst_metric_text_value AS worstMetricValueText
+        FROM telemetry_db.node_current_summary
+        WHERE rack_id = {rackId: String}
+          AND node_id IS NOT NULL
+          AND node_id != ''
+          AND lower(trim(node_id)) != 'null'
+          AND lower(trim(node_id)) != 'undefined'
+        ORDER BY
+          overall_health_code DESC,
+          critical_metric_count DESC,
+          warning_metric_count DESC,
+          is_any_stale DESC,
+          stale_metric_count DESC,
+          summary_ts DESC,
+          node_id ASC
+        LIMIT {limit: UInt32}
+      `,
+      query_params: {
+        rackId,
+        limit: Math.max(1, Math.floor(limit)),
+      },
+      format: 'JSONEachRow',
+    });
+
+    const rows = await result.json<RackOverviewNodeSnapshotRow>();
+    return rows.map(mapRackOverviewNodeSnapshotRow);
+  }
+
   private async queryCurrentRacks(
     changedSinceSummaryTs?: string,
   ): Promise<RackOverviewCurrentRackRecord[]> {
@@ -182,31 +318,7 @@ export class RackOverviewClickhouseRepository
 
     const result = await this.clickhouseClient.query({
       query: `
-        SELECT
-          rack_id AS rackId,
-          toString(summary_ts) AS summaryTs,
-          rack_severity_code AS rackSeverityCode,
-          has_override_flag AS hasOverrideFlag,
-          total_nodes AS totalNodes,
-          bad_nodes AS badNodes,
-          critical_nodes AS criticalNodes,
-          warning_nodes AS warningNodes,
-          stale_nodes AS staleNodes,
-          silent_dead_nodes AS silentDeadNodes,
-          bad_node_ratio AS badNodeRatio,
-          is_rack_level_failure AS isRackLevelFailure,
-          has_signal_loss AS hasSignalLoss,
-          worst_node_id AS worstNodeId,
-          worst_metric_key AS worstMetricKey,
-          worst_metric_tags_json AS worstMetricTagsJson,
-          worst_metric_value_numeric AS worstMetricValueNumeric,
-          worst_metric_value_text AS worstMetricValueText,
-          avg_cpu_usage_pct AS avgCpuUsagePct,
-          avg_memory_used_pct AS avgMemoryUsedPct,
-          max_disk_used_pct AS maxDiskUsedPct,
-          max_cpu_temperature_c AS maxCpuTemperatureC,
-          sum_network_rx_bytes_sec AS sumNetworkRxBytesSec,
-          sum_network_tx_bytes_sec AS sumNetworkTxBytesSec
+        ${CURRENT_RACK_SELECT}
         FROM telemetry_db.rack_current_summary
         WHERE rack_id IS NOT NULL
           AND rack_id != ''
@@ -226,6 +338,34 @@ export class RackOverviewClickhouseRepository
       .filter((row) => isUsableRackId(row.rackId));
   }
 }
+
+const CURRENT_RACK_SELECT = `
+  SELECT
+    rack_id AS rackId,
+    toString(summary_ts) AS summaryTs,
+    rack_severity_code AS rackSeverityCode,
+    has_override_flag AS hasOverrideFlag,
+    total_nodes AS totalNodes,
+    bad_nodes AS badNodes,
+    critical_nodes AS criticalNodes,
+    warning_nodes AS warningNodes,
+    stale_nodes AS staleNodes,
+    silent_dead_nodes AS silentDeadNodes,
+    bad_node_ratio AS badNodeRatio,
+    is_rack_level_failure AS isRackLevelFailure,
+    has_signal_loss AS hasSignalLoss,
+    worst_node_id AS worstNodeId,
+    worst_metric_key AS worstMetricKey,
+    worst_metric_tags_json AS worstMetricTagsJson,
+    worst_metric_value_numeric AS worstMetricValueNumeric,
+    worst_metric_value_text AS worstMetricValueText,
+    avg_cpu_usage_pct AS avgCpuUsagePct,
+    avg_memory_used_pct AS avgMemoryUsedPct,
+    max_disk_used_pct AS maxDiskUsedPct,
+    max_cpu_temperature_c AS maxCpuTemperatureC,
+    sum_network_rx_bytes_sec AS sumNetworkRxBytesSec,
+    sum_network_tx_bytes_sec AS sumNetworkTxBytesSec
+`;
 
 export function mapRackOverviewCurrentRackRow(
   row: RackOverviewCurrentRackRow,
@@ -282,6 +422,28 @@ export function mapRackOverviewHistoryRow(
   };
 }
 
+export function mapRackOverviewNodeSnapshotRow(
+  row: RackOverviewNodeSnapshotRow,
+): RackOverviewNodeSnapshotRecord {
+  return {
+    nodeId: row.nodeId,
+    summaryTs: row.summaryTs,
+    maxSeverityCode: toNumber(row.maxSeverityCode),
+    hasOverrideFlag: toNumber(row.hasOverrideFlag),
+    isAnyStale: toNumber(row.isAnyStale),
+    staleMetricCount: toNumber(row.staleMetricCount),
+    criticalMetricCount: toNumber(row.criticalMetricCount),
+    warningMetricCount: toNumber(row.warningMetricCount),
+    cpuUsagePctCurrent: toNullableNumber(row.cpuUsagePctCurrent),
+    memoryUsagePctCurrent: toNullableNumber(row.memoryUsagePctCurrent),
+    diskUsagePctCurrent: toNullableNumber(row.diskUsagePctCurrent),
+    cpuTemperatureCCurrent: toNullableNumber(row.cpuTemperatureCCurrent),
+    worstMetricKey: toNullableString(row.worstMetricKey),
+    worstMetricValueNumeric: toNullableNumber(row.worstMetricValueNumeric),
+    worstMetricValueText: toNullableString(row.worstMetricValueText),
+  };
+}
+
 function toNumber(value: number | string | null | undefined): number {
   if (typeof value === 'number') {
     return value;
@@ -302,6 +464,15 @@ function toNullableNumber(
   }
 
   return toNumber(value);
+}
+
+function toNullableString(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
 }
 
 function isUsableRackId(rackId: string | null | undefined): rackId is string {

@@ -15,6 +15,15 @@ describe('RackOverviewController', () => {
     expect(permissions).toEqual([PERMISSION_CODES.DASHBOARD_READ]);
   });
 
+  it('declares dashboard read permission on the rack investigation overview endpoint', () => {
+    const permissions = Reflect.getMetadata(
+      REQUIRED_PERMISSIONS_KEY,
+      RackOverviewController.prototype.getRackInvestigationOverview,
+    );
+
+    expect(permissions).toEqual([PERMISSION_CODES.DASHBOARD_READ]);
+  });
+
   it('delegates overview payload generation to the use case', async () => {
     const execute = jest.fn().mockResolvedValue({
       generatedAt: '2026-07-19T11:02:54.220Z',
@@ -45,7 +54,10 @@ describe('RackOverviewController', () => {
         },
       },
     });
-    const controller = new RackOverviewController({ execute } as never);
+    const controller = new RackOverviewController(
+      { execute } as never,
+      { execute: jest.fn() } as never,
+    );
 
     await expect(
       controller.getRackOverview({
@@ -63,5 +75,47 @@ describe('RackOverviewController', () => {
       severity: 'critical,high',
       onlyFailure: 'true',
     });
+  });
+
+  it('delegates rack investigation overview payload generation to the use case', async () => {
+    const execute = jest.fn().mockResolvedValue({
+      generatedAt: '2026-07-19T11:02:54.220Z',
+      scope: 'rack',
+      view: 'rack_investigation_overview',
+      rack: {},
+      alerts: {
+        summary: {
+          rackAlertCount: 0,
+          childAlertCount: 0,
+          criticalCount: 0,
+          warningCount: 0,
+        },
+        rack: [],
+        child: [],
+      },
+      nodeSnapshot: {
+        totalNodes: 0,
+        returned: 0,
+        selectionMode: 'problem_first_then_recent',
+        items: [],
+      },
+      navigation: {
+        nodesUrl: '/monitoring/racks/rack-a1/nodes',
+      },
+    });
+    const controller = new RackOverviewController(
+      { execute: jest.fn() } as never,
+      { execute } as never,
+    );
+
+    await expect(
+      controller.getRackInvestigationOverview('rack-a1'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        view: 'rack_investigation_overview',
+      }),
+    );
+
+    expect(execute).toHaveBeenCalledWith('rack-a1');
   });
 });

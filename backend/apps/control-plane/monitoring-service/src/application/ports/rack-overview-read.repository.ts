@@ -54,6 +54,24 @@ export interface RackOverviewHistoryRecord {
   worstMetricValueText: string;
 }
 
+export interface RackOverviewNodeSnapshotRecord {
+  nodeId: string;
+  summaryTs: string;
+  maxSeverityCode: number;
+  hasOverrideFlag: number;
+  isAnyStale: number;
+  staleMetricCount: number;
+  criticalMetricCount: number;
+  warningMetricCount: number;
+  cpuUsagePctCurrent: number | null;
+  memoryUsagePctCurrent: number | null;
+  diskUsagePctCurrent: number | null;
+  cpuTemperatureCCurrent: number | null;
+  worstMetricKey: string | null;
+  worstMetricValueNumeric: number | null;
+  worstMetricValueText: string | null;
+}
+
 export abstract class RackOverviewReadRepository {
   abstract listCurrentRacks(): Promise<RackOverviewCurrentRackRecord[]>;
 
@@ -64,4 +82,17 @@ export abstract class RackOverviewReadRepository {
   abstract getCurrentRackSummary(): Promise<RackOverviewCurrentRackSummary>;
 
   abstract listRecentRackHistory(): Promise<RackOverviewHistoryRecord[]>;
+
+  abstract getCurrentRack(
+    rackId: string,
+  ): Promise<RackOverviewCurrentRackRecord | null>;
+
+  abstract listRecentRackHistoryByRackId(
+    rackId: string,
+  ): Promise<RackOverviewHistoryRecord[]>;
+
+  abstract listRackNodeSnapshot(
+    rackId: string,
+    limit: number,
+  ): Promise<RackOverviewNodeSnapshotRecord[]>;
 }

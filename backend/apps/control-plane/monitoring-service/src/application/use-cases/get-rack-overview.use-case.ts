@@ -138,7 +138,9 @@ export class GetRackOverviewUseCase {
     private readonly rackContextProvider: RackContextProvider,
   ) {}
 
-  async execute(query: GetRackOverviewQuery = {}): Promise<RackOverviewResponseView> {
+  async execute(
+    query: GetRackOverviewQuery = {},
+  ): Promise<RackOverviewResponseView> {
     const generatedAt = new Date();
     const normalizedQuery = normalizeQuery(query);
 
@@ -147,7 +149,9 @@ export class GetRackOverviewUseCase {
       this.rackOverviewReadRepository.listRecentRackHistory(),
     ]);
 
-    const visibleRacks = currentRacks.filter((rack) => isUsableRackId(rack.rackId));
+    const visibleRacks = currentRacks.filter((rack) =>
+      isUsableRackId(rack.rackId),
+    );
     const rackContextMap = await this.rackContextProvider.batchGetRacks(
       visibleRacks.map((rack) => rack.rackId),
     );
@@ -165,10 +169,18 @@ export class GetRackOverviewUseCase {
       matchesRackFilters(rack, normalizedQuery),
     );
     const sortedRacks = [...filteredRacks].sort((left, right) =>
-      compareRackItems(left, right, normalizedQuery.sortBy, normalizedQuery.sortOrder),
+      compareRackItems(
+        left,
+        right,
+        normalizedQuery.sortBy,
+        normalizedQuery.sortOrder,
+      ),
     );
     const totalItems = sortedRacks.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / normalizedQuery.limit));
+    const totalPages = Math.max(
+      1,
+      Math.ceil(totalItems / normalizedQuery.limit),
+    );
     const currentPage = Math.min(normalizedQuery.page, totalPages);
     const start = (currentPage - 1) * normalizedQuery.limit;
     const racks = sortedRacks.slice(start, start + normalizedQuery.limit);
@@ -205,70 +217,84 @@ export class GetRackOverviewUseCase {
     generatedAt: Date,
     rackContext?: RackContextRecord,
   ): RackOverviewItemView {
-    const historyEnrichment = buildRackOverviewHistoryEnrichment(
+    return buildRackOverviewItemFromRecord(
       rack,
       history,
       generatedAt,
+      rackContext,
     );
-    const metricTags = parseMetricTagsJson(rack.worstMetricTagsJson);
-    const fallbackId = rack.rackId;
-    const rackUpdatedAt = toIsoString(rack.summaryTs);
-
-    return {
-      rackInfo: {
-        id: fallbackId,
-        rackCode: rackContext?.rackCode?.trim() || fallbackId,
-        displayName: rackContext?.displayName?.trim() || fallbackId,
-        lifecycleState: normalizeNullableString(rackContext?.lifecycleState),
-        capacityState: normalizeNullableString(rackContext?.capacityState),
-        siteCode: normalizeNullableString(rackContext?.siteCode),
-        roomCode: normalizeNullableString(rackContext?.roomCode),
-        rowCode: normalizeNullableString(rackContext?.rowCode),
-        positionCode: normalizeNullableString(rackContext?.positionCode),
-        capacityLimit: rackContext?.capacityLimit ?? null,
-        notes: normalizeNullableString(rackContext?.notes),
-        vendor: normalizeNullableString(rackContext?.vendor),
-        metadata: rackContext?.metadata ?? {},
-        updatedAt: rackUpdatedAt,
-      },
-      healthStatus: {
-        severityCode: rack.rackSeverityCode,
-        severityText: toSeverityText(rack.rackSeverityCode),
-        isRackLevelFailure: toBinaryFlag(rack.isRackLevelFailure) === 1,
-        hasSignalLoss: toBinaryFlag(rack.hasSignalLoss) === 1,
-        hasOverrideFlag: toBinaryFlag(rack.hasOverrideFlag) === 1,
-      },
-      blastRadius: {
-        totalNodes: rack.totalNodes,
-        badNodes: rack.badNodes,
-        criticalNodes: rack.criticalNodes,
-        warningNodes: rack.warningNodes,
-        staleNodes: rack.staleNodes,
-        silentDeadNodes: rack.silentDeadNodes,
-        badNodeRatio: rack.badNodeRatio,
-      },
-      aggregateMetrics: {
-        avgCpuUsagePct: rack.avgCpuUsagePct,
-        avgMemoryUsedPct: rack.avgMemoryUsedPct,
-        maxDiskUsedPct: rack.maxDiskUsedPct,
-        maxCpuTemperatureC: rack.maxCpuTemperatureC,
-        sumNetworkRxBytesSec: rack.sumNetworkRxBytesSec,
-        sumNetworkTxBytesSec: rack.sumNetworkTxBytesSec,
-      },
-      culprit: {
-        worstNodeId: rack.worstNodeId,
-        worstMetricKey: rack.worstMetricKey,
-        worstMetricTags: metricTags,
-        worstMetricValueNumeric: rack.worstMetricValueNumeric,
-        worstMetricValueText: normalizeNullableString(rack.worstMetricValueText),
-      },
-      trend: {
-        delta1m: historyEnrichment.severityTrendDelta1m,
-        delta5m: historyEnrichment.severityTrendDelta5m,
-        lastChangeAgeSec: historyEnrichment.lastChangeAgeSec,
-      },
-    };
   }
+}
+
+export function buildRackOverviewItemFromRecord(
+  rack: RackOverviewCurrentRackRecord,
+  history: RackOverviewHistoryRecord[],
+  generatedAt: Date,
+  rackContext?: RackContextRecord,
+): RackOverviewItemView {
+  const historyEnrichment = buildRackOverviewHistoryEnrichment(
+    rack,
+    history,
+    generatedAt,
+  );
+  const metricTags = parseMetricTagsJson(rack.worstMetricTagsJson);
+  const fallbackId = rack.rackId;
+  const rackUpdatedAt = toIsoString(rack.summaryTs);
+
+  return {
+    rackInfo: {
+      id: fallbackId,
+      rackCode: rackContext?.rackCode?.trim() || fallbackId,
+      displayName: rackContext?.displayName?.trim() || fallbackId,
+      lifecycleState: normalizeNullableString(rackContext?.lifecycleState),
+      capacityState: normalizeNullableString(rackContext?.capacityState),
+      siteCode: normalizeNullableString(rackContext?.siteCode),
+      roomCode: normalizeNullableString(rackContext?.roomCode),
+      rowCode: normalizeNullableString(rackContext?.rowCode),
+      positionCode: normalizeNullableString(rackContext?.positionCode),
+      capacityLimit: rackContext?.capacityLimit ?? null,
+      notes: normalizeNullableString(rackContext?.notes),
+      vendor: normalizeNullableString(rackContext?.vendor),
+      metadata: rackContext?.metadata ?? {},
+      updatedAt: rackUpdatedAt,
+    },
+    healthStatus: {
+      severityCode: rack.rackSeverityCode,
+      severityText: toSeverityText(rack.rackSeverityCode),
+      isRackLevelFailure: toBinaryFlag(rack.isRackLevelFailure) === 1,
+      hasSignalLoss: toBinaryFlag(rack.hasSignalLoss) === 1,
+      hasOverrideFlag: toBinaryFlag(rack.hasOverrideFlag) === 1,
+    },
+    blastRadius: {
+      totalNodes: rack.totalNodes,
+      badNodes: rack.badNodes,
+      criticalNodes: rack.criticalNodes,
+      warningNodes: rack.warningNodes,
+      staleNodes: rack.staleNodes,
+      silentDeadNodes: rack.silentDeadNodes,
+      badNodeRatio: rack.badNodeRatio,
+    },
+    aggregateMetrics: {
+      avgCpuUsagePct: rack.avgCpuUsagePct,
+      avgMemoryUsedPct: rack.avgMemoryUsedPct,
+      maxDiskUsedPct: rack.maxDiskUsedPct,
+      maxCpuTemperatureC: rack.maxCpuTemperatureC,
+      sumNetworkRxBytesSec: rack.sumNetworkRxBytesSec,
+      sumNetworkTxBytesSec: rack.sumNetworkTxBytesSec,
+    },
+    culprit: {
+      worstNodeId: rack.worstNodeId,
+      worstMetricKey: rack.worstMetricKey,
+      worstMetricTags: metricTags,
+      worstMetricValueNumeric: rack.worstMetricValueNumeric,
+      worstMetricValueText: normalizeNullableString(rack.worstMetricValueText),
+    },
+    trend: {
+      delta1m: historyEnrichment.severityTrendDelta1m,
+      delta5m: historyEnrichment.severityTrendDelta5m,
+      lastChangeAgeSec: historyEnrichment.lastChangeAgeSec,
+    },
+  };
 }
 
 type NormalizedRackOverviewQuery = {
@@ -282,7 +308,9 @@ type NormalizedRackOverviewQuery = {
   limit: number;
 };
 
-function normalizeQuery(query: GetRackOverviewQuery): NormalizedRackOverviewQuery {
+function normalizeQuery(
+  query: GetRackOverviewQuery,
+): NormalizedRackOverviewQuery {
   return {
     severity: normalizeSeverityFilter(query.severity),
     onlySignalLoss: toBoolean(query.onlySignalLoss),
@@ -291,7 +319,10 @@ function normalizeQuery(query: GetRackOverviewQuery): NormalizedRackOverviewQuer
     sortBy: normalizeSortBy(query.sortBy),
     sortOrder: normalizeSortOrder(query.sortOrder),
     page: normalizePositiveInt(query.page, DEFAULT_PAGE),
-    limit: Math.min(normalizePositiveInt(query.limit, DEFAULT_LIMIT), MAX_LIMIT),
+    limit: Math.min(
+      normalizePositiveInt(query.limit, DEFAULT_LIMIT),
+      MAX_LIMIT,
+    ),
   };
 }
 
@@ -326,7 +357,9 @@ function severityCodeToFilterLabel(value: string): string | null {
   }
 }
 
-function isSeverityFilter(value: string): value is (typeof ALL_SEVERITY_FILTERS)[number] {
+function isSeverityFilter(
+  value: string,
+): value is (typeof ALL_SEVERITY_FILTERS)[number] {
   return (ALL_SEVERITY_FILTERS as readonly string[]).includes(value);
 }
 
@@ -335,20 +368,33 @@ function normalizeSearch(value?: string): string {
 }
 
 function normalizeSortBy(value?: RackOverviewSortBy): RackOverviewSortBy {
-  if (value === 'badNodeRatio' || value === 'updatedAt' || value === 'severity') {
+  if (
+    value === 'badNodeRatio' ||
+    value === 'updatedAt' ||
+    value === 'severity'
+  ) {
     return value;
   }
 
   return DEFAULT_SORT_BY;
 }
 
-function normalizeSortOrder(value?: RackOverviewSortOrder): RackOverviewSortOrder {
+function normalizeSortOrder(
+  value?: RackOverviewSortOrder,
+): RackOverviewSortOrder {
   return value === 'asc' ? 'asc' : DEFAULT_SORT_ORDER;
 }
 
-function normalizePositiveInt(value: string | number | undefined, fallback: number): number {
+function normalizePositiveInt(
+  value: string | number | undefined,
+  fallback: number,
+): number {
   const parsed =
-    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : Number.NaN;
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number(value)
+        : Number.NaN;
   if (!Number.isFinite(parsed) || parsed < 1) {
     return fallback;
   }
@@ -367,12 +413,19 @@ function toBoolean(value: boolean | string | undefined): boolean {
 function buildGlobalCounters(racks: RackOverviewItemView[]) {
   return {
     totalRacks: racks.length,
-    criticalCount: racks.filter((rack) => rack.healthStatus.severityCode === 4).length,
-    highCount: racks.filter((rack) => rack.healthStatus.severityCode === 3).length,
-    warningCount: racks.filter((rack) => rack.healthStatus.severityCode === 2).length,
-    staleCount: racks.filter((rack) => rack.healthStatus.severityCode === 1).length,
-    healthyCount: racks.filter((rack) => rack.healthStatus.severityCode === 0).length,
-    globalRackLevelFailures: racks.filter((rack) => rack.healthStatus.isRackLevelFailure).length,
+    criticalCount: racks.filter((rack) => rack.healthStatus.severityCode === 4)
+      .length,
+    highCount: racks.filter((rack) => rack.healthStatus.severityCode === 3)
+      .length,
+    warningCount: racks.filter((rack) => rack.healthStatus.severityCode === 2)
+      .length,
+    staleCount: racks.filter((rack) => rack.healthStatus.severityCode === 1)
+      .length,
+    healthyCount: racks.filter((rack) => rack.healthStatus.severityCode === 0)
+      .length,
+    globalRackLevelFailures: racks.filter(
+      (rack) => rack.healthStatus.isRackLevelFailure,
+    ).length,
   };
 }
 
@@ -540,6 +593,8 @@ function parseTimestamp(value: string): number {
     return Number.NaN;
   }
 
-  const normalized = value.includes('T') ? value : `${value.replace(' ', 'T')}Z`;
+  const normalized = value.includes('T')
+    ? value
+    : `${value.replace(' ', 'T')}Z`;
   return new Date(normalized).getTime();
 }

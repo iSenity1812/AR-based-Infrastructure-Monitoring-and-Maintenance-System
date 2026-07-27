@@ -1,15 +1,21 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 
 import { PERMISSION_CODES } from '@adapters/inbound/http/constants/permission-code.constant';
 import { RequirePermissions } from '@adapters/inbound/http/decorators/require-permissions.decorator';
+import { GetRackInvestigationOverviewUseCase } from '../../../application/use-cases/get-rack-investigation-overview.use-case';
 import { GetRackOverviewUseCase } from '../../../application/use-cases/get-rack-overview.use-case';
+import {
+  MonitoringRackInvestigationOverviewResponseDto,
+  MonitoringRackInvestigationOverviewResponseEnvelopeDto,
+} from '../dto/rack-investigation-overview-response.dto';
 import {
   RackOverviewQueryDto,
   MonitoringRackOverviewResponseDto,
@@ -25,6 +31,7 @@ import { PermissionsGuard } from '@adapters/inbound/http/guards/permissions.guar
 export class RackOverviewController {
   constructor(
     private readonly getRackOverviewUseCase: GetRackOverviewUseCase,
+    private readonly getRackInvestigationOverviewUseCase: GetRackInvestigationOverviewUseCase,
   ) {}
 
   @Get('overview')
@@ -84,5 +91,24 @@ export class RackOverviewController {
     @Query() query: RackOverviewQueryDto,
   ): Promise<MonitoringRackOverviewResponseDto> {
     return this.getRackOverviewUseCase.execute(query);
+  }
+
+  @Get(':rackId/overview')
+  @RequirePermissions(PERMISSION_CODES.DASHBOARD_READ)
+  @ApiParam({
+    name: 'rackId',
+    description: 'Stable rack identifier from monitoring scope.',
+    example: 'rack-a1',
+  })
+  @ApiOperation({
+    summary: 'Get the operator-facing rack investigation overview payload.',
+  })
+  @ApiOkResponse({
+    type: MonitoringRackInvestigationOverviewResponseEnvelopeDto,
+  })
+  async getRackInvestigationOverview(
+    @Param('rackId') rackId: string,
+  ): Promise<MonitoringRackInvestigationOverviewResponseDto> {
+    return this.getRackInvestigationOverviewUseCase.execute(rackId);
   }
 }

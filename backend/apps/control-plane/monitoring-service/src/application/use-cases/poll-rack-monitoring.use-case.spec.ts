@@ -40,6 +40,9 @@ describe('PollRackMonitoringUseCase', () => {
       listCurrentRacksChangedSince: jest.fn().mockResolvedValue(rackRows),
       getCurrentRackSummary: jest.fn(),
       listRecentRackHistory: jest.fn(),
+      getCurrentRack: jest.fn(),
+      listRecentRackHistoryByRackId: jest.fn(),
+      listRackNodeSnapshot: jest.fn(),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
       listByScopeType: jest.fn(),
@@ -111,6 +114,9 @@ describe('PollRackMonitoringUseCase', () => {
       listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
       getCurrentRackSummary: jest.fn(),
       listRecentRackHistory: jest.fn(),
+      getCurrentRack: jest.fn(),
+      listRecentRackHistoryByRackId: jest.fn(),
+      listRackNodeSnapshot: jest.fn(),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
       listByScopeType: jest.fn(),
@@ -273,6 +279,9 @@ describe('PollRackMonitoringUseCase', () => {
       listCurrentRacksChangedSince: jest.fn().mockResolvedValue([]),
       getCurrentRackSummary: jest.fn(),
       listRecentRackHistory: jest.fn(),
+      getCurrentRack: jest.fn(),
+      listRecentRackHistoryByRackId: jest.fn(),
+      listRackNodeSnapshot: jest.fn(),
     };
     const monitoringStateRepository: MonitoringStateRepository = {
       listByScopeType: jest.fn(),

@@ -34,7 +34,8 @@ describe('AR asset overview and work-order use cases', () => {
   const assetClient = {
     serviceName: 'asset-service',
     resolveMarker: jest.fn(),
-    resolveAsset: jest.fn(),
+    resolveAssetById: jest.fn(),
+    resolveAssetByCode: jest.fn(),
   } satisfies jest.Mocked<AssetServiceClientPort>;
   const monitoringClient = {
     serviceName: 'monitoring-service',
@@ -51,7 +52,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('composes rack asset overview with Monitoring Service data', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetById.mockResolvedValue(rackAsset);
     monitoringClient.getAssetOverview.mockResolvedValue({
       state: 'healthy',
       activeAlertCount: 0,
@@ -62,7 +63,7 @@ describe('AR asset overview and work-order use cases', () => {
       monitoringClient,
     );
 
-    await expect(useCase.execute('rack', 'RACK-A1')).resolves.toEqual({
+    await expect(useCase.execute('rack', 'rack-1')).resolves.toEqual({
       asset: rackAsset,
       monitoring: {
         availability: { status: 'available' },
@@ -73,10 +74,15 @@ describe('AR asset overview and work-order use cases', () => {
       rackAsset,
       {},
     );
+    expect(assetClient.resolveAssetById).toHaveBeenCalledWith(
+      'rack',
+      'rack-1',
+      {},
+    );
   });
 
   it('returns node identity when Monitoring Service is unavailable', async () => {
-    assetClient.resolveAsset.mockResolvedValue(nodeAsset);
+    assetClient.resolveAssetById.mockResolvedValue(nodeAsset);
     monitoringClient.getAssetOverview.mockRejectedValue(
       new DownstreamServiceError(
         'monitoring-service',
@@ -90,7 +96,7 @@ describe('AR asset overview and work-order use cases', () => {
       monitoringClient,
     );
 
-    await expect(useCase.execute('node', 'NODE-A1-01')).resolves.toEqual({
+    await expect(useCase.execute('node', 'node-1')).resolves.toEqual({
       asset: nodeAsset,
       monitoring: {
         availability: {
@@ -102,7 +108,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('does not call Monitoring Service when asset verification fails', async () => {
-    assetClient.resolveAsset.mockRejectedValue(
+    assetClient.resolveAssetById.mockRejectedValue(
       new DownstreamServiceError(
         'asset-service',
         'NOT_FOUND',
@@ -122,7 +128,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('lists work orders linked to a node assetRef', async () => {
-    assetClient.resolveAsset.mockResolvedValue(nodeAsset);
+    assetClient.resolveAssetById.mockResolvedValue(nodeAsset);
     incidentClient.listWorkOrders.mockResolvedValue([
       {
         ticketId: 'ticket-1',
@@ -144,7 +150,7 @@ describe('AR asset overview and work-order use cases', () => {
 
     const useCase = new ListArWorkOrdersUseCase(assetClient, incidentClient);
 
-    await expect(useCase.execute('node', 'NODE-A1-01')).resolves.toMatchObject({
+    await expect(useCase.execute('node', 'node-1')).resolves.toMatchObject({
       asset: nodeAsset,
       availability: { status: 'available' },
       workOrders: [{ ticketCode: 'WO-1' }],
@@ -163,12 +169,12 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('returns an empty work-order list when no tickets are linked', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetById.mockResolvedValue(rackAsset);
     incidentClient.listWorkOrders.mockResolvedValue([]);
 
     const useCase = new ListArWorkOrdersUseCase(assetClient, incidentClient);
 
-    await expect(useCase.execute('rack', 'RACK-A1')).resolves.toEqual({
+    await expect(useCase.execute('rack', 'rack-1')).resolves.toEqual({
       asset: rackAsset,
       availability: { status: 'available' },
       workOrders: [],
@@ -176,7 +182,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('does not call Incident Workflow when asset verification fails', async () => {
-    assetClient.resolveAsset.mockRejectedValue(
+    assetClient.resolveAssetById.mockRejectedValue(
       new DownstreamServiceError(
         'asset-service',
         'NOT_FOUND',
@@ -187,7 +193,7 @@ describe('AR asset overview and work-order use cases', () => {
     const useCase = new CreateArWorkOrderUseCase(assetClient, incidentClient);
 
     await expect(
-      useCase.execute('rack', 'UNKNOWN', {
+      useCase.execute('rack', 'missing-rack', {
         ticketCode: 'WO-1',
         title: 'Inspect rack',
         priority: 'HIGH',
@@ -197,7 +203,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('creates a work order with the resolved rack assetRef', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetById.mockResolvedValue(rackAsset);
     incidentClient.createWorkOrder.mockResolvedValue({
       ticketId: 'ticket-1',
       ticketCode: 'WO-1',
@@ -215,7 +221,7 @@ describe('AR asset overview and work-order use cases', () => {
     const useCase = new CreateArWorkOrderUseCase(assetClient, incidentClient);
 
     await expect(
-      useCase.execute('rack', 'RACK-A1', {
+      useCase.execute('rack', 'rack-1', {
         ticketCode: 'WO-1',
         title: 'Inspect rack',
         priority: 'HIGH',
@@ -243,7 +249,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('creates a work order with node rack context when available', async () => {
-    assetClient.resolveAsset.mockResolvedValue(nodeAsset);
+    assetClient.resolveAssetById.mockResolvedValue(nodeAsset);
     incidentClient.createWorkOrder.mockResolvedValue({
       ticketId: 'ticket-2',
       ticketCode: 'WO-2',
@@ -263,7 +269,7 @@ describe('AR asset overview and work-order use cases', () => {
     const useCase = new CreateArWorkOrderUseCase(assetClient, incidentClient);
 
     await expect(
-      useCase.execute('node', 'NODE-A1-01', {
+      useCase.execute('node', 'node-1', {
         ticketCode: 'WO-2',
         title: 'Replace node fan',
         priority: 'HIGH',
@@ -291,7 +297,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('maps forbidden work-order creation from Incident Workflow Service', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetById.mockResolvedValue(rackAsset);
     incidentClient.createWorkOrder.mockRejectedValue(
       new DownstreamServiceError(
         'incident-workflow-service',
@@ -303,7 +309,7 @@ describe('AR asset overview and work-order use cases', () => {
     const useCase = new CreateArWorkOrderUseCase(assetClient, incidentClient);
 
     await expect(
-      useCase.execute('rack', 'RACK-A1', {
+      useCase.execute('rack', 'rack-1', {
         ticketCode: 'WO-3',
         title: 'Inspect rack',
         priority: 'HIGH',
@@ -312,7 +318,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('maps conflicting work-order creation from Incident Workflow Service', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetById.mockResolvedValue(rackAsset);
     incidentClient.createWorkOrder.mockRejectedValue(
       new DownstreamServiceError(
         'incident-workflow-service',
@@ -324,7 +330,7 @@ describe('AR asset overview and work-order use cases', () => {
     const useCase = new CreateArWorkOrderUseCase(assetClient, incidentClient);
 
     await expect(
-      useCase.execute('rack', 'RACK-A1', {
+      useCase.execute('rack', 'rack-1', {
         ticketCode: 'WO-1',
         title: 'Inspect rack',
         priority: 'HIGH',
@@ -333,7 +339,7 @@ describe('AR asset overview and work-order use cases', () => {
   });
 
   it('maps Incident Workflow unavailable behavior for listing', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetById.mockResolvedValue(rackAsset);
     incidentClient.listWorkOrders.mockRejectedValue(
       new DownstreamServiceError(
         'incident-workflow-service',
@@ -344,7 +350,7 @@ describe('AR asset overview and work-order use cases', () => {
 
     const useCase = new ListArWorkOrdersUseCase(assetClient, incidentClient);
 
-    await expect(useCase.execute('rack', 'RACK-A1')).rejects.toThrow(
+    await expect(useCase.execute('rack', 'rack-1')).rejects.toThrow(
       ServiceUnavailableException,
     );
   });

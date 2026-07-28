@@ -30,13 +30,13 @@ export class ListArWorkOrdersUseCase {
 
   async execute(
     assetType: ArAssetType,
-    assetCode: string,
+    assetId: string,
     options: ResolveMarkerOptions = {},
   ): Promise<ArWorkOrderListDto> {
     try {
-      const asset = await this.assetServiceClient.resolveAsset(
+      const asset = await this.assetServiceClient.resolveAssetById(
         assetType,
-        assetCode,
+        assetId,
         options,
       );
       const assetRef = toAssetRef(asset);

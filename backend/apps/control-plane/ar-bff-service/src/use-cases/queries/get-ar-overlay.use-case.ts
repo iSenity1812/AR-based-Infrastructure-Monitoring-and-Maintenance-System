@@ -82,7 +82,7 @@ export class GetArOverlayUseCase {
 
       if (input.asset) {
         return {
-          asset: await this.assetServiceClient.resolveAsset(
+          asset: await this.assetServiceClient.resolveAssetByCode(
             input.asset.assetType,
             input.asset.assetCode,
             options,

@@ -27,14 +27,14 @@ export class CreateArWorkOrderUseCase {
 
   async execute(
     assetType: ArAssetType,
-    assetCode: string,
+    assetId: string,
     input: ArCreateWorkOrderInputDto,
     options: ResolveMarkerOptions = {},
   ): Promise<ArCreateWorkOrderResultDto> {
     try {
-      const asset = await this.assetServiceClient.resolveAsset(
+      const asset = await this.assetServiceClient.resolveAssetById(
         assetType,
-        assetCode,
+        assetId,
         options,
       );
       const workOrder =

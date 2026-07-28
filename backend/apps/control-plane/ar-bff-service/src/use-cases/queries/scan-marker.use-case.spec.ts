@@ -10,7 +10,8 @@ describe('ScanMarkerUseCase', () => {
   const assetClient = {
     serviceName: 'asset-service',
     resolveMarker: jest.fn(),
-    resolveAsset: jest.fn(),
+    resolveAssetById: jest.fn(),
+    resolveAssetByCode: jest.fn(),
   } satisfies jest.Mocked<AssetServiceClientPort>;
 
   const monitoringClient = {

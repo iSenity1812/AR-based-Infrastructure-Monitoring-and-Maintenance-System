@@ -19,7 +19,7 @@ export class MonitoringServiceHttpClient implements MonitoringServiceClientPort 
     const path =
       asset.assetType === 'rack'
         ? `/monitoring/racks/${encodeURIComponent(asset.assetId)}/overview`
-        : `/monitoring/nodes/${encodeURIComponent(asset.assetId)}/overview`;
+        : `/monitoring/nodes/${encodeURIComponent(asset.assetCode)}/overview`;
     const response = await this.fetchJson(path, options);
 
     return unwrapData(response);

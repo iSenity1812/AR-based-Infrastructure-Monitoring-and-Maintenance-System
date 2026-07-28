@@ -28,7 +28,8 @@ describe('GetArOverlayUseCase', () => {
   const assetClient = {
     serviceName: 'asset-service',
     resolveMarker: jest.fn(),
-    resolveAsset: jest.fn(),
+    resolveAssetById: jest.fn(),
+    resolveAssetByCode: jest.fn(),
   } satisfies jest.Mocked<AssetServiceClientPort>;
   const monitoringClient = {
     serviceName: 'monitoring-service',
@@ -97,7 +98,7 @@ describe('GetArOverlayUseCase', () => {
   });
 
   it('composes a full node overlay from an already resolved asset reference', async () => {
-    assetClient.resolveAsset.mockResolvedValue(nodeAsset);
+    assetClient.resolveAssetByCode.mockResolvedValue(nodeAsset);
     monitoringClient.getAssetOverview.mockResolvedValue({ state: 'alerting' });
     incidentClient.listWorkOrders.mockResolvedValue([]);
 
@@ -121,7 +122,7 @@ describe('GetArOverlayUseCase', () => {
   });
 
   it('returns partial metadata when monitoring is unavailable', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetByCode.mockResolvedValue(rackAsset);
     monitoringClient.getAssetOverview.mockRejectedValue(
       new DownstreamServiceError(
         'monitoring-service',
@@ -152,7 +153,7 @@ describe('GetArOverlayUseCase', () => {
   });
 
   it('returns partial metadata when work orders are unavailable', async () => {
-    assetClient.resolveAsset.mockResolvedValue(rackAsset);
+    assetClient.resolveAssetByCode.mockResolvedValue(rackAsset);
     monitoringClient.getAssetOverview.mockResolvedValue({ state: 'healthy' });
     incidentClient.listWorkOrders.mockRejectedValue(
       new DownstreamServiceError(
@@ -203,7 +204,7 @@ describe('GetArOverlayUseCase', () => {
   });
 
   it('treats asset resolution failure as a hard overlay failure', async () => {
-    assetClient.resolveAsset.mockRejectedValue(
+    assetClient.resolveAssetByCode.mockRejectedValue(
       new DownstreamServiceError(
         'asset-service',
         'UNAVAILABLE',

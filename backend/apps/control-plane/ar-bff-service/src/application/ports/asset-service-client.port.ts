@@ -18,7 +18,13 @@ export abstract class AssetServiceClientPort {
     options?: ResolveMarkerOptions,
   ): Promise<AssetMarkerResolutionDto>;
 
-  abstract resolveAsset(
+  abstract resolveAssetById(
+    assetType: ArAssetType,
+    assetId: string,
+    options?: ResolveMarkerOptions,
+  ): Promise<ArResolvedAssetDto>;
+
+  abstract resolveAssetByCode(
     assetType: ArAssetType,
     assetCode: string,
     options?: ResolveMarkerOptions,

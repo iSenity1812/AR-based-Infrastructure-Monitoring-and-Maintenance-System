@@ -34,19 +34,27 @@ describe('ArAssetsController', () => {
     const headers = { authorization: 'Bearer token' };
 
     await expect(
-      controller.getOverview('rack', 'RACK-A1', auth, headers),
+      controller.getOverview('rack', 'rack-1', auth, headers),
     ).resolves.toEqual({ ok: 'overview' });
     await expect(
-      controller.listWorkOrders('rack', 'RACK-A1', auth, headers),
+      controller.listWorkOrders('rack', 'rack-1', auth, headers),
     ).resolves.toEqual({ ok: 'list' });
     await expect(
       controller.createWorkOrder(
         'rack',
-        'RACK-A1',
+        'rack-1',
         { ticketCode: 'WO-1', title: 'Inspect rack', priority: 'HIGH' },
         auth,
         headers,
       ),
     ).resolves.toEqual({ ok: 'create' });
+    expect(getOverview).toHaveBeenCalledWith('rack', 'rack-1', headers);
+    expect(listWorkOrders).toHaveBeenCalledWith('rack', 'rack-1', headers);
+    expect(createWorkOrder).toHaveBeenCalledWith(
+      'rack',
+      'rack-1',
+      { ticketCode: 'WO-1', title: 'Inspect rack', priority: 'HIGH' },
+      headers,
+    );
   });
 });

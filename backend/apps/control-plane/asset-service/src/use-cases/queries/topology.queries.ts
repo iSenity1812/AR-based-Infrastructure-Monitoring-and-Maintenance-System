@@ -102,6 +102,28 @@ export class GetAssetByCodeUseCase {
 }
 
 @Injectable()
+export class GetAssetByIdUseCase {
+  constructor(
+    private readonly assetContextReadService: AssetContextReadService,
+  ) {}
+
+  async execute(type: AssetType, assetId: string) {
+    const asset = await this.assetContextReadService.findAssetById(
+      type,
+      assetId,
+    );
+    if (!asset) {
+      throw new NotFoundUseCaseError(
+        `Asset ${type}:${assetId} was not found.`,
+        ErrorCode.NOT_FOUND,
+      );
+    }
+
+    return asset;
+  }
+}
+
+@Injectable()
 export class ResolveMarkerUseCase {
   constructor(
     private readonly assetContextReadService: AssetContextReadService,

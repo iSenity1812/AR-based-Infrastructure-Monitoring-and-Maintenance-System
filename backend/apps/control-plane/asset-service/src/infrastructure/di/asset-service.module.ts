@@ -58,6 +58,7 @@ import {
 } from '@use-cases/commands/topology';
 import {
   GetAssetByCodeUseCase,
+  GetAssetByIdUseCase,
   GetNodeContextUseCase,
   GetRackTopologyUseCase,
   GetRackSummaryByCodeUseCase,
@@ -184,6 +185,7 @@ import { LoggingInterceptor } from '@presentation/interceptors/logging.intercept
     ListPendingAssignmentNodesUseCase,
     ListUnassignedNodesUseCase,
     GetAssetByCodeUseCase,
+    GetAssetByIdUseCase,
     ResolveMarkerUseCase,
     SearchAssetsUseCase,
   ],

@@ -49,12 +49,30 @@ export class AssetServiceHttpClient implements AssetServiceClientPort {
     return body.data;
   }
 
-  async resolveAsset(
+  async resolveAssetById(
+    assetType: ArAssetType,
+    assetId: string,
+    options: ResolveMarkerOptions = {},
+  ): Promise<ArResolvedAssetDto> {
+    const response = await this.fetchAssetById(assetType, assetId, options);
+    return this.readResolvedAsset(response, assetType, assetId, options);
+  }
+
+  async resolveAssetByCode(
     assetType: ArAssetType,
     assetCode: string,
     options: ResolveMarkerOptions = {},
   ): Promise<ArResolvedAssetDto> {
     const response = await this.fetchAssetByCode(assetCode, options);
+    return this.readResolvedAsset(response, assetType, assetCode, options);
+  }
+
+  private async readResolvedAsset(
+    response: Response,
+    assetType: ArAssetType,
+    assetIdentifier: string,
+    options: ResolveMarkerOptions,
+  ): Promise<ArResolvedAssetDto> {
     const body = await this.readEnvelope<{
       id: string;
       type: string;
@@ -66,7 +84,7 @@ export class AssetServiceHttpClient implements AssetServiceClientPort {
       throw new DownstreamServiceError(
         'asset-service',
         response.status === 404 ? 'NOT_FOUND' : 'UNAVAILABLE',
-        `Asset ${assetCode} was not found.`,
+        `Asset ${assetIdentifier} was not found.`,
       );
     }
 
@@ -75,7 +93,7 @@ export class AssetServiceHttpClient implements AssetServiceClientPort {
       throw new DownstreamServiceError(
         'asset-service',
         'NOT_FOUND',
-        `Asset ${assetCode} is not a ${assetType}.`,
+        `Asset ${assetIdentifier} is not a ${assetType}.`,
       );
     }
 
@@ -111,6 +129,17 @@ export class AssetServiceHttpClient implements AssetServiceClientPort {
         'Asset Service is unavailable.',
       );
     }
+  }
+
+  private async fetchAssetById(
+    assetType: ArAssetType,
+    assetId: string,
+    options: ResolveMarkerOptions,
+  ): Promise<Response> {
+    return this.fetchAssetService(
+      `/assets/${encodeURIComponent(assetType)}/${encodeURIComponent(assetId)}`,
+      options,
+    );
   }
 
   private async fetchAssetByCode(

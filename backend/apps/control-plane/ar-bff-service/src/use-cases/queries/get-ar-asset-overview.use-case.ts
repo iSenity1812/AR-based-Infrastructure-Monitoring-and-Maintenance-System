@@ -23,13 +23,13 @@ export class GetArAssetOverviewUseCase {
 
   async execute(
     assetType: ArAssetType,
-    assetCode: string,
+    assetId: string,
     options: ResolveMarkerOptions = {},
   ): Promise<ArAssetOverviewDto> {
     try {
-      const asset = await this.assetServiceClient.resolveAsset(
+      const asset = await this.assetServiceClient.resolveAssetById(
         assetType,
-        assetCode,
+        assetId,
         options,
       );
 

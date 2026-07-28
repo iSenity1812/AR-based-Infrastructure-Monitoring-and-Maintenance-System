@@ -49,46 +49,46 @@ export class ArAssetsController {
     private readonly createWorkOrderUseCase: CreateArWorkOrderUseCase,
   ) {}
 
-  @Get(':assetType/:assetCode/overview')
+  @Get(':assetType/:assetId/overview')
   @RequirePermissions(PERMISSION_CODES.DASHBOARD_READ)
   @ApiOperation({ summary: 'Get AR asset identity and monitoring overview.' })
   @ApiParam({ name: 'assetType', enum: ['rack', 'node'] })
   async getOverview(
     @Param('assetType') assetType: ArAssetType,
-    @Param('assetCode') assetCode: string,
+    @Param('assetId') assetId: string,
     @CurrentAuthContext() _context: CurrentAuthContextDto,
     @RequestHeaders() headers: ArRequestHeaders,
   ) {
-    return this.getOverviewUseCase.execute(assetType, assetCode, headers);
+    return this.getOverviewUseCase.execute(assetType, assetId, headers);
   }
 
-  @Get(':assetType/:assetCode/work-orders')
+  @Get(':assetType/:assetId/work-orders')
   @RequirePermissions(PERMISSION_CODES.TICKETS_READ)
   @ApiOperation({ summary: 'List work orders linked to an AR asset.' })
   @ApiParam({ name: 'assetType', enum: ['rack', 'node'] })
   async listWorkOrders(
     @Param('assetType') assetType: ArAssetType,
-    @Param('assetCode') assetCode: string,
+    @Param('assetId') assetId: string,
     @CurrentAuthContext() _context: CurrentAuthContextDto,
     @RequestHeaders() headers: ArRequestHeaders,
   ) {
-    return this.listWorkOrdersUseCase.execute(assetType, assetCode, headers);
+    return this.listWorkOrdersUseCase.execute(assetType, assetId, headers);
   }
 
-  @Post(':assetType/:assetCode/work-orders')
+  @Post(':assetType/:assetId/work-orders')
   @RequirePermissions(PERMISSION_CODES.TICKETS_CREATE)
   @ApiOperation({ summary: 'Create a work order linked to an AR asset.' })
   @ApiParam({ name: 'assetType', enum: ['rack', 'node'] })
   async createWorkOrder(
     @Param('assetType') assetType: ArAssetType,
-    @Param('assetCode') assetCode: string,
+    @Param('assetId') assetId: string,
     @Body() body: CreateArWorkOrderRequestDto,
     @CurrentAuthContext() _context: CurrentAuthContextDto,
     @RequestHeaders() headers: ArRequestHeaders,
   ) {
     return this.createWorkOrderUseCase.execute(
       assetType,
-      assetCode,
+      assetId,
       body,
       headers,
     );

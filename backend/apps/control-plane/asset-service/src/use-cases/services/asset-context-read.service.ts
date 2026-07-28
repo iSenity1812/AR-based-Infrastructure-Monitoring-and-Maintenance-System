@@ -276,6 +276,40 @@ export class AssetContextReadService {
     return null;
   }
 
+  async findAssetById(
+    type: AssetType,
+    assetId: string,
+  ): Promise<AssetSummary | null> {
+    switch (type) {
+      case AssetType.RACK: {
+        const rack = await this.rackRepository.findById(assetId);
+        return rack
+          ? buildAssetSummary(
+              rack.id,
+              AssetType.RACK,
+              rack.rackCode,
+              rack.displayName,
+              rack.lifecycleState,
+            )
+          : null;
+      }
+      case AssetType.NODE: {
+        const node = await this.nodeRepository.findById(assetId);
+        return node
+          ? buildAssetSummary(
+              node.id,
+              AssetType.NODE,
+              node.nodeCode,
+              node.displayName,
+              node.lifecycleState,
+            )
+          : null;
+      }
+      default:
+        return null;
+    }
+  }
+
   async searchAssets(
     query?: string,
     type?: AssetType,

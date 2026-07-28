@@ -2,7 +2,9 @@ import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
+import { AssetType } from '@domain/constants/asset-type.enum';
 import {
+  GetAssetByIdUseCase,
   GetAssetByCodeUseCase,
   GetNodeContextUseCase,
   GetRackTopologyUseCase,
@@ -38,6 +40,7 @@ export class AssetQueryController {
     private readonly getRackTopologyUseCase: GetRackTopologyUseCase,
     private readonly getNodeContextUseCase: GetNodeContextUseCase,
     private readonly getAssetByCodeUseCase: GetAssetByCodeUseCase,
+    private readonly getAssetByIdUseCase: GetAssetByIdUseCase,
     private readonly resolveMarkerUseCase: ResolveMarkerUseCase,
     private readonly searchAssetsUseCase: SearchAssetsUseCase,
   ) {}
@@ -89,6 +92,20 @@ export class AssetQueryController {
   ) {
     return serializeEnvelope(
       await this.getAssetByCodeUseCase.execute(code),
+      responseMeta(request),
+    );
+  }
+
+  @Get('assets/:assetType/:assetId')
+  @RequirePermissions(PERMISSION_CODES.ASSETS_HEALTH_READ)
+  @ApiOperation({ summary: 'Find an asset summary by type and id.' })
+  async getAssetById(
+    @Param('assetType') assetType: AssetType,
+    @Param('assetId') assetId: string,
+    @Req() request: HeaderRequest,
+  ) {
+    return serializeEnvelope(
+      await this.getAssetByIdUseCase.execute(assetType, assetId),
       responseMeta(request),
     );
   }

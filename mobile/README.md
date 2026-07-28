@@ -24,7 +24,7 @@ For physical devices, replace `localhost` with the machine LAN IP through Expo c
 - Technician ticket queue with incident, urgency, waiting, and search filters
 - Ticket detail with acknowledge, completion, comments, evidence, and incident context
 - Completed-work history and technician profile
-- Center WebAR action that opens the configured browser experience directly
+- Center Scan action that opens the in-app camera, validates an asset QR, and then launches the configured WebAR experience
 - Persisted light and dark appearance modes
 
 ## Folder Layout

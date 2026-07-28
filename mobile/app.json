@@ -21,6 +21,12 @@
       "expo-router",
       "expo-secure-store",
       "expo-image-picker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow AR-IMMS Field to scan Rack and Node QR codes"
+        }
+      ],
       "expo-asset",
       "expo-font"
     ],

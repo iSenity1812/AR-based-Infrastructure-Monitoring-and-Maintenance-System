@@ -1,4 +1,5 @@
 import { RoleCode } from '../../domain/constants/role-code.enum';
+import { UserStatus } from '../../domain/constants/user-status.enum';
 import { buildSystemRoles } from '../../domain/policies/system-role.policy';
 import { PasswordHasherPort } from '../../domain/ports/password-hasher.port';
 import { RoleRepositoryPort } from '../../domain/ports/role-repository.port';
@@ -42,12 +43,29 @@ export class SeedIdentityUseCase {
       input.username,
       input.email.toLowerCase(),
     );
+    const passwordChangedAt = new Date();
 
     if (exists) {
+      const existingUser = await this.userRepository.findByEmail(
+        input.email.toLowerCase(),
+      );
+
+      if (!existingUser) {
+        return;
+      }
+
+      await this.userRepository.updateStatus(
+        existingUser.id,
+        UserStatus.ACTIVE,
+      );
+      await this.userRepository.updateRoles(existingUser.id, input.roleCodes);
+      await this.userRepository.updatePassword(
+        existingUser.id,
+        await this.passwordHasher.hash(input.password),
+        passwordChangedAt,
+      );
       return;
     }
-
-    const passwordChangedAt = new Date();
 
     await this.userRepository.create({
       username: input.username,

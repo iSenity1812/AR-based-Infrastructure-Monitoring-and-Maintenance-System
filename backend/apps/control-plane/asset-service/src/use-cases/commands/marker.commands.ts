@@ -50,7 +50,7 @@ export class CreateMarkerUseCase {
       );
     }
 
-    return this.markerRepository.create({
+    const marker = await this.markerRepository.create({
       ...input,
       lifecycleState: MarkerLifecycleState.DRAFT,
       bindingStatus: input.targetId ? 'BOUND_PENDING_VALIDATION' : 'UNBOUND',
@@ -59,6 +59,21 @@ export class CreateMarkerUseCase {
       worldTrackingEnabled: input.worldTrackingEnabled ?? true,
       metadata: input.metadata ?? {},
     });
+
+    if (input.targetType === MarkerTargetType.NODE && input.targetId) {
+      await this.assetContextReadService.invalidateNodeContext(
+        input.targetId,
+        input.markerCode,
+      );
+    }
+    if (input.targetType === MarkerTargetType.RACK && input.targetId) {
+      await this.assetContextReadService.invalidateRackTopology(input.targetId);
+      await this.assetContextReadService.invalidateMarkerResolution(
+        input.markerCode,
+      );
+    }
+
+    return marker;
   }
 }
 

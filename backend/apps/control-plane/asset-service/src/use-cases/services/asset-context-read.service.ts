@@ -108,10 +108,15 @@ export class AssetContextReadService {
     const snapshots = await Promise.all(
       nodes.map(async (node) => this.snapshotRepository.findByNodeId(node.id)),
     );
+    const markers = await this.markerRepository.listByTarget(
+      MarkerTargetType.RACK,
+      rackId,
+    );
 
     const topology: RackTopologyResult = {
       rack,
       nodes,
+      markers,
       nodeRuntimeSnapshots: snapshots.filter(
         (snapshot): snapshot is NonNullable<typeof snapshot> =>
           Boolean(snapshot),
@@ -119,7 +124,7 @@ export class AssetContextReadService {
     };
 
     this.logger.log(
-      `getRackTopology(${rackId}) loaded rack=${rack.rackCode} nodes=${nodes.length} snapshots=${topology.nodeRuntimeSnapshots.length}`,
+      `getRackTopology(${rackId}) loaded rack=${rack.rackCode} nodes=${nodes.length} markers=${markers.length} snapshots=${topology.nodeRuntimeSnapshots.length}`,
     );
     await this.cache.set(cacheKey, topology, 60_000);
     return topology;

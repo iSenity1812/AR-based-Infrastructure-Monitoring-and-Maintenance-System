@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { TicketStatus } from '@domain/constants/ticket-status.enum';
 import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
+import type { TicketEntity } from '@domain/entities/ticket.entity';
 import {
   ACKNOWLEDGE_TICKET_USE_CASE,
   ADD_TICKET_COMMENT_USE_CASE,
@@ -52,7 +53,10 @@ import { CreateTicketEvidenceUploadUrlRequestDto } from '../dto/create-ticket-ev
 import { CreateTicketRequestDto } from '../dto/create-ticket-request.dto';
 import { ListTicketsQueryDto } from '../dto/list-tickets-query.dto';
 import { UpdateTicketStatusRequestDto } from '../dto/update-ticket-status-request.dto';
-import { TicketEventsService } from '../events/ticket-events.service';
+import {
+  TicketEventsService,
+  type TicketRealtimeEventType,
+} from '../events/ticket-events.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
 
@@ -91,7 +95,7 @@ export class TicketsController {
   @ApiOperation({ summary: 'Create a ticket.' })
   @RequirePermissions(PERMISSION_CODES.TICKETS_CREATE)
   async create(@Body() requestDto: CreateTicketRequestDto) {
-    return this.createTicketUseCase.execute({
+    const ticket = await this.createTicketUseCase.execute({
       ticketCode: requestDto.ticketCode,
       title: requestDto.title,
       description: requestDto.description,
@@ -102,6 +106,10 @@ export class TicketsController {
       assetRef: requestDto.assetRef,
       metadata: requestDto.metadata,
     });
+
+    this.publishTicketEvent('ticket.created', ticket, ticket.props.ownerUserId);
+
+    return ticket;
   }
 
   @Get()
@@ -134,7 +142,11 @@ export class TicketsController {
   @ApiOperation({ summary: 'Delete a ticket by id.' })
   @RequirePermissions(PERMISSION_CODES.TICKETS_CANCEL)
   async delete(@Param('id') ticketId: string) {
-    return this.deleteTicketUseCase.execute(ticketId);
+    const ticket = await this.deleteTicketUseCase.execute(ticketId);
+
+    this.publishTicketEvent('ticket.deleted', ticket);
+
+    return ticket;
   }
 
   @Patch(':id/status')
@@ -144,10 +156,14 @@ export class TicketsController {
     @Param('id') ticketId: string,
     @Body() requestDto: UpdateTicketStatusRequestDto,
   ) {
-    return this.transitionTicketStatusUseCase.execute(
+    const ticket = await this.transitionTicketStatusUseCase.execute(
       ticketId,
       requestDto.status,
     );
+
+    this.publishTicketEvent('ticket.status_changed', ticket);
+
+    return ticket;
   }
 
   @Post(':id/resolve')
@@ -157,13 +173,21 @@ export class TicketsController {
     @Param('id') ticketId: string,
     @CurrentAuthContext() authContext: CurrentAuthContextDto,
   ) {
-    return this.transitionTicketStatusUseCase.execute(
+    const ticket = await this.transitionTicketStatusUseCase.execute(
       ticketId,
       TicketStatus.RESOLVED,
       {
         actorUserId: authContext.userId,
       },
     );
+
+    this.publishTicketEvent(
+      'ticket.status_changed',
+      ticket,
+      authContext.userId,
+    );
+
+    return ticket;
   }
 
   @Post(':id/close')
@@ -175,13 +199,21 @@ export class TicketsController {
     @Param('id') ticketId: string,
     @CurrentAuthContext() authContext: CurrentAuthContextDto,
   ) {
-    return this.transitionTicketStatusUseCase.execute(
+    const ticket = await this.transitionTicketStatusUseCase.execute(
       ticketId,
       TicketStatus.CLOSED,
       {
         actorUserId: authContext.userId,
       },
     );
+
+    this.publishTicketEvent(
+      'ticket.status_changed',
+      ticket,
+      authContext.userId,
+    );
+
+    return ticket;
   }
 
   @Patch(':id/assignment')
@@ -192,11 +224,15 @@ export class TicketsController {
     @Body() requestDto: AssignTicketRequestDto,
     @CurrentAuthContext() authContext: CurrentAuthContextDto,
   ) {
-    return this.assignTicketUseCase.execute(ticketId, {
+    const ticket = await this.assignTicketUseCase.execute(ticketId, {
       actorUserId: authContext.userId,
       assigneeUserId: requestDto.assigneeUserId,
       message: requestDto.message,
     });
+
+    this.publishTicketEvent('ticket.assigned', ticket, authContext.userId);
+
+    return ticket;
   }
 
   @Post(':id/acknowledge')
@@ -206,9 +242,17 @@ export class TicketsController {
     @Param('id') ticketId: string,
     @CurrentAuthContext() authContext: CurrentAuthContextDto,
   ) {
-    return this.acknowledgeTicketUseCase.execute(ticketId, {
+    const ticket = await this.acknowledgeTicketUseCase.execute(ticketId, {
       actorUserId: authContext.userId,
     });
+
+    this.publishTicketEvent(
+      'ticket.status_changed',
+      ticket,
+      authContext.userId,
+    );
+
+    return ticket;
   }
 
   @Post(':id/comments')
@@ -219,10 +263,14 @@ export class TicketsController {
     @Body() requestDto: AddTicketCommentRequestDto,
     @CurrentAuthContext() authContext: CurrentAuthContextDto,
   ) {
-    return this.addTicketCommentUseCase.execute(ticketId, {
+    const ticket = await this.addTicketCommentUseCase.execute(ticketId, {
       actorUserId: authContext.userId,
       comment: requestDto.comment,
     });
+
+    this.publishTicketEvent('ticket.comment_added', ticket, authContext.userId);
+
+    return ticket;
   }
 
   @Post(':id/evidence')
@@ -233,10 +281,19 @@ export class TicketsController {
     @Body() requestDto: AttachTicketEvidenceRequestDto,
     @CurrentAuthContext() authContext: CurrentAuthContextDto,
   ) {
-    return this.attachTicketEvidenceUseCase.execute(ticketId, {
+    const ticket = await this.getTicketUseCase.execute(ticketId);
+    const evidence = await this.attachTicketEvidenceUseCase.execute(ticketId, {
       actorUserId: authContext.userId,
       ...requestDto,
     });
+
+    this.publishTicketEvent(
+      'ticket.evidence_attached',
+      ticket,
+      authContext.userId,
+    );
+
+    return evidence;
   }
 
   @Post(':id/evidence/upload-url')
@@ -260,5 +317,17 @@ export class TicketsController {
   @RequirePermissions(PERMISSION_CODES.TICKETS_READ)
   async listEvidence(@Param('id') ticketId: string) {
     return this.listTicketEvidenceUseCase.execute(ticketId);
+  }
+
+  private publishTicketEvent(
+    type: TicketRealtimeEventType,
+    ticket: TicketEntity,
+    actorUserId?: string | null,
+  ): void {
+    this.ticketEventsService.publishTicketEvent({
+      type,
+      ticket,
+      actorUserId: actorUserId ?? undefined,
+    });
   }
 }

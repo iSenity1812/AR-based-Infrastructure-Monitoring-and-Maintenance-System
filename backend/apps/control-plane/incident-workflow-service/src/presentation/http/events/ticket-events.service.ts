@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, type MessageEvent } from '@nestjs/common';
 import { filter, map, Observable, Subject } from 'rxjs';
 
@@ -5,6 +7,7 @@ import {
   PERMISSION_CODES,
   type PermissionCode,
 } from '@domain/constants/permission-code.constant';
+import type { TicketEntity } from '@domain/entities/ticket.entity';
 import { TicketPriority } from '@domain/constants/ticket-priority.enum';
 import { TicketStatus } from '@domain/constants/ticket-status.enum';
 import type { CurrentAuthContextDto } from '@use-cases/dto/current-auth-context.dto';
@@ -47,6 +50,28 @@ export class TicketEventsService {
 
   publish(event: TicketRealtimeEvent): void {
     this.events.next(event);
+  }
+
+  publishTicketEvent(input: {
+    type: TicketRealtimeEventType;
+    ticket: TicketEntity;
+    actorUserId?: string;
+  }): void {
+    this.publish({
+      id: randomUUID(),
+      type: input.type,
+      occurredAt: new Date().toISOString(),
+      ticket: {
+        id: input.ticket.props.id,
+        ticketCode: input.ticket.props.ticketCode,
+        title: input.ticket.props.title,
+        priority: input.ticket.props.priority,
+        status: input.ticket.props.status,
+        incidentId: input.ticket.props.incidentId,
+        assigneeUserId: input.ticket.props.assigneeUserId,
+      },
+      actorUserId: input.actorUserId,
+    });
   }
 
   streamFor(authContext: CurrentAuthContextDto): Observable<MessageEvent> {

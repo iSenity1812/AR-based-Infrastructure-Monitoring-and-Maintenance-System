@@ -30,14 +30,8 @@ export enum NodeAssignmentState {
 }
 
 export enum MarkerLifecycleState {
-  DRAFT = 'DRAFT',
-  GENERATED = 'GENERATED',
-  PRINTED = 'PRINTED',
-  MOUNTED = 'MOUNTED',
-  VALIDATED = 'VALIDATED',
+  INACTIVE = 'INACTIVE',
   ACTIVE = 'ACTIVE',
-  REMAPPED = 'REMAPPED',
-  RETIRED = 'RETIRED',
 }
 
 export enum NodeHealthState {

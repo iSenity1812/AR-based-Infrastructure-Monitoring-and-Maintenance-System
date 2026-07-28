@@ -35,13 +35,9 @@ import {
 import {
   ActivateMarkerUseCase,
   CreateMarkerUseCase,
-  GenerateMarkerUseCase,
-  MountMarkerUseCase,
-  PrintMarkerUseCase,
+  DeactivateMarkerUseCase,
   RemapMarkerUseCase,
-  RetireMarkerUseCase,
   UpdateMarkerUseCase,
-  ValidateMarkerUseCase,
 } from '@use-cases/commands/marker.commands';
 import { SeedAssetContextUseCase } from '@use-cases/commands/seed-asset-context.use-case';
 import {
@@ -173,13 +169,9 @@ import { LoggingInterceptor } from '@presentation/interceptors/logging.intercept
     RetireNodeUseCase,
     CreateMarkerUseCase,
     UpdateMarkerUseCase,
-    GenerateMarkerUseCase,
-    PrintMarkerUseCase,
-    MountMarkerUseCase,
-    ValidateMarkerUseCase,
     ActivateMarkerUseCase,
+    DeactivateMarkerUseCase,
     RemapMarkerUseCase,
-    RetireMarkerUseCase,
     SeedAssetContextUseCase,
     GetTopologyTreeUseCase,
     GetRackTopologyUseCase,

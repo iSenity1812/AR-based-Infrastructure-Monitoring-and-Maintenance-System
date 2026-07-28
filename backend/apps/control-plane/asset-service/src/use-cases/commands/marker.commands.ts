@@ -52,8 +52,8 @@ export class CreateMarkerUseCase {
 
     return this.markerRepository.create({
       ...input,
-      lifecycleState: MarkerLifecycleState.DRAFT,
-      bindingStatus: input.targetId ? 'BOUND_PENDING_VALIDATION' : 'UNBOUND',
+      lifecycleState: MarkerLifecycleState.INACTIVE,
+      bindingStatus: 'INACTIVE',
       isActive: false,
       isVisibleInAr: false,
       worldTrackingEnabled: input.worldTrackingEnabled ?? true,
@@ -118,145 +118,11 @@ export class UpdateMarkerUseCase {
 }
 
 @Injectable()
-export class GenerateMarkerUseCase {
-  constructor(
-    @Inject(MARKER_REPOSITORY)
-    private readonly markerRepository: MarkerRepositoryPort,
-  ) {}
-
-  async execute(markerId: string) {
-    return this.transition(markerId, [MarkerLifecycleState.DRAFT], {
-      lifecycleState: MarkerLifecycleState.GENERATED,
-    });
-  }
-
-  private async transition(
-    markerId: string,
-    allowed: MarkerLifecycleState[],
-    patch: Record<string, unknown>,
-  ) {
-    const marker = await this.markerRepository.findById(markerId);
-    if (!marker) {
-      throw new NotFoundUseCaseError(
-        `Marker ${markerId} was not found.`,
-        ErrorCode.ASSET_MARKER_NOT_FOUND,
-      );
-    }
-    if (!allowed.includes(marker.lifecycleState)) {
-      throw new BadRequestUseCaseError('Marker is not in the expected state.');
-    }
-    return this.markerRepository.update(markerId, patch);
-  }
-}
-
-@Injectable()
-export class PrintMarkerUseCase {
-  constructor(
-    @Inject(MARKER_REPOSITORY)
-    private readonly markerRepository: MarkerRepositoryPort,
-  ) {}
-
-  async execute(markerId: string) {
-    return this.transition(markerId, [MarkerLifecycleState.GENERATED], {
-      lifecycleState: MarkerLifecycleState.PRINTED,
-    });
-  }
-
-  private async transition(
-    markerId: string,
-    allowed: MarkerLifecycleState[],
-    patch: Record<string, unknown>,
-  ) {
-    const marker = await this.markerRepository.findById(markerId);
-    if (!marker) {
-      throw new NotFoundUseCaseError(
-        `Marker ${markerId} was not found.`,
-        ErrorCode.ASSET_MARKER_NOT_FOUND,
-      );
-    }
-    if (!allowed.includes(marker.lifecycleState)) {
-      throw new BadRequestUseCaseError('Marker is not in the expected state.');
-    }
-    return this.markerRepository.update(markerId, patch);
-  }
-}
-
-@Injectable()
-export class MountMarkerUseCase {
-  constructor(
-    @Inject(MARKER_REPOSITORY)
-    private readonly markerRepository: MarkerRepositoryPort,
-  ) {}
-
-  async execute(markerId: string) {
-    return this.transition(markerId, [MarkerLifecycleState.PRINTED], {
-      lifecycleState: MarkerLifecycleState.MOUNTED,
-      isVisibleInAr: true,
-    });
-  }
-
-  private async transition(
-    markerId: string,
-    allowed: MarkerLifecycleState[],
-    patch: Record<string, unknown>,
-  ) {
-    const marker = await this.markerRepository.findById(markerId);
-    if (!marker) {
-      throw new NotFoundUseCaseError(
-        `Marker ${markerId} was not found.`,
-        ErrorCode.ASSET_MARKER_NOT_FOUND,
-      );
-    }
-    if (!allowed.includes(marker.lifecycleState)) {
-      throw new BadRequestUseCaseError('Marker is not in the expected state.');
-    }
-    return this.markerRepository.update(markerId, patch);
-  }
-}
-
-@Injectable()
-export class ValidateMarkerUseCase {
-  constructor(
-    @Inject(MARKER_REPOSITORY)
-    private readonly markerRepository: MarkerRepositoryPort,
-  ) {}
-
-  async execute(markerId: string) {
-    return this.transition(
-      markerId,
-      [MarkerLifecycleState.MOUNTED, MarkerLifecycleState.REMAPPED],
-      {
-        lifecycleState: MarkerLifecycleState.VALIDATED,
-        bindingStatus: 'VALIDATED',
-        lastValidatedAt: new Date().toISOString(),
-      },
-    );
-  }
-
-  private async transition(
-    markerId: string,
-    allowed: MarkerLifecycleState[],
-    patch: Record<string, unknown>,
-  ) {
-    const marker = await this.markerRepository.findById(markerId);
-    if (!marker) {
-      throw new NotFoundUseCaseError(
-        `Marker ${markerId} was not found.`,
-        ErrorCode.ASSET_MARKER_NOT_FOUND,
-      );
-    }
-    if (!allowed.includes(marker.lifecycleState)) {
-      throw new BadRequestUseCaseError('Marker is not in the expected state.');
-    }
-    return this.markerRepository.update(markerId, patch);
-  }
-}
-
-@Injectable()
 export class ActivateMarkerUseCase {
   constructor(
     @Inject(MARKER_REPOSITORY)
     private readonly markerRepository: MarkerRepositoryPort,
+    private readonly assetContextReadService: AssetContextReadService,
   ) {}
 
   async execute(markerId: string) {
@@ -267,17 +133,54 @@ export class ActivateMarkerUseCase {
         ErrorCode.ASSET_MARKER_NOT_FOUND,
       );
     }
-    if (marker.lifecycleState !== MarkerLifecycleState.VALIDATED) {
+    if (!marker.targetType || !marker.targetId) {
       throw new BadRequestUseCaseError(
-        'Marker must be validated before activation.',
+        'Marker must be mapped before activation.',
+        ErrorCode.ASSET_MARKER_TARGET_INVALID,
       );
     }
-    return this.markerRepository.update(markerId, {
+    const updated = await this.markerRepository.update(markerId, {
       lifecycleState: MarkerLifecycleState.ACTIVE,
       isActive: true,
       bindingStatus: 'ACTIVE',
       isVisibleInAr: true,
     });
+
+    await this.assetContextReadService.invalidateMarkerResolution(
+      marker.markerCode,
+    );
+    return updated;
+  }
+}
+
+@Injectable()
+export class DeactivateMarkerUseCase {
+  constructor(
+    @Inject(MARKER_REPOSITORY)
+    private readonly markerRepository: MarkerRepositoryPort,
+    private readonly assetContextReadService: AssetContextReadService,
+  ) {}
+
+  async execute(markerId: string) {
+    const marker = await this.markerRepository.findById(markerId);
+    if (!marker) {
+      throw new NotFoundUseCaseError(
+        `Marker ${markerId} was not found.`,
+        ErrorCode.ASSET_MARKER_NOT_FOUND,
+      );
+    }
+
+    const updated = await this.markerRepository.update(markerId, {
+      lifecycleState: MarkerLifecycleState.INACTIVE,
+      isActive: false,
+      bindingStatus: 'INACTIVE',
+      isVisibleInAr: false,
+    });
+
+    await this.assetContextReadService.invalidateMarkerResolution(
+      marker.markerCode,
+    );
+    return updated;
   }
 }
 
@@ -320,40 +223,15 @@ export class RemapMarkerUseCase {
     const updated = await this.markerRepository.update(markerId, {
       targetType,
       targetId,
-      lifecycleState: MarkerLifecycleState.REMAPPED,
+      lifecycleState: MarkerLifecycleState.INACTIVE,
       isActive: false,
-      bindingStatus: 'REMAPPED_PENDING_VALIDATION',
-      isVisibleInAr: true,
+      bindingStatus: 'INACTIVE',
+      isVisibleInAr: false,
     });
 
     await this.assetContextReadService.invalidateMarkerResolution(
       marker.markerCode,
     );
     return updated;
-  }
-}
-
-@Injectable()
-export class RetireMarkerUseCase {
-  constructor(
-    @Inject(MARKER_REPOSITORY)
-    private readonly markerRepository: MarkerRepositoryPort,
-  ) {}
-
-  async execute(markerId: string) {
-    const marker = await this.markerRepository.findById(markerId);
-    if (!marker) {
-      throw new NotFoundUseCaseError(
-        `Marker ${markerId} was not found.`,
-        ErrorCode.ASSET_MARKER_NOT_FOUND,
-      );
-    }
-
-    return this.markerRepository.update(markerId, {
-      lifecycleState: MarkerLifecycleState.RETIRED,
-      isActive: false,
-      isVisibleInAr: false,
-      bindingStatus: 'RETIRED',
-    });
   }
 }

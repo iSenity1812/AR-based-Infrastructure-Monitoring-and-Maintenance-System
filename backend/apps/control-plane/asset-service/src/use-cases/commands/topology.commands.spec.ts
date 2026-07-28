@@ -4,10 +4,7 @@ import {
   RackCapacityState,
   RackLifecycleState,
 } from '@domain/entities/asset-context.entities';
-import type {
-  NodeRepositoryPort,
-  RackRepositoryPort,
-} from '@domain/ports/repositories.port';
+import type { RackRepositoryPort } from '@domain/ports/repositories.port';
 import { BadRequestUseCaseError } from '@use-cases/errors/use-case.errors';
 import { ConflictUseCaseError } from '@use-cases/errors/use-case.errors';
 import { ActivateMarkerUseCase } from './marker.commands';
@@ -1105,24 +1102,32 @@ describe('asset lifecycle commands', () => {
     expect(nodeMappingPublisher.publishNodeMapping).not.toHaveBeenCalled();
   });
 
-  it('does not allow marker activation before validation', async () => {
+  it('allows mapped inactive markers to activate without a validation workflow', async () => {
     const markerRepository = {
       findById: jest.fn().mockResolvedValue({
         id: 'marker-1',
         markerCode: 'MK-1',
-        lifecycleState: 'GENERATED',
+        lifecycleState: 'INACTIVE',
+        targetType: 'RACK',
+        targetId: 'rack-1',
       }),
       update: jest.fn(),
     };
 
-    const useCase = new ActivateMarkerUseCase(markerRepository as never);
-
-    await expect(useCase.execute('marker-1')).rejects.toBeInstanceOf(
-      BadRequestUseCaseError,
+    const useCase = new ActivateMarkerUseCase(
+      markerRepository as never,
+      {
+        invalidateMarkerResolution: jest.fn(),
+      } as never,
     );
+
+    await useCase.execute('marker-1');
+
+    expect(markerRepository.update).toHaveBeenCalledWith('marker-1', {
+      lifecycleState: 'ACTIVE',
+      isActive: true,
+      bindingStatus: 'ACTIVE',
+      isVisibleInAr: true,
+    });
   });
 });
-
-
-
-

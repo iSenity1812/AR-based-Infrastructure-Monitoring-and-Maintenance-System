@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { AssetType } from '@domain/constants/asset-type.enum';
 import { MarkerTargetType } from '@domain/constants/marker-target-type.enum';
+import { MarkerLifecycleState } from '@domain/entities/asset-context.entities';
 import type {
   AssetSummary,
   MarkerEntity,
@@ -27,6 +28,7 @@ import type {
 } from '@domain/ports/repositories.port';
 import { ErrorCode } from '@shared/errors/ts/error-code.enum';
 import {
+  BadRequestUseCaseError,
   ConflictUseCaseError,
   NotFoundUseCaseError,
 } from '@use-cases/errors/use-case.errors';
@@ -188,6 +190,15 @@ export class AssetContextReadService {
       throw new NotFoundUseCaseError(
         `Marker ${markerCode} was not found.`,
         ErrorCode.ASSET_MARKER_NOT_FOUND,
+      );
+    }
+    if (
+      !marker.isActive ||
+      marker.lifecycleState !== MarkerLifecycleState.ACTIVE
+    ) {
+      throw new BadRequestUseCaseError(
+        `Marker ${markerCode} is not active.`,
+        ErrorCode.ASSET_MARKER_NOT_ACTIVE,
       );
     }
 

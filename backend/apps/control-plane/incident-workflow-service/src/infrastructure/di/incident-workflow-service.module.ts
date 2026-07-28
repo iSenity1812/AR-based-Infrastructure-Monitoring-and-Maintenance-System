@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 
@@ -29,6 +29,7 @@ import { TicketsController } from '@presentation/http/controllers/tickets.contro
 import { JwtStrategy } from '@presentation/http/strategies/jwt.strategy';
 import { JwtAuthGuard } from '@presentation/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@presentation/http/guards/permissions.guard';
+import { TicketEventsService } from '@presentation/http/events/ticket-events.service';
 import { ApiResponseInterceptor } from '@presentation/http/interceptors/api-response.interceptor';
 import { UseCaseHttpExceptionFilter } from '@presentation/http/filters/use-case-http-exception.filter';
 import {
@@ -82,6 +83,7 @@ import {
     JwtStrategy,
     JwtAuthGuard,
     PermissionsGuard,
+    TicketEventsService,
     {
       provide: GET_HEALTH_USE_CASE,
       useClass: GetHealthUseCase,
@@ -206,7 +208,9 @@ import {
     },
     {
       provide: APP_INTERCEPTOR,
-      useClass: ApiResponseInterceptor,
+      inject: [Reflector],
+      useFactory: (reflector: Reflector) =>
+        new ApiResponseInterceptor(reflector),
     },
     {
       provide: APP_FILTER,

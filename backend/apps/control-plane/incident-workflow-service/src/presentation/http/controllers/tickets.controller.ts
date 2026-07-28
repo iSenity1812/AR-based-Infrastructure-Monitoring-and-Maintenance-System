@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Sse,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -43,12 +44,15 @@ import {
 import type { CurrentAuthContextDto } from '@use-cases/dto/current-auth-context.dto';
 import { CurrentAuthContext } from '../decorators/current-auth-context.decorator';
 import { RequirePermissions } from '../decorators/require-permissions.decorator';
+import { SkipApiEnvelope } from '../decorators/skip-api-envelope.decorator';
 import { AddTicketCommentRequestDto } from '../dto/add-ticket-comment-request.dto';
 import { AssignTicketRequestDto } from '../dto/assign-ticket-request.dto';
 import { AttachTicketEvidenceRequestDto } from '../dto/attach-ticket-evidence-request.dto';
 import { CreateTicketEvidenceUploadUrlRequestDto } from '../dto/create-ticket-evidence-upload-url-request.dto';
 import { CreateTicketRequestDto } from '../dto/create-ticket-request.dto';
+import { ListTicketsQueryDto } from '../dto/list-tickets-query.dto';
 import { UpdateTicketStatusRequestDto } from '../dto/update-ticket-status-request.dto';
+import { TicketEventsService } from '../events/ticket-events.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { PermissionsGuard } from '../guards/permissions.guard';
 
@@ -80,6 +84,7 @@ export class TicketsController {
     private readonly createTicketEvidenceUploadUrlUseCase: CreateTicketEvidenceUploadUrlUseCase,
     @Inject(LIST_TICKET_EVIDENCE_USE_CASE)
     private readonly listTicketEvidenceUseCase: ListTicketEvidenceUseCase,
+    private readonly ticketEventsService: TicketEventsService,
   ) {}
 
   @Post()
@@ -102,16 +107,20 @@ export class TicketsController {
   @Get()
   @ApiOperation({ summary: 'List tickets.' })
   @RequirePermissions(PERMISSION_CODES.TICKETS_READ)
-  async list(
-    @Query('ticketCode') ticketCode?: string,
-    @Query('incidentId') incidentId?: string,
-    @Query('status') status?: TicketStatus,
-  ) {
+  async list(@Query() query: ListTicketsQueryDto) {
     return this.listTicketsUseCase.execute({
-      ticketCode,
-      incidentId,
-      status,
+      ticketCode: query.ticketCode,
+      incidentId: query.incidentId,
+      status: query.status,
     });
+  }
+
+  @Sse('events')
+  @ApiOperation({ summary: 'Subscribe to ticket realtime events.' })
+  @RequirePermissions(PERMISSION_CODES.TICKETS_READ)
+  @SkipApiEnvelope()
+  events(@CurrentAuthContext() authContext: CurrentAuthContextDto) {
+    return this.ticketEventsService.streamFor(authContext);
   }
 
   @Get(':id')

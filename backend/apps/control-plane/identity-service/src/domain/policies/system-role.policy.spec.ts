@@ -3,6 +3,16 @@ import { RoleCode } from '../constants/role-code.enum';
 import { buildSystemRoles } from './system-role.policy';
 
 describe('buildSystemRoles', () => {
+  it('grants marker-based AR asset identification to administrators', () => {
+    const adminRole = buildSystemRoles().find(
+      (role) => role.code === RoleCode.IT_ADMINISTRATOR,
+    );
+
+    expect(adminRole?.permissionCodes).toEqual(
+      expect.arrayContaining([PERMISSION_CODES.AR_ASSETS_IDENTIFY]),
+    );
+  });
+
   it('grants ticket dispatch permissions to monitoring operators', () => {
     const operatorRole = buildSystemRoles().find(
       (role) => role.code === RoleCode.SYSTEM_MONITORING_OPERATOR,

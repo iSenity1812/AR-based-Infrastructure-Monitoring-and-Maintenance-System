@@ -12,6 +12,17 @@ export interface ApiEnvelope<TData> {
   meta: ApiEnvelopeMeta;
 }
 
+export interface ApiErrorItem {
+  code: string;
+  message: string;
+  details: unknown;
+}
+
+export interface ApiErrorEnvelope {
+  error: ApiErrorItem;
+  meta: ApiEnvelopeMeta;
+}
+
 type RequestLike = {
   headers?: Record<string, string | string[] | undefined>;
 };
@@ -61,6 +72,21 @@ export function serializeEnvelope<TData>(
 ): ApiEnvelope<TData> {
   return {
     data,
+    meta: buildEnvelopeMeta(request, additionalMeta),
+  };
+}
+
+export function serializeErrorEnvelope(
+  error: ApiErrorItem,
+  request?: RequestLike,
+  additionalMeta: Record<string, unknown> = {},
+): ApiErrorEnvelope {
+  return {
+    error: {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    },
     meta: buildEnvelopeMeta(request, additionalMeta),
   };
 }

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 
 import { ArBffServiceConfig } from '@infrastructure/config/ar-bff-service-config';
@@ -15,6 +15,7 @@ import { ArAssetsController } from '@presentation/http/controllers/ar-assets.con
 import { ArOverlayController } from '@presentation/http/controllers/ar-overlay.controller';
 import { HealthController } from '@presentation/http/controllers/health.controller';
 import { MarkerScanController } from '@presentation/http/controllers/marker-scan.controller';
+import { HttpExceptionEnvelopeFilter } from '@presentation/http/filters/http-exception-envelope.filter';
 import { ApiResponseInterceptor } from '@presentation/http/interceptors/api-response.interceptor';
 import { JwtAuthGuard } from '@presentation/http/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@presentation/http/guards/permissions.guard';
@@ -86,6 +87,10 @@ import {
     {
       provide: APP_INTERCEPTOR,
       useClass: ApiResponseInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionEnvelopeFilter,
     },
   ],
 })

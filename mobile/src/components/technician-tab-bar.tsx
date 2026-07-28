@@ -1,9 +1,8 @@
 import { ChartNoAxesColumnIncreasing, ClipboardList, Home, ScanLine, UserRound } from 'lucide-react-native';
 import { useMemo } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { openWebAr } from '../ar/open-webar';
 import { useTheme } from '../theme/theme-context';
 import { radii, shadow, spacing, type ThemeColors } from '../theme/tokens';
 
@@ -26,14 +25,6 @@ export function TechnicianTabBar({ state, navigation }: TechnicianTabBarProps) {
   const activeRoute = state.routes[state.index]?.name;
   if (activeRoute?.startsWith('ar/')) return null;
 
-  async function handleOpenWebAr() {
-    try {
-      await openWebAr();
-    } catch (caught) {
-      Alert.alert('Could not open WebAR', caught instanceof Error ? caught.message : 'Check the configured WebAR URL and try again.');
-    }
-  }
-
   return (
     <View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 10) }]}>
       <View style={styles.row}>
@@ -41,10 +32,10 @@ export function TechnicianTabBar({ state, navigation }: TechnicianTabBarProps) {
         <View style={styles.centerSlot} />
         {visibleRoutes.slice(2).map((item) => <TabItem key={item.name} {...item} active={activeRoute === item.name} colors={colors} onPress={() => navigation.navigate(item.name)} />)}
       </View>
-      <Pressable accessibilityHint="Opens the WebAR experience in your browser" accessibilityLabel="Open WebAR" accessibilityRole="button" onPress={() => void handleOpenWebAr()} style={({ pressed }) => [styles.scanButton, pressed && styles.pressed]}>
+      <Pressable accessibilityHint="Opens the camera to scan an asset QR" accessibilityLabel="Scan asset QR" accessibilityRole="button" onPress={() => navigation.navigate('ar/scan')} style={({ pressed }) => [styles.scanButton, pressed && styles.pressed]}>
         <ScanLine color="#FFFFFF" size={26} strokeWidth={2.3} />
       </Pressable>
-      <Text pointerEvents="none" style={styles.scanLabel}>WebAR</Text>
+      <Text pointerEvents="none" style={styles.scanLabel}>Scan</Text>
     </View>
   );
 }

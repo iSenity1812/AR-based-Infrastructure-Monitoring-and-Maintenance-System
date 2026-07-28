@@ -8,7 +8,7 @@ The mobile app is a technician-only field workspace focused on workflows that be
 - incident context embedded into related tickets
 - evidence capture and upload
 - technician-scoped workflow actions
-- WebAR inspection handoff through the central browser-launch action
+- asset QR scanning through the central camera action, followed by an asset-specific WebAR handoff
 
 The visual language follows a modern industrial field-service system: rounded operational cards, calm enterprise accents, strong information hierarchy, focused data visualization, and complete light/dark modes.
 
@@ -45,7 +45,7 @@ Recommended next work:
 
 - camera capture flow in addition to image-library picking
 - offline draft comments and evidence queue
-- deep-link or ticket metadata entry point for asset-specific WebAR context
+- ticket metadata entry point for asset-specific WebAR context
 - route from asset context to active tickets
 - technician task filters: assigned, acknowledged, in progress, resolved
 
@@ -53,7 +53,7 @@ Recommended next work:
 
 Recommended next work:
 
-- AR session shell
+- in-app QR scanner and camera permission flow (implemented)
 - marker resolution through asset-service
 - asset telemetry snapshot panel
 - inspection checklist

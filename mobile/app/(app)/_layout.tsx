@@ -15,6 +15,7 @@ export default function AppLayout() {
       <Tabs.Screen name="tickets/[id]" options={{ href: null }} />
       <Tabs.Screen name="incidents/index" options={{ href: null }} />
       <Tabs.Screen name="incidents/[id]" options={{ href: null }} />
+      <Tabs.Screen name="ar/scan" options={{ href: null }} />
       <Tabs.Screen name="ar/[nodeId]" options={{ href: null }} />
     </Tabs>
   );

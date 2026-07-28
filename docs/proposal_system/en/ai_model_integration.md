@@ -137,7 +137,7 @@ Dung cho:
 - model artifacts
 - evidence and archives
 
-### 8.3 Kafka
+### 8.3 Redpanda
 
 Dung cho:
 
@@ -151,4 +151,5 @@ Dung cho:
 - AI khong duoc query database cua service khac truc tiep
 - AI output phai di qua service boundary ro rang
 - khong dua Vertex AI vao online hot path neu chua co quy dinh moi
+
 

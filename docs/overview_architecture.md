@@ -15,12 +15,12 @@ flowchart LR
     end
 
     subgraph Messaging["Event & Integration Layer"]
-        M1[Kafka]
+        M1[Redpanda]
     end
 
     subgraph Data["Platform Data Layer"]
         D1[(Operational Database\nMongoDB)]
-        D2[(Telemetry Store\nTimescaleDB)]
+        D2[(Telemetry Store\nClickHouse)]
         D3[(Cache / Queue\nRedis)]
         D4[(Object Storage\nMinIO)]
         D5[(Model / Analytics Store)]
@@ -64,3 +64,4 @@ flowchart LR
 ```
 
 Note: Control Plane gom cac service khac o ben trong check [[service_interaction_matrix]] de biet toan bo service
+

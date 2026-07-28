@@ -1,0 +1,2 @@
+export const GET_HEALTH_USE_CASE = Symbol('GET_HEALTH_USE_CASE');
+export const SCAN_MARKER_USE_CASE = Symbol('SCAN_MARKER_USE_CASE');

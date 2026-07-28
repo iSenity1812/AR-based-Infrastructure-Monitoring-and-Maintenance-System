@@ -11,6 +11,11 @@ import (
 	"github.com/iSenity1812/go-agent-collector/internal/sender"
 )
 
+const (
+	heartbeatMetricKey    = "agent.heartbeat"
+	heartbeatMetricSource = "collector.runtime.heartbeat"
+)
+
 type batchCounter struct {
 	sequence  int64
 	startedAt time.Time
@@ -24,7 +29,7 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 	counter.sequence++
 	collectedAt := latestCollectedAt(records, sentAt)
 
-	metrics := make([]sender.MetricRecord, 0, len(records))
+	metrics := make([]sender.MetricRecord, 0, len(records)+1)
 	for _, record := range records {
 		metrics = append(metrics, sender.MetricRecord{
 			MetricKey:    record.metric.Name,
@@ -32,12 +37,13 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 			ScopeID:      resolveScopeID(cfg, record.metric),
 			Value:        metricValue(record.metric),
 			Unit:         record.metric.Unit,
-			Timestamp:    record.collectedAt.UTC().Format("2006-01-02T15:04:05"),
+			Timestamp:    formatCollectorTime(record.collectedAt),
 			Source:       firstNonEmpty(record.metric.Source, cfg.Agent.SourceType),
 			SourceMetric: record.metric.SourceMetric,
 			Tags:         buildTags(cfg, record.metric),
 		})
 	}
+	metrics = append(metrics, buildHeartbeatMetric(cfg, sentAt))
 
 	return sender.Payload{
 		SchemaVersion: cfg.Agent.SchemaVersion,
@@ -47,18 +53,31 @@ func buildPayload(cfg *config.Config, records []queueRecord, droppedCount int, c
 			SourceType:   firstNonEmpty(cfg.Runtime.AgentSourceType, cfg.Agent.SourceType),
 			AgentVersion: cfg.Agent.AgentVersion,
 			Hostname:     cfg.Runtime.Hostname,
-			StartedAt:    counter.startedAt.Format("2006-01-02T15:04:05"),
+			StartedAt:    formatCollectorTime(counter.startedAt),
 		},
 		Batch: sender.BatchMeta{
 			BatchID:      fmt.Sprintf("%s-%d", cfg.Runtime.AgentID, counter.sequence),
 			Sequence:     counter.sequence,
-			CollectedAt:  collectedAt.UTC().Format("2006-01-02T15:04:05"),
-			SentAt:       sentAt.UTC().Format("2006-01-02T15:04:05"),
+			CollectedAt:  formatCollectorTime(collectedAt),
+			SentAt:       formatCollectorTime(sentAt),
 			RecordCount:  len(metrics),
 			DroppedCount: droppedCount,
 		},
 		Context: buildPayloadContext(cfg, records, sharedContext),
 		Metrics: metrics,
+	}
+}
+
+func buildHeartbeatMetric(cfg *config.Config, sentAt time.Time) sender.MetricRecord {
+	return sender.MetricRecord{
+		MetricKey:    heartbeatMetricKey,
+		ScopeType:    "node",
+		ScopeID:      cfg.Runtime.NodeID,
+		Value:        1,
+		Unit:         "state",
+		Timestamp:    formatCollectorTime(sentAt),
+		Source:       firstNonEmpty(cfg.Runtime.AgentSourceType, cfg.Agent.SourceType),
+		SourceMetric: heartbeatMetricSource,
 	}
 }
 

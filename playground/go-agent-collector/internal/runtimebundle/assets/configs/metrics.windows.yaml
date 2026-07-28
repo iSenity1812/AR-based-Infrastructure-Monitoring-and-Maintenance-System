@@ -1,0 +1,362 @@
+metrics:
+  - category: identity_and_inventory
+    key: node.hostname
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_os_hostname
+    scopeType: node
+    unit: text
+    valueType: gauge
+    aggregation: label_value:hostname
+    keepLabels:
+      - hostname
+      - fqdn
+    notes: Resolve display hostname for node inventory and AR context.
+
+  - category: identity_and_inventory
+    key: node.os_product
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_os_info
+    scopeType: node
+    unit: text
+    valueType: gauge
+    aggregation: label_value:product
+    keepLabels:
+      - product
+      - version
+      - build_number
+      - revision
+    notes: Keep Windows product metadata for host context.
+
+  - category: identity_and_inventory
+    key: node.logical_cpu_count
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_cpu_logical_processor
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Capacity context for CPU-based normalization.
+
+  - category: identity_and_inventory
+    key: node.primary_ipv4
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_net_nic_address_info
+    scopeType: node
+    unit: text
+    valueType: gauge
+    aggregation: primary_nic_ipv4
+    keepLabels:
+      - nic
+      - address
+      - family
+    notes: Use primary NIC and family=ipv4.
+
+  - category: compute
+    key: node.cpu_usage_pct
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_cpu_time_total
+    scopeType: node
+    unit: "%"
+    valueType: counter
+    aggregation: cpu_usage_from_idle
+    keepLabels:
+      - core
+      - mode
+    notes: Host-level CPU utilization derived from idle time.
+
+  - category: compute
+    key: node.cpu_queue_length
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_system_processor_queue_length
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Queue length for saturation detection.
+
+  - category: compute
+    key: node.cpu_core_frequency_mhz
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_cpu_core_frequency_mhz
+    scopeType: node
+    unit: MHz
+    valueType: gauge
+    aggregation: avg_by:core
+    keepLabels:
+      - core
+    notes: Average core frequency across logical processors.
+
+  - category: compute
+    key: node.cpu_dpc_rate
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_cpu_dpcs_total
+    scopeType: node
+    unit: count/sec
+    valueType: counter
+    aggregation: sum_rate_by:core
+    keepLabels:
+      - core
+    notes: Driver and interrupt pressure signal.
+
+  - category: memory
+    key: node.memory_available_mb
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_memory_available_bytes
+    scopeType: node
+    unit: MB
+    valueType: gauge
+    aggregation: bytes_to_mb
+    notes: Available physical memory.
+
+  - category: memory
+    key: node.memory_total_bytes
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_memory_physical_total_bytes
+    scopeType: node
+    unit: bytes
+    valueType: gauge
+    aggregation: direct
+    notes: Total physical memory on this host.
+
+  - category: memory
+    key: node.memory_used_pct
+    status: verified_now
+    enabled: true
+    sourceMetric:
+      - windows_memory_available_bytes
+      - windows_memory_physical_total_bytes
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: derive_used_pct
+    notes: Total minus available over physical total.
+
+  - category: memory
+    key: node.memory_commit_used_pct
+    status: verified_now
+    enabled: true
+    sourceMetric:
+      - windows_memory_committed_bytes
+      - windows_memory_commit_limit
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: derive_ratio_pct
+    notes: Commit pressure signal.
+
+  - category: memory
+    key: node.memory_page_faults_rate
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_memory_page_faults_total
+    scopeType: node
+    unit: count/sec
+    valueType: counter
+    aggregation: rate
+    notes: Page fault activity for pressure diagnostics.
+
+  - category: storage
+    key: node.disk_free_gb
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_logical_disk_free_bytes
+    scopeType: node
+    unit: GB
+    valueType: gauge
+    aggregation: system_drive_bytes_to_gb
+    keepLabels:
+      - volume
+    notes: Prefer configured or detected system drive.
+
+  - category: storage
+    key: node.disk_used_pct
+    status: verified_now
+    enabled: true
+    sourceMetric:
+      - windows_logical_disk_free_bytes
+      - windows_logical_disk_size_bytes
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: system_drive_used_pct
+    keepLabels:
+      - volume
+    notes: System drive utilization.
+
+  - category: storage
+    key: node.disk_read_bytes_sec
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_logical_disk_read_bytes_total
+    scopeType: node
+    unit: bytes/sec
+    valueType: counter
+    aggregation: system_drive_rate
+    keepLabels:
+      - volume
+    notes: Read throughput for the selected system drive.
+
+  - category: storage
+    key: node.disk_write_bytes_sec
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_logical_disk_write_bytes_total
+    scopeType: node
+    unit: bytes/sec
+    valueType: counter
+    aggregation: system_drive_rate
+    keepLabels:
+      - volume
+    notes: Write throughput for the selected system drive.
+
+  - category: storage
+    key: node.disk_queue_length
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_logical_disk_requests_queued
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: system_drive_direct
+    keepLabels:
+      - volume
+    notes: Queue length is a strong storage saturation signal.
+
+  - category: network
+    key: node.network_rx_bytes_sec
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_net_bytes_received_total
+    scopeType: node
+    unit: bytes/sec
+    valueType: counter
+    aggregation: select_primary_nic_rate
+    keepLabels:
+      - nic
+    notes: Receive throughput on the selected primary NIC.
+
+  - category: network
+    key: node.network_tx_bytes_sec
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_net_bytes_sent_total
+    scopeType: node
+    unit: bytes/sec
+    valueType: counter
+    aggregation: select_primary_nic_rate
+    keepLabels:
+      - nic
+    notes: Transmit throughput on the selected primary NIC.
+
+  - category: network
+    key: node.network_utilization_pct
+    status: verified_now
+    enabled: true
+    sourceMetric:
+      - windows_net_bytes_total
+      - windows_net_current_bandwidth_bytes
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: derive_network_utilization_pct
+    keepLabels:
+      - nic
+    notes: Throughput to link bandwidth ratio on the primary NIC.
+
+  - category: network
+    key: node.primary_nic_status
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_net_nic_operation_status
+    scopeType: node
+    unit: state
+    valueType: gauge
+    aggregation: primary_nic_status
+    keepLabels:
+      - nic
+      - status
+    notes: Derived state for the selected primary NIC.
+
+  - category: tcp_connection_health
+    key: node.tcp_connection_failures_rate
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_tcp_connection_failures_total
+    scopeType: node
+    unit: count/sec
+    valueType: counter
+    aggregation: sum_rate_by:af
+    keepLabels:
+      - af
+    notes: Connection failure signal for network/service instability.
+
+  - category: tcp_connection_health
+    key: node.tcp_segments_retransmitted_rate
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_tcp_segments_retransmitted_total
+    scopeType: node
+    unit: segments/sec
+    valueType: counter
+    aggregation: sum_rate_by:af
+    keepLabels:
+      - af
+    notes: Retransmit rate is useful for predictive incident features.
+
+  - category: tcp_connection_health
+    key: node.tcp_retransmit_pct
+    status: verified_now
+    enabled: true
+    sourceMetric:
+      - windows_tcp_segments_retransmitted_total
+      - windows_tcp_segments_total
+    scopeType: node
+    unit: "%"
+    valueType: derived
+    aggregation: derive_ratio_pct
+    keepLabels:
+      - af
+    notes: Retransmit ratio across address families.
+
+  - category: runtime_and_os
+    key: node.uptime_seconds
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_system_boot_time_timestamp
+    scopeType: node
+    unit: seconds
+    valueType: gauge
+    aggregation: derive_uptime
+    notes: Current time minus boot time.
+
+  - category: runtime_and_os
+    key: node.process_count
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_system_processes
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Runtime process count for host activity context.
+
+  - category: runtime_and_os
+    key: node.thread_count
+    status: verified_now
+    enabled: true
+    sourceMetric: windows_system_threads
+    scopeType: node
+    unit: count
+    valueType: gauge
+    aggregation: direct
+    notes: Runtime thread count for host pressure context.

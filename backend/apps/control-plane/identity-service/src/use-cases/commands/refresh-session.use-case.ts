@@ -71,6 +71,7 @@ export class RefreshSessionUseCase {
     const accessToken = await this.accessTokenIssuer.issue({
       userId: user.id,
       username: user.username,
+      fullName: user.fullName,
       sessionId: session.id,
       roles: user.roleCodes,
       permissions,

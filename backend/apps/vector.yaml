@@ -1,0 +1,59 @@
+data_dir: /var/lib/vector/
+
+api:
+  enabled: false
+  address: 127.0.0.1:8686
+
+sources:
+  redpanda_raw_in:
+    type: kafka
+    bootstrap_servers: "redpanda:9092"
+    group_id: "vector-normalization-consumer"
+    topics:
+      - "telemetry.ingested-raw.received"
+    decoding:
+      codec: json
+
+transforms:
+  # Chuẩn hóa toàn bộ mảng metrics trong một bước xử lý duy nhất
+  normalize_metrics:
+    type: remap
+    inputs:
+      - redpanda_raw_in
+    source: |
+      # 1. Trích xuất thông tin định danh batch ra ngoài root
+      .batch_sequence = .Payload.batch.sequence
+      .batch_record_count = .Payload.batch.recordCount
+
+      # 2. Giữ lại thông tin envelope và context phần cứng
+      .agent_id = .AgentID
+      .received_at = .ReceivedAt
+      .hardware_fingerprint = .Payload.context.hardwareFingerprint
+
+      # 3. Giữ nguyên mảng metrics thô để chuyển tiếp cho Go Consumer xử lý
+      .metrics = .Payload.metrics
+
+      # 4. Giải phóng các cấu trúc dữ liệu thô không dùng nữa để tiết kiệm dung lượng
+      del(.Payload)
+      del(.EnvelopeID)
+      del(.AgentID)
+      del(.ReceivedAt)
+      del(.ClientDN)
+
+sinks:
+  redpanda_normalized_out:
+    type: kafka
+    inputs:
+      - normalize_metrics
+    bootstrap_servers: "redpanda:9092"
+    topic: "telemetry.normalized.received"
+    key_field: "agent_id"
+    encoding:
+      codec: json
+
+  console_debug:
+    type: console
+    inputs:
+      - normalize_metrics
+    encoding:
+      codec: json

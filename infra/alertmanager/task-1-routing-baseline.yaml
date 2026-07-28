@@ -1,0 +1,47 @@
+metadata:
+  purpose: >
+    Contract-first routing baseline for the delegated alerting v1 target state.
+    This file is not the live Alertmanager runtime config yet. It exists to
+    guide the upcoming infra configuration tasks.
+
+grouping:
+  node:
+    group_by: [alertname, node_id]
+  rack:
+    group_by: [alertname, rack_id]
+  workload:
+    group_by: [alertname, workload_id]
+
+inhibition:
+  - source_alertname: RackCritical
+    target_alertnames:
+      - NodeStale
+      - ContainerUnhealthyPresent
+    equal:
+      - rack_id
+
+  - source_severity: critical
+    target_severity: warning
+    node_equal:
+      - node_id
+    workload_equal:
+      - workload_id
+
+routing_expectations:
+  default_receiver: monitoring-phase1-default
+  examples:
+    - match:
+        severity: critical
+      intent: urgent channel
+    - match:
+        environment: lab
+      intent: lab/dev group channel
+    - match:
+        category: thermal
+      intent: infrastructure or hardware-focused channel
+
+notes:
+  - Remove scope_id from all new Alertmanager route and grouping decisions.
+  - Keep scope_type for matching and diagnostics, but use concrete identity keys for grouping.
+  - Migrate from the current rack-only phase-1 config in a follow-up infra task.
+

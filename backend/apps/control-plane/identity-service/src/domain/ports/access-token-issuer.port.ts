@@ -4,6 +4,7 @@ import { RoleCode } from '../constants/role-code.enum';
 export interface AccessTokenPayload {
   userId: string;
   username: string;
+  fullName?: string;
   sessionId: string;
   roles: RoleCode[];
   permissions: PermissionCode[];

@@ -1,0 +1,173 @@
+@startuml
+title Secure Node Registration & Telemetry Ingestion Pipeline
+
+actor Agent
+participant "Nginx Gateway" as Nginx
+participant "Ingestion Worker" as Worker
+participant "Local CA" as LocalCA
+database Redis
+queue Redpanda
+participant Vector
+database ClickHouse
+actor Administrator as Admin
+
+note over Agent
+Initial State
+- No client certificate
+- No trusted agent_id
+- Collect hostname, device type,
+  and hardware fingerprint
+end note
+
+== Phase 1: Node Bootstrap Registration ==
+
+Agent -> Nginx: RegisterNode()\nTLS + bootstrap_token + hardware_info
+activate Nginx
+
+Nginx -> Worker: Forward registration request
+activate Worker
+
+Worker -> Worker: Validate bootstrap token\n(Constant-time verification)
+
+alt Invalid bootstrap token
+
+    Worker --> Nginx: Registration failed
+    Nginx --> Agent: Registration rejected
+
+else Valid bootstrap token
+
+    Worker -> Worker: Generate new agent_id\nDefault state = DISCOVERED / UNASSIGNED
+
+    Worker -> LocalCA: GenerateCredentials(agent_id)
+    activate LocalCA
+    LocalCA --> Worker: X.509 certificate + private key
+    deactivate LocalCA
+
+    Worker -> Redis: Persist node registry\nnode:agent:<agent_id>\nAdd agent_id to index
+    activate Redis
+    Redis --> Worker: OK
+    deactivate Redis
+
+    Worker --> Nginx: RegisterNodeResponse\nagent_id + certificate + private key
+    Nginx --> Agent: Registration successful
+
+end
+
+deactivate Worker
+deactivate Nginx
+
+note over Agent
+Persist certificate and private key locally.
+
+All subsequent communication
+uses mutual TLS (mTLS).
+end note
+
+== Phase 1.5: Administrative Node Assignment ==
+
+Admin -> Redis: Query DISCOVERED / UNASSIGNED nodes
+activate Redis
+Redis --> Admin: Node inventory
+deactivate Redis
+
+Admin -> Redis: Assign operational metadata\nState -> ASSIGNED / ACTIVE\nRack / Site / Labels
+activate Redis
+Redis --> Admin: OK
+deactivate Redis
+
+== Phase 2: Telemetry Ingestion ==
+
+loop Periodic telemetry upload
+
+    Agent -> Nginx: mTLS + IngestBatch(metrics[])
+    activate Nginx
+
+    alt Client certificate invalid
+
+        Nginx --> Agent: TLS handshake rejected
+
+    else Client certificate valid
+
+        Nginx -> Nginx: Extract client certificate DN
+
+        Nginx -> Worker: Forward telemetry batch\n+ client certificate DN
+        activate Worker
+
+        Worker -> Worker: Extract agent_id\nfrom certificate DN
+
+        Worker -> Redis: Lookup node by agent_id
+        activate Redis
+        Redis --> Worker: Node status + assignment
+        deactivate Redis
+
+        alt Node not found\nUNASSIGNED\nor RETIRED
+
+            Worker --> Nginx: Reject telemetry
+            Nginx --> Agent: Ingestion rejected
+
+        else Authorized node
+
+            Worker -> Worker: Build telemetry envelope\nEnvelopeID\nAgentID\nReceivedAt\nClientDN\nPayload
+
+            Worker -> Redpanda: Publish\ntelemetry.ingested-raw.received
+            activate Redpanda
+            Redpanda --> Worker: ACK
+            deactivate Redpanda
+
+            Worker --> Nginx: accepted = true
+            Nginx --> Agent: Batch accepted
+
+        end
+
+        deactivate Worker
+
+    end
+
+    deactivate Nginx
+
+end
+
+== Phase 3: Normalization & Storage ==
+
+Vector -> Redpanda: Consume telemetry.ingested-raw.received
+
+activate Redpanda
+Redpanda --> Vector: Raw telemetry envelope
+deactivate Redpanda
+
+activate Vector
+
+Vector -> Vector: Normalize payload\n- batch_sequence\n- agent_id\n- received_at\n- hardware_fingerprint\n- metrics[]
+
+Vector -> Redpanda: Publish\ntelemetry.normalized.received
+
+activate Redpanda
+Redpanda --> Vector: ACK
+deactivate Redpanda
+
+deactivate Vector
+
+Redpanda -> ClickHouse: Stream normalized telemetry
+
+activate ClickHouse
+
+ClickHouse -> ClickHouse: Materialized Views\nFlatten metrics[]\nPopulate telemetry tables\nRefresh serving views
+
+deactivate ClickHouse
+
+== Design Notes ==
+
+note over Worker,Redis
+Telemetry is accepted only for
+nodes that exist in the registry
+and are operationally assigned.
+end note
+
+note over Vector,ClickHouse
+Vector performs normalization only.
+
+ClickHouse stores the structured
+historical telemetry and provides
+optimized analytical views.
+end note
+@enduml

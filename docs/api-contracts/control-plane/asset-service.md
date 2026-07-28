@@ -354,6 +354,12 @@ Required fields:
 - `displayName`
 - `source`
 
+Contract note:
+
+- `source` is the canonical discovery source for the node record, not the intermediate service name.
+- It should be forwarded from the upstream discovered-node record, for example `windows_exporter`, `docker`, or `lhm`.
+- `vendor` and `model` are optional but should be preserved when they are available from discovery.
+
 ### `PATCH /api/v1/admin/topology/nodes/:nodeId`
 
 - Required permission: `TOPOLOGY_NODES_MANAGE`
@@ -384,6 +390,11 @@ Any subset of:
   }
 }
 ```
+
+Update note:
+
+- `source` remains the canonical discovery source.
+- `vendor` and `model` should be patched independently and must not be overwritten by service-name defaults.
 
 ### `POST /api/v1/admin/topology/nodes/:nodeId/assign-rack`
 

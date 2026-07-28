@@ -76,6 +76,7 @@ export class LoginUseCase {
     const accessToken = await this.accessTokenIssuer.issue({
       userId: updatedUser.id,
       username: updatedUser.username,
+      fullName: updatedUser.fullName,
       sessionId: session.id,
       roles: updatedUser.roleCodes,
       permissions,

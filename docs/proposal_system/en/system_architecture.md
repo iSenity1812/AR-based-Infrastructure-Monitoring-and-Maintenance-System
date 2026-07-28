@@ -45,8 +45,8 @@ flowchart LR
     end
 
     subgraph Backbone["Event and Data Backbone"]
-        K[Kafka]
-        T[(TimescaleDB)]
+        K[Redpanda]
+        T[(ClickHouse)]
         M[(MongoDB)]
         R[(Redis)]
         O[(Object Storage)]
@@ -232,7 +232,7 @@ Used for operational data:
 - Audit
 - AI inference records
 
-### 6.2 TimescaleDB
+### 6.2 ClickHouse
 
 Used for telemetry and historical time-series data:
 
@@ -249,7 +249,7 @@ Used for derived serving state:
 - Hot cache
 - Current health context
 
-### 6.4 Kafka
+### 6.4 Redpanda
 
 Used as the event backbone for:
 
@@ -259,7 +259,7 @@ Used as the event backbone for:
 - AI output events
 - Simulation events
 
-Kafka is not the source of truth for business entities.
+Redpanda is not the source of truth for business entities.
 
 ### 6.5 Object Storage
 
@@ -287,7 +287,7 @@ Each service must own its own data boundary.
 Rules:
 
 - Do not directly query another service's authoritative database
-- Cross-service communication must occur through REST, gRPC, or Kafka
+- Cross-service communication must occur through REST, gRPC, or Redpanda
 - Sharing the same physical database cluster does not imply shared ownership
 - The BFF must not own an authoritative database
 
@@ -295,7 +295,8 @@ Rules:
 
 - The WebAR Client must not read raw telemetry directly
 - AI must not own the alert lifecycle
-- Kafka must not replace business databases
+- Redpanda must not replace business databases
 - Redis is not a source of truth
 - The Control Plane should not become a query-only aggregation layer
 - Business domains must maintain proper bounded contexts according to service decomposition
+

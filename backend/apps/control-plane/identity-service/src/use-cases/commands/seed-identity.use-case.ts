@@ -5,16 +5,22 @@ import { RoleRepositoryPort } from '../../domain/ports/role-repository.port';
 import { UserRepositoryPort } from '../../domain/ports/user-repository.port';
 
 export interface SeedIdentityCommand {
-  adminUsername: string;
-  adminEmail: string;
-  adminPassword: string;
-  operatorUsername: string;
-  operatorEmail: string;
-  operatorPassword: string;
-  technicianUsername: string;
-  technicianEmail: string;
-  technicianPassword: string;
+  users: Array<{
+    username: string;
+    email: string;
+    password: string;
+    roleCodes: RoleCode[];
+    fullName: string;
+  }>;
 }
+
+type SeedUserInput = {
+  username: string;
+  email: string;
+  password: string;
+  roleCodes: RoleCode[];
+  fullName: string;
+};
 
 export class SeedIdentityUseCase {
   constructor(
@@ -26,38 +32,12 @@ export class SeedIdentityUseCase {
   async execute(command: SeedIdentityCommand): Promise<void> {
     await this.roleRepository.upsertSystemRoles(buildSystemRoles());
 
-    await this.seedUser({
-      username: command.adminUsername,
-      email: command.adminEmail,
-      password: command.adminPassword,
-      roleCodes: [RoleCode.IT_ADMINISTRATOR],
-      fullName: 'System Administrator',
-    });
-
-    await this.seedUser({
-      username: command.operatorUsername,
-      email: command.operatorEmail,
-      password: command.operatorPassword,
-      roleCodes: [RoleCode.SYSTEM_MONITORING_OPERATOR],
-      fullName: 'Monitoring Operator',
-    });
-
-    await this.seedUser({
-      username: command.technicianUsername,
-      email: command.technicianEmail,
-      password: command.technicianPassword,
-      roleCodes: [RoleCode.MAINTENANCE_TECHNICIAN],
-      fullName: 'Maintenance Technician',
-    });
+    for (const user of command.users) {
+      await this.seedUser(user);
+    }
   }
 
-  private async seedUser(input: {
-    username: string;
-    email: string;
-    password: string;
-    roleCodes: RoleCode[];
-    fullName: string;
-  }): Promise<void> {
+  private async seedUser(input: SeedUserInput): Promise<void> {
     const exists = await this.userRepository.existsByUsernameOrEmail(
       input.username,
       input.email.toLowerCase(),

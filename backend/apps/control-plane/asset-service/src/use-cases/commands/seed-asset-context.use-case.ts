@@ -35,10 +35,25 @@ export class SeedAssetContextUseCase {
     const nodesByCode = new Map<string, string>();
 
     for (const rack of assetContextSeedFixture.racks) {
+      const rackPayload = {
+        rackCode: rack.rackCode,
+        displayName: rack.displayName,
+        lifecycleState: rack.lifecycleState,
+        capacityState: rack.capacityState,
+        siteCode: rack.siteCode,
+        roomCode: rack.roomCode,
+        zoneCode: rack.zoneCode,
+        rowCode: rack.rowCode,
+        positionCode: rack.positionCode,
+        capacityLimit: rack.capacityLimit,
+        notes: rack.notes,
+        vendor: rack.vendor,
+        metadata: rack.metadata,
+      };
       const existing = await this.rackRepository.findByCode(rack.rackCode);
       const persisted = existing
-        ? await this.rackRepository.update(existing.id, rack)
-        : await this.rackRepository.create(rack);
+        ? await this.rackRepository.update(existing.id, rackPayload)
+        : await this.rackRepository.create(rackPayload);
 
       if (persisted) {
         racksByCode.set(rack.rackCode, persisted.id);

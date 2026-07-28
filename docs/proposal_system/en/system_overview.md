@@ -19,7 +19,7 @@ He thong duoc mo ta theo architecture-first, co cac thanh phan chinh:
 - Control Plane API and BFF
 - cac microservice control plane
 - cac service data plane
-- Kafka, TimescaleDB, MongoDB, Redis, Object Storage
+- Redpanda, ClickHouse, MongoDB, Redis, Object Storage
 - Vertex AI cho training va model lifecycle
 
 ## 2. Main Users
@@ -126,4 +126,5 @@ Gia tri mong doi:
 - giam sai sot khi kiem tra tai hien truong
 - tang kha nang traceability va auditability
 - gop phan thanh mot mo hinh van hanh co AI support nhung van giu source of truth ro rang
+
 

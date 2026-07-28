@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { AssetType } from '@domain/constants/asset-type.enum';
 import { MarkerTargetType } from '@domain/constants/marker-target-type.enum';
@@ -38,6 +38,8 @@ import {
 
 @Injectable()
 export class AssetContextReadService {
+  private readonly logger = new Logger(AssetContextReadService.name);
+
   constructor(
     @Inject(RACK_REPOSITORY)
     private readonly rackRepository: RackRepositoryPort,
@@ -95,6 +97,7 @@ export class AssetContextReadService {
 
     const rack = await this.rackRepository.findById(rackId);
     if (!rack) {
+      this.logger.warn(`getRackTopology(${rackId}) could not find rack`);
       throw new NotFoundUseCaseError(
         `Rack ${rackId} was not found.`,
         ErrorCode.ASSET_RACK_NOT_FOUND,
@@ -115,13 +118,62 @@ export class AssetContextReadService {
       ),
     };
 
+    this.logger.log(
+      `getRackTopology(${rackId}) loaded rack=${rack.rackCode} nodes=${nodes.length} snapshots=${topology.nodeRuntimeSnapshots.length}`,
+    );
     await this.cache.set(cacheKey, topology, 60_000);
     return topology;
   }
 
+  async getRackSummary(rackId: string): Promise<RackEntity> {
+    const cacheKey = `rack-summary:${rackId}`;
+    const cached = await this.cache.get<RackEntity>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const rack = await this.getRequiredRack(rackId);
+    await this.cache.set(cacheKey, rack, 60_000);
+    return rack;
+  }
+
+  async getRackSummaryByCode(rackCode: string): Promise<RackEntity> {
+    const rack = await this.rackRepository.findByCode(rackCode);
+    if (!rack) {
+      throw new NotFoundUseCaseError(
+        `Rack ${rackCode} was not found.`,
+        ErrorCode.ASSET_RACK_NOT_FOUND,
+      );
+    }
+
+    await this.cache.set(`rack-summary:${rack.id}`, rack, 60_000);
+    return rack;
+  }
+
+  async listRackSummaries(): Promise<RackEntity[]> {
+    const racks = await this.rackRepository.listAll();
+    return racks;
+  }
+
+  async batchGetRackSummaries(rackIds: string[]): Promise<RackEntity[]> {
+    const uniqueRackIds = [...new Set(rackIds.filter(Boolean))];
+    const summaries = await Promise.all(
+      uniqueRackIds.map((rackId) => this.getRackSummary(rackId)),
+    );
+
+    return summaries;
+  }
+
   async getTopologyTree(): Promise<RackTopologyResult[]> {
     const racks = await this.rackRepository.listAll();
-    return Promise.all(racks.map((rack) => this.getRackTopology(rack.id)));
+    this.logger.log(`getTopologyTree() found ${racks.length} rack(s)`);
+    const topology = await Promise.all(
+      racks.map((rack) => this.getRackTopology(rack.id)),
+    );
+    this.logger.log(
+      `getTopologyTree() returning ${topology.length} rack topology item(s)`,
+    );
+    return topology;
   }
 
   async resolveMarker(markerCode: string): Promise<MarkerResolutionResult> {
@@ -308,6 +360,11 @@ export class AssetContextReadService {
 
   async invalidateRackTopology(rackId: string): Promise<void> {
     await this.cache.del(`rack-topology:${rackId}`);
+    await this.cache.del(`rack-summary:${rackId}`);
+  }
+
+  async invalidateRackSummary(rackId: string): Promise<void> {
+    await this.cache.del(`rack-summary:${rackId}`);
   }
 
   async invalidateMarkerResolution(markerCode: string): Promise<void> {

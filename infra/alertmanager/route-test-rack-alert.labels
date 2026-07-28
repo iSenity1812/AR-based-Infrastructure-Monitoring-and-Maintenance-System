@@ -1,0 +1,8 @@
+alertname=RackCritical
+scope_type=rack
+rack_id=rack-a1
+environment=lab
+team=infra
+category=availability
+severity=critical
+source=grafana

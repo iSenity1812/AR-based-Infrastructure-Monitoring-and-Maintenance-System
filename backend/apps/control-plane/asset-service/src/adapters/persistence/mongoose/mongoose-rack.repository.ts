@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -28,8 +28,44 @@ function mapRack(
   };
 }
 
+function buildUpdateDocument(input: Partial<Omit<RackEntity, 'id'>>) {
+  const $set: Record<string, unknown> = {};
+  const $unset: Record<string, 1> = {};
+
+  for (const [key, value] of Object.entries(input)) {
+    // 1. Nếu không truyền (undefined), BỎ QUA hoàn toàn để giữ nguyên dữ liệu cũ trong DB
+    if (value === undefined) {
+      continue;
+    }
+
+    // 2. Nếu chủ động truyền null, hiểu là muốn XÓA trường này khỏi DB (nếu DB cho phép nullable)
+    if (value === null) {
+      $unset[key] = 1;
+      continue;
+    }
+
+    // 3. Các trường có giá trị hợp lệ (bao gồm cả chuỗi rỗng "") thì cập nhật bình thường
+    $set[key] = value;
+  }
+
+  // Build object update cuối cùng cho Mongoose
+  const updateQuery: Record<string, any> = {};
+
+  if (Object.keys($set).length > 0) {
+    updateQuery.$set = $set;
+  }
+
+  if (Object.keys($unset).length > 0) {
+    updateQuery.$unset = $unset;
+  }
+
+  return updateQuery;
+}
+
 @Injectable()
 export class MongooseRackRepository implements RackRepositoryPort {
+  private readonly logger = new Logger(MongooseRackRepository.name);
+
   constructor(
     @InjectModel(RackDocumentModel.name)
     private readonly rackModel: Model<RackDocumentModel>,
@@ -43,9 +79,13 @@ export class MongooseRackRepository implements RackRepositoryPort {
     id: string,
     input: Partial<Omit<RackEntity, 'id'>>,
   ): Promise<RackEntity | null> {
-    const document = await this.rackModel.findByIdAndUpdate(id, input, {
-      new: true,
-    });
+    const document = await this.rackModel.findByIdAndUpdate(
+      id,
+      buildUpdateDocument(input),
+      {
+        new: true,
+      },
+    );
     return document ? mapRack(document) : null;
   }
 
@@ -60,7 +100,9 @@ export class MongooseRackRepository implements RackRepositoryPort {
   }
 
   async listAll(): Promise<RackEntity[]> {
+    this.logger.log('listAll() querying racks collection');
     const documents = await this.rackModel.find().sort({ rackCode: 1 });
+    this.logger.log(`listAll() found ${documents.length} rack document(s)`);
     return documents.map((document) =>
       mapRack(document as RackDocumentModel & { _id: { toString(): string } }),
     );

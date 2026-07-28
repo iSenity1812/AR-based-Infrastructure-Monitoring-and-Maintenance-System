@@ -18,10 +18,10 @@ export class RackDocumentModel {
   @Prop({ required: true, trim: true })
   displayName!: string;
 
-  @Prop({ required: true, enum: Object.values(RackLifecycleState) })
+  @Prop({ type: String, required: true, enum: Object.values(RackLifecycleState) })
   lifecycleState!: RackLifecycleState;
 
-  @Prop({ required: true, enum: Object.values(RackCapacityState) })
+  @Prop({ type: String, required: true, enum: Object.values(RackCapacityState) })
   capacityState!: RackCapacityState;
 
   @Prop()
@@ -70,15 +70,18 @@ export class NodeDocumentModel {
   rackId?: string;
 
   @Prop()
+  positionCode?: string;
+
+  @Prop()
   nodeType?: string;
 
   @Prop({ required: true, trim: true })
   source!: string;
 
-  @Prop({ required: true, enum: Object.values(NodeLifecycleState) })
+  @Prop({ type: String, required: true, enum: Object.values(NodeLifecycleState) })
   lifecycleState!: NodeLifecycleState;
 
-  @Prop({ required: true, enum: Object.values(NodeAssignmentState) })
+  @Prop({ type: String, required: true, enum: Object.values(NodeAssignmentState) })
   assignmentState!: NodeAssignmentState;
 
   @Prop()
@@ -102,6 +105,17 @@ export class NodeDocumentModel {
 
 export type NodeDocument = HydratedDocument<NodeDocumentModel>;
 export const NodeSchema = SchemaFactory.createForClass(NodeDocumentModel);
+NodeSchema.index(
+  { rackId: 1, positionCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      rackId: { $exists: true, $gt: '' },
+      positionCode: { $exists: true, $gt: '' },
+    },
+  },
+);
+NodeSchema.index({ assignmentState: 1 });
 
 @Schema({ collection: 'markers', timestamps: true, versionKey: false })
 export class MarkerDocumentModel {
@@ -111,10 +125,10 @@ export class MarkerDocumentModel {
   @Prop()
   displayLabel?: string;
 
-  @Prop({ required: true, enum: Object.values(MarkerLifecycleState) })
+  @Prop({ type: String, required: true, enum: Object.values(MarkerLifecycleState) })
   lifecycleState!: MarkerLifecycleState;
 
-  @Prop({ enum: ['rack', 'node'] })
+  @Prop({ type: String, enum: ['rack', 'node'] })
   targetType?: string;
 
   @Prop()
@@ -157,7 +171,7 @@ export class NodeRuntimeSnapshotDocumentModel {
   @Prop({ required: true, unique: true, trim: true })
   nodeId!: string;
 
-  @Prop({ required: true, enum: Object.values(NodeHealthState) })
+  @Prop({ type: String, required: true, enum: Object.values(NodeHealthState) })
   healthState!: NodeHealthState;
 
   @Prop()

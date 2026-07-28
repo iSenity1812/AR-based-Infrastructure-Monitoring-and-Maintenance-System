@@ -152,6 +152,7 @@ export interface RackTopologyResult {
   rack: RackEntity;
   nodes: NodeEntity[];
   nodeRuntimeSnapshots: NodeRuntimeSnapshotEntity[];
+  markers: MarkerEntity[];
 }
 
 export interface NodeContextResult {

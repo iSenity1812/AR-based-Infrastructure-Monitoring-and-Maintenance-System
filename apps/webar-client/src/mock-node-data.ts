@@ -2,6 +2,7 @@ import type { NodeContext, NodeHealth } from './types';
 
 const mockNodes: Record<string, NodeContext> = {
   'mock-node-001': {
+    assetType: 'node',
     id: 'mock-node-001',
     name: 'Node AX-0421',
     rack: 'Rack A1',
@@ -9,12 +10,16 @@ const mockNodes: Record<string, NodeContext> = {
     temperatureC: 41.8,
     cpuPercent: 38,
     memoryPercent: 62,
+    diskPercent: 48,
+    networkRxBytesSec: 28000,
+    networkTxBytesSec: 4600,
     networkLatencyMs: 12,
     activeTicketCount: 0,
     lastTicketCode: 'TCK-R2-002',
     updatedAt: 'Live mock',
   },
   'node-rack-b7': {
+    assetType: 'node',
     id: 'node-rack-b7',
     name: 'Node BX-1109',
     rack: 'Rack B7',
@@ -22,12 +27,16 @@ const mockNodes: Record<string, NodeContext> = {
     temperatureC: 84.2,
     cpuPercent: 91,
     memoryPercent: 77,
+    diskPercent: 86,
+    networkRxBytesSec: 65500,
+    networkTxBytesSec: 2800,
     networkLatencyMs: 38,
     activeTicketCount: 2,
     lastTicketCode: 'TCK-WEB-79528',
     updatedAt: 'Live mock',
   },
   'node-dx-2204': {
+    assetType: 'node',
     id: 'node-dx-2204',
     name: 'Node DX-2204',
     rack: 'Rack D5',
@@ -35,6 +44,9 @@ const mockNodes: Record<string, NodeContext> = {
     temperatureC: 63.4,
     cpuPercent: 54,
     memoryPercent: 69,
+    diskPercent: 73,
+    networkRxBytesSec: 18000,
+    networkTxBytesSec: 8200,
     networkLatencyMs: 320,
     activeTicketCount: 1,
     lastTicketCode: 'TCK-MOB-8361',
@@ -112,6 +124,7 @@ function parseNodeContext(
   const fallback = getNodeContext(id);
 
   return {
+    assetType: parsed.assetType === 'rack' ? 'rack' : fallback.assetType,
     id,
     name: sanitizeString(parsed.name) ?? fallback.name,
     rack: sanitizeString(parsed.rack) ?? fallback.rack,
@@ -119,6 +132,11 @@ function parseNodeContext(
     temperatureC: sanitizeNumber(parsed.temperatureC) ?? fallback.temperatureC,
     cpuPercent: sanitizeNumber(parsed.cpuPercent) ?? fallback.cpuPercent,
     memoryPercent: sanitizeNumber(parsed.memoryPercent) ?? fallback.memoryPercent,
+    diskPercent: sanitizeNumber(parsed.diskPercent) ?? fallback.diskPercent,
+    networkRxBytesSec:
+      sanitizeNumber(parsed.networkRxBytesSec) ?? fallback.networkRxBytesSec,
+    networkTxBytesSec:
+      sanitizeNumber(parsed.networkTxBytesSec) ?? fallback.networkTxBytesSec,
     networkLatencyMs: sanitizeNumber(parsed.networkLatencyMs) ?? fallback.networkLatencyMs,
     activeTicketCount: sanitizeNumber(parsed.activeTicketCount) ?? fallback.activeTicketCount,
     lastTicketCode: sanitizeString(parsed.lastTicketCode) ?? fallback.lastTicketCode,

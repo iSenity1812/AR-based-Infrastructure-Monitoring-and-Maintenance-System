@@ -15,14 +15,8 @@ Open the app from a phone on the same LAN:
 http://<your-lan-ip>:5174?nodeId=node-rack-b7
 ```
 
-For the current local machine, the usual LAN URL has been:
-
-```text
-http://192.168.100.157:5174?nodeId=node-rack-b7
-```
-
-If Vite reports that port `5174` is busy, use the port Vite prints in the
-terminal.
+Vite uses strict port `5174`. Stop the process occupying that port before
+starting WebAR.
 
 ## Phase Test: MindAR Image Tracking
 
@@ -38,20 +32,79 @@ public/targets/card-example/card.png
 To test:
 
 1. Run the WebAR dev server.
-2. Open `http://<lan-ip>:5173?nodeId=node-rack-b7` on the phone.
+2. Open `http://<lan-ip>:5174?nodeId=node-rack-b7` on the phone.
 3. Open or print `public/targets/card-example/card.png` on another screen/paper.
 4. Point the phone camera at that marker.
 5. The AR-IMMS node panels should anchor to the detected image target.
 
 ## Node Context Data
 
-By default, the WebAR client fetches mock node JSON from:
+The WebAR client now supports a real Monitoring snapshot plus Socket.IO live
+updates. Copy the example environment before starting the app:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+For a local Asset Service with hosted Monitoring, use:
+
+```env
+VITE_ASSET_API_URL=/local-asset-api/api/v1
+VITE_MONITORING_API_URL=https://<backend-host>/monitoring/api/v1
+VITE_MONITORING_SOCKET_URL=https://<backend-host>
+```
+
+Vite proxies `/local-asset-api` to `http://127.0.0.1:4002`. Therefore a phone
+opening WebAR through HTTPS/ngrok can resolve markers against the Asset Service
+running on the development computer without mixed-content or phone-localhost
+errors. Override the local target only when Asset Service uses another port:
+
+```powershell
+$env:WEBAR_LOCAL_ASSET_API_URL='http://127.0.0.1:4002'
+pnpm dev
+```
+
+For a hosted production build, do not use the local proxy. Set the direct
+hosted Asset API before building:
+
+```env
+VITE_ASSET_API_URL=https://<backend-host>/asset/api/v1
+```
+
+Open the node that currently has collector telemetry:
+
+```text
+https://<webar-host>/?nodeId=node-msi-341b683e
+```
+
+The client subscribes to `monitoring.node.metrics.updated`, filters the
+`.metrics.live` channel for the selected node, and incrementally updates the
+A-Frame text entities without rebuilding the MindAR scene.
+
+REST snapshots and marker resolution require an AR-scoped access token. Until
+the backend session handoff is implemented, a development token can be placed
+in session storage without putting it in source code or the URL:
+
+```js
+sessionStorage.setItem('ar-imms.ar.access-token', '<temporary-access-token>');
+location.reload();
+```
+
+Do not use an administrator token in a committed environment file or query
+parameter. With a valid scoped token, marker resolution can be tested using:
+
+```text
+https://<webar-host>/?markerCode=<marker-code>
+```
+
+If realtime or REST is unavailable, the client keeps the existing fallback
+instead of crashing. By default that fallback fetches mock node JSON from:
 
 ```text
 /mock-api/nodes/<nodeId>.json
 ```
 
-To point it at a future real service, set:
+To point the legacy mock-compatible adapter at another service, set:
 
 ```bash
 VITE_ASSET_CONTEXT_API_URL=https://<asset-context-service>/nodes
@@ -79,7 +132,7 @@ If the fetch fails, the client shows local fallback data instead of crashing.
 
 ## Custom AR-IMMS Marker
 
-When the real rack/node label is ready, compile it into a MindAR target:
+When the shared visual label is ready, compile it into a MindAR target:
 
 1. Open the MindAR compiler:
 
@@ -87,13 +140,15 @@ When the real rack/node label is ready, compile it into a MindAR target:
 https://hiukim.github.io/mind-ar-js-doc/tools/compile
 ```
 
-2. Upload the marker image, such as an AR-IMMS label that includes:
+2. Upload the shared high-contrast AR-IMMS image target. Keep the per-asset QR
+   separate from this image so QR content can change without recompiling the
+   `.mind` target.
+
+   The shared target can include:
 
 ```text
 AR-IMMS
-Node BX-1109
-Rack B7
-QR code
+Shared visual target
 High-contrast visual pattern
 ```
 
@@ -114,17 +169,21 @@ VITE_MINDAR_TARGET_IMAGE_SRC=/targets/ar-imms-node/ar-imms-node.png
 
 ## QR Contract
 
-Mobile QR scanning remains useful for launching the correct `nodeId`:
+Each Rack/Node receives a backend marker mapping. The downloadable QR contains
+the WebAR URL and its stable `markerCode`:
 
 ```text
-arimms://ar/node-rack-b7
+https://<webar-host>/?markerCode=AR-NODE-NODE-HCM-A1-01
 ```
 
-The WebAR page receives the same node id:
+WebAR resolves that code through Asset Service:
 
 ```text
-http://<lan-ip>:5174?nodeId=node-rack-b7
+GET /api/v1/markers/resolve/AR-NODE-NODE-HCM-A1-01
 ```
 
-MindAR handles where the AR panels anchor. The `nodeId` decides which data to
-fetch.
+The resolved Node `nodeCode`, rather than its MongoDB `_id`, is used to request
+Monitoring telemetry. A Rack marker identifies the Rack but does not start a
+Node telemetry subscription. Marker resolution requires an AR-scoped access
+token in session storage. MindAR continues to use one shared visual target for
+spatial tracking.

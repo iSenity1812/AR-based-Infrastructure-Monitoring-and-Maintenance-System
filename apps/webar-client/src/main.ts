@@ -4,7 +4,11 @@ import {
   getNodeContext,
   getNodeContextFromQrData,
 } from './mock-node-data';
-import type { NodeContext } from './types';
+import { getArAccessToken } from './services/api-client';
+import { resolveAssetMarker } from './services/asset-context-service';
+import { subscribeToNodeMetrics } from './services/monitoring-realtime';
+import { fetchLatestNodeMetrics } from './services/monitoring-service';
+import type { NodeContext, NodeHealth, NodeLiveMetrics } from './types';
 
 declare global {
   interface Window {
@@ -13,7 +17,12 @@ declare global {
 }
 
 const nodeId = getQueryParam('nodeId') ?? 'mock-node-001';
+const markerCode = getQueryParam('markerCode');
 const nodeData = getQueryParam('data');
+const assetApiUrl = import.meta.env.VITE_ASSET_API_URL?.trim() || '';
+const monitoringApiUrl = import.meta.env.VITE_MONITORING_API_URL?.trim() || '';
+const monitoringSocketUrl =
+  import.meta.env.VITE_MONITORING_SOCKET_URL?.trim() || '';
 const nodeContextApiUrl =
   import.meta.env.VITE_ASSET_CONTEXT_API_URL?.trim() || '/mock-api/nodes';
 const targetSrc =
@@ -26,6 +35,9 @@ const targetImageSrc =
 let currentNode = getNodeContextFromQrData(nodeData) ?? getNodeContext(nodeId);
 let dataStatus = nodeData ? 'Embedded QR payload' : 'Resolving node context...';
 let trackingStatus = 'Starting camera and image tracking...';
+let lastRealtimeAt = 0;
+let stopRealtime: (() => void) | null = null;
+let freshnessTimer: number | null = null;
 
 void initializeScene();
 
@@ -42,6 +54,13 @@ async function initializeScene() {
   }
 
   renderScene(currentNode, dataStatus, trackingStatus);
+  if (currentNode.assetType === 'rack') {
+    setDataStatus('Rack identified. Node telemetry is not applicable.');
+    return;
+  }
+  await loadInitialMetrics();
+  startRealtimeMetrics();
+  startFreshnessMonitor();
 }
 
 async function resolveNodeContext(): Promise<{ node: NodeContext; source: string }> {
@@ -54,6 +73,30 @@ async function resolveNodeContext(): Promise<{ node: NodeContext; source: string
   const timeout = window.setTimeout(() => controller.abort(), 6000);
 
   try {
+    const token = getArAccessToken();
+
+    if (markerCode) {
+      if (!assetApiUrl) {
+        throw new Error('Asset API URL is not configured.');
+      }
+      if (!token) {
+        throw new Error('An AR access token is required to resolve this marker.');
+      }
+
+      const resolvedNode = await resolveAssetMarker(
+        assetApiUrl,
+        markerCode,
+        token,
+        currentNode,
+        controller.signal,
+      );
+
+      return {
+        node: resolvedNode,
+        source: `Marker ${markerCode} resolved`,
+      };
+    }
+
     const fetchedNode = await fetchNodeContext(nodeContextApiUrl, nodeId, controller.signal);
     return { node: fetchedNode, source: `Fetched from ${nodeContextApiUrl}` };
   } catch (error: unknown) {
@@ -65,6 +108,158 @@ async function resolveNodeContext(): Promise<{ node: NodeContext; source: string
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+async function loadInitialMetrics() {
+  const token = getArAccessToken();
+
+  if (!token || !monitoringApiUrl) {
+    setDataStatus('Realtime mode. Waiting for live telemetry...');
+    return;
+  }
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const metrics = await fetchLatestNodeMetrics(
+      monitoringApiUrl,
+      currentNode.id,
+      token,
+      controller.signal,
+    );
+
+    if (metrics) {
+      applyLiveMetrics(metrics, 'Monitoring snapshot');
+    } else {
+      setDataStatus('No recent monitoring snapshot. Waiting for realtime...');
+    }
+  } catch (error: unknown) {
+    setDataStatus(
+      error instanceof Error
+        ? `Snapshot unavailable. ${error.message}`
+        : 'Snapshot unavailable. Waiting for realtime...',
+    );
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+function startRealtimeMetrics() {
+  if (!monitoringSocketUrl) {
+    setDataStatus('Realtime URL is not configured. Showing fallback data.');
+    return;
+  }
+
+  stopRealtime?.();
+  stopRealtime = subscribeToNodeMetrics(
+    monitoringSocketUrl,
+    currentNode.id,
+    getArAccessToken(),
+    {
+      onConnected: () => {
+        setDataStatus('Realtime connected. Waiting for node metrics...');
+      },
+      onDisconnected: () => {
+        setDataStatus('Realtime disconnected. Reconnecting...');
+      },
+      onError: (message) => {
+        setDataStatus(`Realtime unavailable. ${message}`);
+      },
+      onMetrics: (metrics) => {
+        applyLiveMetrics(metrics, `Live telemetry · ${metrics.bucketSec}s`);
+      },
+    },
+  );
+}
+
+function startFreshnessMonitor() {
+  freshnessTimer = window.setInterval(() => {
+    if (!lastRealtimeAt) {
+      return;
+    }
+
+    const ageSec = Math.floor((Date.now() - lastRealtimeAt) / 1000);
+
+    if (ageSec > 60) {
+      setDataStatus(`Telemetry offline · last update ${ageSec}s ago`);
+    } else if (ageSec > 15) {
+      setDataStatus(`Telemetry stale · last update ${ageSec}s ago`);
+    }
+  }, 5000);
+}
+
+function applyLiveMetrics(metrics: NodeLiveMetrics, source: string) {
+  const availableValues = [
+    metrics.cpuUsagePct,
+    metrics.memoryUsagePct,
+    metrics.diskUsagePct,
+    metrics.cpuTemperatureC,
+    metrics.networkRxBytesSec,
+    metrics.networkTxBytesSec,
+  ];
+
+  const hasAvailableMetrics = availableValues.some((value) => value != null);
+
+  currentNode = {
+    ...currentNode,
+    cpuPercent: metrics.cpuUsagePct,
+    memoryPercent: metrics.memoryUsagePct,
+    diskPercent: metrics.diskUsagePct,
+    temperatureC: metrics.cpuTemperatureC,
+    networkRxBytesSec: metrics.networkRxBytesSec,
+    networkTxBytesSec: metrics.networkTxBytesSec,
+    status: deriveHealth(metrics, currentNode.status),
+    updatedAt: new Date().toISOString(),
+  };
+  lastRealtimeAt = Date.now();
+  updateSceneMetrics(currentNode);
+  setDataStatus(
+    hasAvailableMetrics
+      ? source
+      : 'Live event received, but node metrics are unavailable.',
+  );
+}
+
+function deriveHealth(
+  metrics: NodeLiveMetrics,
+  fallback: NodeHealth,
+): NodeHealth {
+  const cpu = metrics.cpuUsagePct;
+  const memory = metrics.memoryUsagePct;
+  const disk = metrics.diskUsagePct;
+  const temperature = metrics.cpuTemperatureC;
+
+  if (
+    (cpu != null && cpu >= 90) ||
+    (memory != null && memory >= 95) ||
+    (disk != null && disk >= 95) ||
+    (temperature != null && temperature >= 90)
+  ) {
+    return 'critical';
+  }
+
+  if (
+    (cpu != null && cpu >= 75) ||
+    (memory != null && memory >= 85) ||
+    (disk != null && disk >= 85) ||
+    (temperature != null && temperature >= 80)
+  ) {
+    return 'warning';
+  }
+
+  return availableMetricCount(metrics) > 0 ? 'nominal' : fallback;
+}
+
+function availableMetricCount(metrics: NodeLiveMetrics) {
+  return [
+    metrics.cpuUsagePct,
+    metrics.memoryUsagePct,
+    metrics.diskUsagePct,
+    metrics.cpuTemperatureC,
+    metrics.networkRxBytesSec,
+    metrics.networkTxBytesSec,
+  ].filter((value) => value != null).length;
 }
 
 function renderScene(
@@ -97,7 +292,7 @@ function renderScene(
             <p class="eyebrow">// AR-IMMS MINDAR</p>
             <h1 class="title">${escapeHtml(context.name)}</h1>
           </div>
-          <span class="status-pill status-${context.status}">${context.status}</span>
+          <span id="node-health-status" class="status-pill status-${context.status}">${context.status}</span>
         </header>
 
         <section class="operator-strip">
@@ -107,7 +302,7 @@ function renderScene(
           </div>
           <div>
             <p class="label">Data source</p>
-            <strong>${escapeHtml(dataMessage)}</strong>
+            <strong id="data-status">${escapeHtml(dataMessage)}</strong>
           </div>
         </section>
 
@@ -155,40 +350,45 @@ function renderScene(
           })}
 
           ${arMetric({
+            id: 'temperature',
             position: '-0.62 0.08 0.1',
             label: 'Temperature',
-            value: `${context.temperatureC.toFixed(1)}C`,
+            value: formatTemperature(context.temperatureC),
             tone: context.status,
           })}
 
           ${arMetric({
+            id: 'cpu',
             position: '0.62 0.08 0.1',
             label: 'CPU Load',
-            value: `${context.cpuPercent}%`,
-            tone: context.cpuPercent > 85 ? 'critical' : context.status,
+            value: formatPercent(context.cpuPercent),
+            tone: (context.cpuPercent ?? 0) > 85 ? 'critical' : context.status,
           })}
 
           ${arMetric({
+            id: 'memory',
             position: '-0.62 -0.2 0.1',
             label: 'Memory',
-            value: `${context.memoryPercent}%`,
-            tone: context.memoryPercent > 80 ? 'warning' : 'nominal',
+            value: formatPercent(context.memoryPercent),
+            tone: (context.memoryPercent ?? 0) > 80 ? 'warning' : 'nominal',
           })}
 
           ${arMetric({
+            id: 'disk',
             position: '0.62 -0.2 0.1',
-            label: 'Latency',
-            value: `${context.networkLatencyMs}ms`,
-            tone: context.networkLatencyMs > 100 ? 'critical' : 'nominal',
+            label: 'Disk',
+            value: formatPercent(context.diskPercent),
+            tone: (context.diskPercent ?? 0) > 95 ? 'critical' : context.status,
           })}
 
           ${arPanel({
             position: '0 -0.58 0.1',
             width: '1.24',
             height: '0.32',
-            title: `Active tickets: ${context.activeTicketCount}`,
-            value: context.lastTicketCode,
+            title: 'Network RX / TX',
+            value: `${formatBytesPerSecond(context.networkRxBytesSec)} / ${formatBytesPerSecond(context.networkTxBytesSec)}`,
             tone: context.status,
+            valueId: 'network-metric-value',
           })}
 
           <a-text
@@ -200,7 +400,8 @@ function renderScene(
             font="mozillavr"
           ></a-text>
           <a-text
-            value="${escapeAttribute(context.updatedAt)}"
+            id="metrics-updated-at"
+            value="${escapeAttribute(formatUpdatedAt(context.updatedAt))}"
             position="0.58 -0.78 0.11"
             width="1.3"
             align="right"
@@ -217,11 +418,13 @@ function renderScene(
 }
 
 function arMetric({
+  id,
   position,
   label,
   value,
   tone,
 }: {
+  id: string;
   position: string;
   label: string;
   value: string;
@@ -234,6 +437,7 @@ function arMetric({
     title: label,
     value,
     tone,
+    valueId: `${id}-metric-value`,
   });
 }
 
@@ -244,6 +448,7 @@ function arPanel({
   title,
   value,
   tone,
+  valueId,
 }: {
   position: string;
   width: string;
@@ -251,6 +456,7 @@ function arPanel({
   title: string;
   value: string;
   tone: NodeContext['status'];
+  valueId?: string;
 }) {
   const accent = toneColor(tone);
   const titlePositionY = Number(height) / 5;
@@ -280,6 +486,7 @@ function arPanel({
         font="mozillavr"
       ></a-text>
       <a-text
+        ${valueId ? `id="${escapeAttribute(valueId)}"` : ''}
         value="${escapeAttribute(value)}"
         position="0 ${valuePositionY} 0.02"
         width="${Number(width) * 1.9}"
@@ -289,6 +496,71 @@ function arPanel({
       ></a-text>
     </a-entity>
   `;
+}
+
+function updateSceneMetrics(context: NodeContext) {
+  setAFrameText('temperature-metric-value', formatTemperature(context.temperatureC));
+  setAFrameText('cpu-metric-value', formatPercent(context.cpuPercent));
+  setAFrameText('memory-metric-value', formatPercent(context.memoryPercent));
+  setAFrameText('disk-metric-value', formatPercent(context.diskPercent));
+  setAFrameText(
+    'network-metric-value',
+    `${formatBytesPerSecond(context.networkRxBytesSec)} / ${formatBytesPerSecond(context.networkTxBytesSec)}`,
+  );
+  setAFrameText('metrics-updated-at', formatUpdatedAt(context.updatedAt));
+
+  const health = document.querySelector<HTMLElement>('#node-health-status');
+  if (health) {
+    health.textContent = context.status;
+    health.className = `status-pill status-${context.status}`;
+  }
+}
+
+function setAFrameText(id: string, value: string) {
+  document.querySelector(`#${id}`)?.setAttribute('value', value);
+}
+
+function setDataStatus(message: string) {
+  dataStatus = message;
+  const status = document.querySelector<HTMLElement>('#data-status');
+  if (status) {
+    status.textContent = message;
+  }
+}
+
+function formatPercent(value: number | null) {
+  return value == null ? '--' : `${value.toFixed(1)}%`;
+}
+
+function formatTemperature(value: number | null) {
+  return value == null ? '--' : `${value.toFixed(1)}C`;
+}
+
+function formatBytesPerSecond(value: number | null) {
+  if (value == null) {
+    return '--';
+  }
+
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}MB/s`;
+  }
+
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}KB/s`;
+  }
+
+  return `${value.toFixed(0)}B/s`;
+}
+
+function formatUpdatedAt(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
 }
 
 function attachSceneListeners() {
@@ -353,3 +625,10 @@ function escapeHtml(value: string) {
 function escapeAttribute(value: string) {
   return escapeHtml(value).replace(/"/g, '&quot;');
 }
+
+window.addEventListener('beforeunload', () => {
+  stopRealtime?.();
+  if (freshnessTimer != null) {
+    window.clearInterval(freshnessTimer);
+  }
+});

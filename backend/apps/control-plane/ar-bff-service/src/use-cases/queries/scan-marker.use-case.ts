@@ -84,8 +84,8 @@ export class ScanMarkerUseCase {
     }
 
     if (
-      resolution.marker.lifecycleState === 'RETIRED' ||
-      resolution.target.lifecycleState === 'RETIRED'
+      resolution.marker.lifecycleState === 'INACTIVE' ||
+      resolution.target.lifecycleState === 'INACTIVE'
     ) {
       throw new GoneException({
         code: 'MARKER_RETIRED',

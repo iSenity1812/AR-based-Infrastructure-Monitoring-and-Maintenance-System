@@ -229,7 +229,7 @@ src/
 |- lib/
 |- hooks/
 |- services/
-|- state/
+|- stores/
 |- types/
 \- tests/
 ```
@@ -274,7 +274,7 @@ src/
 - transport adapters
 - contract mapping logic
 
-`state/`
+`stores/`
 
 - client-side state containers
 - cache coordination

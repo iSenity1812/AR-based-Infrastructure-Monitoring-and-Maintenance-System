@@ -6,7 +6,6 @@ This document defines the public contract for the current node metrics scope in 
 
 Scope covered:
 
-- `GET /api/v1/monitoring/nodes/:nodeId/metrics`
 - `GET /api/v1/monitoring/nodes/:nodeId/metrics/live`
 - advertised realtime channel `monitoring.node.{nodeId}.metrics.updated`
 - related workload-membership realtime channel `monitoring.node.{nodeId}.metrics.workloads.changed`

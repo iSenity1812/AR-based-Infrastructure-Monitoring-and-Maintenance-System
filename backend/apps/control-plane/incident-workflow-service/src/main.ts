@@ -10,7 +10,7 @@ import { IncidentWorkflowServiceConfig } from '@infrastructure/config/incident-w
 function getCorsOrigins(): string[] {
   const rawOrigins =
     process.env.CORS_ORIGIN ??
-    'http://localhost:8083,http://127.0.0.1:8083,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006';
+    'http://localhost:8083,http://127.0.0.1:8083,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006,http://localhost:3000';
 
   return rawOrigins
     .split(',')

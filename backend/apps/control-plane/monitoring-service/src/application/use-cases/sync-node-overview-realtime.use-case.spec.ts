@@ -18,12 +18,12 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
     const nodeOverviewComposerService = {
       buildOverview: jest.fn(),
     };
-const monitoringRealtimePort: MonitoringRealtimePort = {
-  emitRackStateChanged: jest.fn(),
-  emitRackOverviewUpdated: jest.fn(),
-  emitNodeOverviewChanged: jest.fn(),
-  emitNodeMetricsUpdated: jest.fn(),
-  emitNodeMetricsWorkloadsChanged: jest.fn(),
+    const monitoringRealtimePort: MonitoringRealtimePort = {
+      emitRackStateChanged: jest.fn(),
+      emitRackOverviewUpdated: jest.fn(),
+      emitNodeOverviewChanged: jest.fn(),
+      emitNodeMetricsUpdated: jest.fn(),
+      emitNodeMetricsWorkloadsChanged: jest.fn(),
     };
     const useCase = new SyncNodeOverviewRealtimeUseCase(
       nodeOverviewReadRepository,
@@ -39,7 +39,9 @@ const monitoringRealtimePort: MonitoringRealtimePort = {
       nextCheckpointSummaryTs: '2026-07-10 10:00:00',
       initialized: true,
     });
-    expect(monitoringRealtimePort.emitNodeOverviewChanged).not.toHaveBeenCalled();
+    expect(
+      monitoringRealtimePort.emitNodeOverviewChanged,
+    ).not.toHaveBeenCalled();
   });
 
   it('emits only when the composed overview fingerprint changes', async () => {
@@ -60,16 +62,14 @@ const monitoringRealtimePort: MonitoringRealtimePort = {
         .mockResolvedValueOnce(['node-a1'])
         .mockResolvedValueOnce(['node-a1']),
     };
-    const buildOverview = jest
-      .fn()
-      .mockResolvedValue({
-        node: {
-          nodeId: 'node-a1',
-          status: 'alerting',
-          severity: 'high',
-          lastSeenAt: '2026-07-10T10:01:00.000Z',
-          freshnessSec: 1,
-          fingerprintSeenAt: '2026-07-10T10:00:30.000Z',
+    const buildOverview = jest.fn().mockResolvedValue({
+      node: {
+        nodeId: 'node-a1',
+        status: 'critical',
+        reason: 'critical_metric',
+        lastSeenAt: '2026-07-10T10:01:00.000Z',
+        fingerprintSeenAt: '2026-07-10T10:00:30.000Z',
+        hardware: {
           batteryModel: 'MS-158L',
           cpuArchitecture: '386',
           cpuModel: 'AMD Ryzen 7 5800H with Radeon Graphics',
@@ -82,32 +82,38 @@ const monitoringRealtimePort: MonitoringRealtimePort = {
           primaryIpv4: '192.168.1.2',
           ssdModelPrimary: 'KINGSTON SNV2S1000G',
         },
-        summaryMetrics: {
-          primaryNicStatus: { value: 'up', unit: 'state' },
-          worstMetric: {
-            metricKey: 'node.cpu_usage_pct',
-            metricValueNumeric: 10,
-            metricValueText: '10',
-          },
-          alertCounters: {
-            criticalMetricCount: 1,
-            warningMetricCount: 0,
-            staleMetricCount: 0,
-          },
+        collector: {
+          status: 'online',
+          reason: 'none',
+          lastHeartbeatAt: '2026-07-10T10:00:45.000Z',
+          heartbeatTimeoutSec: 90,
         },
-        workloadSummary: {
-          total: 1,
-          unhealthy: 0,
-          nonRunning: 0,
-          returned: 1,
-          selectionMode: 'abnormal_first_then_top_cpu',
+      },
+      summaryMetrics: {
+        primaryNicStatus: 'up',
+        uptimeSec: 34880,
+        primaryIssue: {
+          type: 'metric_alert',
+          metricKey: 'node.cpu_usage_pct',
+          value: '10',
         },
-        workloads: [],
-        realtime: {
-          transport: 'socket.io',
-          channel: 'monitoring.node.node-a1.overview.changed',
+        alertCounters: {
+          critical: 1,
+          warning: 0,
+          stale: 0,
         },
-      });
+      },
+      workloadSummary: {
+        total: 1,
+        healthy: 1,
+        unhealthy: 0,
+      },
+      workloads: [],
+      realtime: {
+        transport: 'socket.io',
+        channel: 'monitoring.node.node-a1.overview.changed',
+      },
+    });
     const monitoringRealtimePort: MonitoringRealtimePort = {
       emitRackStateChanged: jest.fn(),
       emitRackOverviewUpdated: jest.fn(),
@@ -127,7 +133,9 @@ const monitoringRealtimePort: MonitoringRealtimePort = {
     await useCase.execute();
     const secondResult = await useCase.execute();
 
-    expect(monitoringRealtimePort.emitNodeOverviewChanged).toHaveBeenCalledTimes(1);
+    expect(
+      monitoringRealtimePort.emitNodeOverviewChanged,
+    ).toHaveBeenCalledTimes(1);
     expect(monitoringRealtimePort.emitNodeOverviewChanged).toHaveBeenCalledWith(
       expect.objectContaining({
         event: 'monitoring.node.overview.changed',

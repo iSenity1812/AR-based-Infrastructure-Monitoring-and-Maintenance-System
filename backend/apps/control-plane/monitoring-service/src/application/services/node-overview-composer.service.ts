@@ -7,79 +7,89 @@ import {
 } from '../ports/node-overview-read.repository';
 import { CollectorLivenessService } from './collector-liveness.service';
 
-export type NodeOverviewStatus = 'healthy' | 'alerting' | 'unknown';
-export type NodeOverviewSeverity =
+export type NodeOverviewStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
+export type NodeOverviewReason =
+  | 'none'
+  | 'warning_metric'
+  | 'critical_metric'
+  | 'telemetry_stale'
+  | 'no_telemetry';
+export type NodeOverviewCollectorStatus = 'online' | 'offline' | 'unknown';
+export type NodeOverviewCollectorReason =
+  | 'none'
+  | 'heartbeat_timeout'
+  | 'no_heartbeat';
+export type NodeOverviewPrimaryIssueType =
+  | 'none'
+  | 'heartbeat_loss'
+  | 'metric_alert';
+export type NodeOverviewWorkloadStatus = 'running' | 'stopped' | 'unknown';
+export type NodeOverviewWorkloadHealthStatus =
   | 'healthy'
-  | 'stale'
-  | 'warning'
-  | 'high'
-  | 'critical';
+  | 'unhealthy'
+  | 'unknown';
 
-type NodeOverviewTextMetricView = {
-  value: string | null;
-  unit: string | null;
+type NodeOverviewPrimaryIssueView = {
+  type: NodeOverviewPrimaryIssueType;
+  metricKey: string | null;
+  value: number | string | null;
 };
 
-type NodeOverviewNumberMetricView = {
-  value: number | null;
-  unit: string | null;
-};
+type NodeOverviewWorkloadPrimaryIssueView = Omit<
+  NodeOverviewPrimaryIssueView,
+  'value'
+>;
 
 export type NodeOverviewResponseView = {
   node: {
     nodeId: string;
     status: NodeOverviewStatus;
-    severity: NodeOverviewSeverity;
+    reason: NodeOverviewReason;
     lastSeenAt: string;
-    freshnessSec: number;
-    collectorStatus: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
-    lastHeartbeatAt: string | null;
-    collectorFreshnessSec: number | null;
-    heartbeatTimeoutSec: number;
     fingerprintSeenAt: string | null;
-    batteryModel: string | null;
-    cpuArchitecture: string | null;
-    cpuModel: string | null;
-    gpuModelPrimary: string | null;
-    hardwareSerial: string | null;
-    logicalCpuCount: number | null;
-    macAddress: string | null;
-    motherboardModel: string | null;
-    osProduct: string | null;
-    primaryIpv4: string | null;
-    ssdModelPrimary: string | null;
+    hardware: {
+      batteryModel: string | null;
+      cpuArchitecture: string | null;
+      cpuModel: string | null;
+      gpuModelPrimary: string | null;
+      hardwareSerial: string | null;
+      logicalCpuCount: number | null;
+      macAddress: string | null;
+      motherboardModel: string | null;
+      osProduct: string | null;
+      primaryIpv4: string | null;
+      ssdModelPrimary: string | null;
+    };
+    collector: {
+      status: NodeOverviewCollectorStatus;
+      reason: NodeOverviewCollectorReason;
+      lastHeartbeatAt: string | null;
+      heartbeatTimeoutSec: number;
+    };
   };
   summaryMetrics: {
-    primaryNicStatus: NodeOverviewTextMetricView;
-    uptimeBySeconds: NodeOverviewNumberMetricView;
-    worstMetric: {
-      metricKey: string | null;
-      metricValueNumeric: number | null;
-      metricValueText: string | null;
-    };
+    primaryNicStatus: string | null;
+    uptimeSec: number | null;
+    primaryIssue: NodeOverviewPrimaryIssueView;
     alertCounters: {
-      criticalMetricCount: number;
-      warningMetricCount: number;
-      staleMetricCount: number;
+      critical: number;
+      warning: number;
+      stale: number;
     };
   };
   workloadSummary: {
     total: number;
+    healthy: number;
     unhealthy: number;
-    nonRunning: number;
-    returned: number;
-    selectionMode: 'abnormal_first_then_top_cpu';
   };
   workloads: Array<{
     workloadId: string;
-    workloadType: 'container';
+    type: 'container';
     name: string;
-    serviceName: string;
-    status: string;
-    healthStatus: string;
+    status: NodeOverviewWorkloadStatus;
+    healthStatus: NodeOverviewWorkloadHealthStatus;
     restartCount: number;
-    worstMetricKey: string | null;
-    isAbnormal: boolean;
+    primaryIssue: NodeOverviewWorkloadPrimaryIssueView;
   }>;
   realtime: {
     transport: 'socket.io';
@@ -112,69 +122,55 @@ export class NodeOverviewComposerService {
       await this.collectorLivenessService.getByNodeId(nodeId);
     const lastSeenAt = toIsoString(snapshot.summaryTs);
     const freshnessSec = computeFreshnessSec(snapshot.summaryTs);
+    const nodeHealth = deriveNodeOverviewHealth(snapshot, freshnessSec);
+    const collector = mapCollectorOverview(collectorLiveness);
     const selectedWorkloads = selectOverviewWorkloads(workloads);
 
     return {
       node: {
         nodeId: snapshot.nodeId,
-        status: deriveNodeOverviewStatus(snapshot, freshnessSec),
-        severity: deriveNodeOverviewSeverity(snapshot, freshnessSec),
+        status: nodeHealth.status,
+        reason: nodeHealth.reason,
         lastSeenAt,
-        freshnessSec,
-        collectorStatus: collectorLiveness.collectorStatus,
-        lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
-        collectorFreshnessSec: collectorLiveness.collectorFreshnessSec,
-        heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
         fingerprintSeenAt: toOptionalIsoString(snapshot.fingerprintSeenAt),
-        batteryModel: snapshot.batteryModel,
-        cpuArchitecture: snapshot.cpuArchitecture,
-        cpuModel: snapshot.cpuModel,
-        gpuModelPrimary: snapshot.gpuModelPrimary,
-        hardwareSerial: snapshot.hardwareSerial,
-        logicalCpuCount: snapshot.logicalCpuCount,
-        macAddress: snapshot.macAddress,
-        motherboardModel: snapshot.motherboardModel,
-        osProduct: snapshot.osProduct,
-        primaryIpv4: snapshot.primaryIpv4,
-        ssdModelPrimary: snapshot.ssdModelPrimary,
+        hardware: {
+          batteryModel: snapshot.batteryModel,
+          cpuArchitecture: snapshot.cpuArchitecture,
+          cpuModel: snapshot.cpuModel,
+          gpuModelPrimary: snapshot.gpuModelPrimary,
+          hardwareSerial: snapshot.hardwareSerial,
+          logicalCpuCount: snapshot.logicalCpuCount,
+          macAddress: snapshot.macAddress,
+          motherboardModel: snapshot.motherboardModel,
+          osProduct: snapshot.osProduct,
+          primaryIpv4: snapshot.primaryIpv4,
+          ssdModelPrimary: snapshot.ssdModelPrimary,
+        },
+        collector,
       },
       summaryMetrics: {
-        primaryNicStatus: {
-          value: snapshot.primaryNicStatusCurrent,
-          unit: snapshot.primaryNicStatusUnit,
-        },
-        uptimeBySeconds: {
-          value: snapshot.uptimeSecondsCurrent,
-          unit: snapshot.uptimeSecondsUnit,
-        },
-        worstMetric: {
-          metricKey: snapshot.worstMetricKey,
-          metricValueNumeric: snapshot.worstMetricValueNumeric,
-          metricValueText: snapshot.worstMetricValueText,
-        },
+        primaryNicStatus: snapshot.primaryNicStatusCurrent,
+        uptimeSec: snapshot.uptimeSecondsCurrent,
+        primaryIssue: mapPrimaryIssue(snapshot),
         alertCounters: {
-          criticalMetricCount: snapshot.criticalMetricCount,
-          warningMetricCount: snapshot.warningMetricCount,
-          staleMetricCount: snapshot.staleMetricCount,
+          critical: snapshot.criticalMetricCount,
+          warning: snapshot.warningMetricCount,
+          stale: snapshot.staleMetricCount,
         },
       },
       workloadSummary: {
         total: workloads.length,
+        healthy: workloads.filter((workload) => isHealthy(workload)).length,
         unhealthy: workloads.filter((workload) => isUnhealthy(workload)).length,
-        nonRunning: workloads.filter((workload) => !isRunning(workload)).length,
-        returned: selectedWorkloads.length,
-        selectionMode: 'abnormal_first_then_top_cpu',
       },
       workloads: selectedWorkloads.map((workload) => ({
         workloadId: workload.workloadId,
-        workloadType: workload.workloadType,
+        type: workload.workloadType,
         name: workload.name,
-        serviceName: workload.serviceName,
-        status: workload.status,
-        healthStatus: workload.healthStatus,
+        status: normalizeWorkloadStatus(workload.status),
+        healthStatus: normalizeWorkloadHealthStatus(workload.healthStatus),
         restartCount: workload.restartCount,
-        worstMetricKey: workload.worstMetricKey,
-        isAbnormal: isAbnormalWorkload(workload),
+        primaryIssue: mapWorkloadPrimaryIssue(workload),
       })),
       realtime: {
         transport: 'socket.io',
@@ -192,38 +188,33 @@ export function deriveNodeOverviewStatus(
   snapshot: NodeOverviewSnapshotRecord,
   freshnessSec: number,
 ): NodeOverviewStatus {
-  if (isSnapshotUnknown(snapshot, freshnessSec)) {
-    return 'unknown';
-  }
-
-  if (snapshot.criticalMetricCount > 0 || snapshot.warningMetricCount > 0) {
-    return 'alerting';
-  }
-
-  return 'healthy';
+  return deriveNodeOverviewHealth(snapshot, freshnessSec).status;
 }
 
-export function deriveNodeOverviewSeverity(
+export function deriveNodeOverviewHealth(
   snapshot: NodeOverviewSnapshotRecord,
-  _freshnessSec: number,
-): NodeOverviewSeverity {
-  if (snapshot.maxSeverityCode >= 4) {
-    return 'critical';
+  freshnessSec: number,
+): {
+  status: NodeOverviewStatus;
+  reason: NodeOverviewReason;
+} {
+  if (!parseSummaryDate(snapshot.summaryTs)) {
+    return { status: 'unknown', reason: 'no_telemetry' };
   }
 
-  if (snapshot.maxSeverityCode >= 3 || snapshot.criticalMetricCount > 0) {
-    return 'high';
+  if (isSnapshotUnknown(snapshot, freshnessSec)) {
+    return { status: 'unknown', reason: 'telemetry_stale' };
   }
 
-  if (snapshot.maxSeverityCode >= 2 || snapshot.warningMetricCount > 0) {
-    return 'warning';
+  if (snapshot.criticalMetricCount > 0) {
+    return { status: 'critical', reason: 'critical_metric' };
   }
 
-  if (snapshot.maxSeverityCode >= 1 || snapshot.isAnyStale >= 1 || snapshot.staleMetricCount > 0) {
-    return 'stale';
+  if (snapshot.warningMetricCount > 0) {
+    return { status: 'warning', reason: 'warning_metric' };
   }
 
-  return 'healthy';
+  return { status: 'healthy', reason: 'none' };
 }
 
 export function selectOverviewWorkloads(
@@ -264,6 +255,79 @@ function isSnapshotUnknown(
       snapshot.criticalMetricCount === 0 &&
       snapshot.warningMetricCount === 0)
   );
+}
+
+function mapCollectorOverview(
+  collectorLiveness: Awaited<
+    ReturnType<CollectorLivenessService['getByNodeId']>
+  >,
+): NodeOverviewResponseView['node']['collector'] {
+  if (collectorLiveness.collectorStatus === 'ONLINE') {
+    return {
+      status: 'online',
+      reason: 'none',
+      lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
+      heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+    };
+  }
+
+  if (collectorLiveness.collectorStatus === 'OFFLINE') {
+    return {
+      status: 'offline',
+      reason: 'heartbeat_timeout',
+      lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
+      heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+    };
+  }
+
+  return {
+    status: 'unknown',
+    reason: 'no_heartbeat',
+    lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
+    heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+  };
+}
+
+function mapPrimaryIssue(
+  snapshot: NodeOverviewSnapshotRecord,
+): NodeOverviewPrimaryIssueView {
+  if (!snapshot.worstMetricKey) {
+    return {
+      type: 'none',
+      metricKey: null,
+      value: null,
+    };
+  }
+
+  return {
+    type: classifyPrimaryIssueType(snapshot.worstMetricKey),
+    metricKey: snapshot.worstMetricKey,
+    value: snapshot.worstMetricValueText ?? snapshot.worstMetricValueNumeric,
+  };
+}
+
+function mapWorkloadPrimaryIssue(
+  workload: NodeOverviewWorkloadRecord,
+): NodeOverviewWorkloadPrimaryIssueView {
+  if (!workload.worstMetricKey) {
+    return {
+      type: 'none',
+      metricKey: null,
+    };
+  }
+
+  return {
+    type: classifyPrimaryIssueType(workload.worstMetricKey),
+    metricKey: workload.worstMetricKey,
+  };
+}
+
+function classifyPrimaryIssueType(
+  metricKey: string,
+): Exclude<NodeOverviewPrimaryIssueType, 'none'> {
+  return metricKey.endsWith('.heartbeat.loss')
+    ? 'heartbeat_loss'
+    : 'metric_alert';
 }
 
 function computeFreshnessSec(summaryTs: string): number {
@@ -315,15 +379,45 @@ function parseSummaryDate(summaryTs: string): Date | null {
 
 function isAbnormalWorkload(workload: NodeOverviewWorkloadRecord): boolean {
   return (
-    isUnhealthy(workload) || !isRunning(workload) || workload.restartCount > 0
+    isUnhealthy(workload) ||
+    normalizeWorkloadStatus(workload.status) === 'stopped' ||
+    workload.restartCount > 0 ||
+    Boolean(workload.worstMetricKey)
   );
 }
 
+function isHealthy(workload: NodeOverviewWorkloadRecord): boolean {
+  return normalizeWorkloadHealthStatus(workload.healthStatus) === 'healthy';
+}
+
 function isUnhealthy(workload: NodeOverviewWorkloadRecord): boolean {
-  return workload.healthStatus.trim().toLowerCase() === 'unhealthy';
+  return normalizeWorkloadHealthStatus(workload.healthStatus) === 'unhealthy';
 }
 
-function isRunning(workload: NodeOverviewWorkloadRecord): boolean {
-  return workload.status.trim().toLowerCase() === 'running';
+function normalizeWorkloadStatus(value: string): NodeOverviewWorkloadStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'running') {
+    return 'running';
+  }
+
+  if (!normalized || normalized === 'unknown') {
+    return 'unknown';
+  }
+
+  return 'stopped';
 }
 
+function normalizeWorkloadHealthStatus(
+  value: string,
+): NodeOverviewWorkloadHealthStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'healthy') {
+    return 'healthy';
+  }
+
+  if (normalized === 'unhealthy') {
+    return 'unhealthy';
+  }
+
+  return 'unknown';
+}

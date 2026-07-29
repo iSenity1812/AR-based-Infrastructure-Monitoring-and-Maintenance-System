@@ -10,18 +10,30 @@ export class NodeOverviewStatusDto {
   nodeId!: string;
 
   @ApiProperty({
-    description: 'Operator-facing node health state.',
-    enum: ['healthy', 'alerting', 'unknown'],
-    example: 'alerting',
+    description: 'Canonical operator-facing node health state.',
+    enum: ['healthy', 'warning', 'critical', 'unknown'],
+    example: 'critical',
   })
-  status!: 'healthy' | 'alerting' | 'unknown';
+  status!: 'healthy' | 'warning' | 'critical' | 'unknown';
 
   @ApiProperty({
-    description: 'Operator-facing severity level for the node snapshot.',
-    enum: ['healthy', 'stale', 'warning', 'high', 'critical'],
-    example: 'high',
+    description:
+      'Stable reason explaining why the node health status was chosen.',
+    enum: [
+      'none',
+      'warning_metric',
+      'critical_metric',
+      'telemetry_stale',
+      'no_telemetry',
+    ],
+    example: 'critical_metric',
   })
-  severity!: 'healthy' | 'stale' | 'warning' | 'high' | 'critical';
+  reason!:
+    | 'none'
+    | 'warning_metric'
+    | 'critical_metric'
+    | 'telemetry_stale'
+    | 'no_telemetry';
 
   @ApiProperty({
     description: 'Timestamp of the latest node summary used by the overview.',
@@ -30,17 +42,30 @@ export class NodeOverviewStatusDto {
   lastSeenAt!: string;
 
   @ApiProperty({
-    description: 'Age in seconds between now and the latest node summary.',
-    example: 3,
+    description:
+      'Timestamp of the latest hardware fingerprint observed for the node.',
+    nullable: true,
+    example: '2026-07-17T18:04:34.000Z',
   })
-  freshnessSec!: number;
+  fingerprintSeenAt!: string | null;
+}
+
+export class NodeOverviewCollectorDto {
+  @ApiProperty({
+    description:
+      'Collector heartbeat liveness derived from the latest heartbeat observation.',
+    enum: ['online', 'offline', 'unknown'],
+    example: 'online',
+  })
+  status!: 'online' | 'offline' | 'unknown';
 
   @ApiProperty({
-    description: 'Collector heartbeat liveness derived from the latest heartbeat observation.',
-    enum: ['ONLINE', 'OFFLINE', 'UNKNOWN'],
-    example: 'ONLINE',
+    description:
+      'Stable reason explaining why the collector liveness status was chosen.',
+    enum: ['none', 'heartbeat_timeout', 'no_heartbeat'],
+    example: 'heartbeat_timeout',
   })
-  collectorStatus!: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
+  reason!: 'none' | 'heartbeat_timeout' | 'no_heartbeat';
 
   @ApiProperty({
     description: 'Timestamp of the latest collector heartbeat observation.',
@@ -50,25 +75,14 @@ export class NodeOverviewStatusDto {
   lastHeartbeatAt!: string | null;
 
   @ApiProperty({
-    description: 'Age in seconds between now and the latest collector heartbeat observation.',
-    nullable: true,
-    example: 12,
-  })
-  collectorFreshnessSec!: number | null;
-
-  @ApiProperty({
-    description: 'Timeout window in seconds before the collector is considered offline.',
+    description:
+      'Timeout window in seconds before the collector is considered offline.',
     example: 90,
   })
   heartbeatTimeoutSec!: number;
+}
 
-  @ApiProperty({
-    description: 'Timestamp of the latest hardware fingerprint observed for the node.',
-    nullable: true,
-    example: '2026-07-17T18:04:34.000Z',
-  })
-  fingerprintSeenAt!: string | null;
-
+export class NodeOverviewHardwareDto {
   @ApiProperty({ nullable: true, example: 'MS-158L' })
   batteryModel!: string | null;
 
@@ -106,27 +120,37 @@ export class NodeOverviewStatusDto {
   ssdModelPrimary!: string | null;
 }
 
-export class NodeOverviewWorstMetricDto {
+export class NodeOverviewNodeDto extends NodeOverviewStatusDto {
+  @ApiProperty({ type: NodeOverviewHardwareDto })
+  hardware!: NodeOverviewHardwareDto;
+
+  @ApiProperty({ type: NodeOverviewCollectorDto })
+  collector!: NodeOverviewCollectorDto;
+}
+
+export class NodeOverviewPrimaryIssueDto {
   @ApiProperty({
-    description: 'Metric key currently considered the node-level culprit.',
+    description: 'Stable category for the primary node issue.',
+    enum: ['none', 'heartbeat_loss', 'metric_alert'],
+    example: 'heartbeat_loss',
+  })
+  type!: 'none' | 'heartbeat_loss' | 'metric_alert';
+
+  @ApiProperty({
+    description:
+      'Metric key currently considered the node-level primary issue.',
     nullable: true,
-    example: 'node.tcp_retransmit_pct',
+    example: 'node.heartbeat.loss',
   })
   metricKey!: string | null;
 
   @ApiProperty({
-    description: 'Numeric metric value when available.',
+    description: 'Observed value for the primary issue when available.',
     nullable: true,
-    example: 19.604,
+    oneOf: [{ type: 'number' }, { type: 'string' }],
+    example: 'PING_TIMEOUT',
   })
-  metricValueNumeric!: number | null;
-
-  @ApiProperty({
-    description: 'Text representation of the culprit metric value.',
-    nullable: true,
-    example: '19.604',
-  })
-  metricValueText!: string | null;
+  value!: number | string | null;
 }
 
 export class NodeOverviewAlertCountersDto {
@@ -134,48 +158,32 @@ export class NodeOverviewAlertCountersDto {
     description: 'Number of critical metrics in the current node snapshot.',
     example: 2,
   })
-  criticalMetricCount!: number;
+  critical!: number;
 
   @ApiProperty({
     description: 'Number of warning metrics in the current node snapshot.',
     example: 4,
   })
-  warningMetricCount!: number;
+  warning!: number;
 
   @ApiProperty({
     description: 'Number of stale metrics in the current node snapshot.',
     example: 0,
   })
-  staleMetricCount!: number;
-}
-
-export class NodeOverviewTextMetricDto {
-  @ApiProperty({ nullable: true, example: 'dormant' })
-  value!: string | null;
-
-  @ApiProperty({ nullable: true, example: 'state' })
-  unit!: string | null;
-}
-
-export class NodeOverviewNumberMetricDto {
-  @ApiProperty({ nullable: true, example: 34880 })
-  value!: number | null;
-
-  @ApiProperty({ nullable: true, example: 'seconds' })
-  unit!: string | null;
+  stale!: number;
 }
 
 export class NodeOverviewSummaryMetricsDto {
-  @ApiProperty({ type: NodeOverviewTextMetricDto })
-  primaryNicStatus!: NodeOverviewTextMetricDto;
+  @ApiProperty({ nullable: true, example: 'dormant' })
+  primaryNicStatus!: string | null;
 
-  @ApiProperty({ type: NodeOverviewNumberMetricDto })
-  uptimeBySeconds!: NodeOverviewNumberMetricDto;
+  @ApiProperty({ nullable: true, example: 34880 })
+  uptimeSec!: number | null;
 
   @ApiProperty({
-    type: NodeOverviewWorstMetricDto,
+    type: NodeOverviewPrimaryIssueDto,
   })
-  worstMetric!: NodeOverviewWorstMetricDto;
+  primaryIssue!: NodeOverviewPrimaryIssueDto;
 
   @ApiProperty({
     type: NodeOverviewAlertCountersDto,
@@ -187,20 +195,28 @@ export class NodeOverviewWorkloadSummaryDto {
   @ApiProperty({ example: 50 })
   total!: number;
 
+  @ApiProperty({ example: 48 })
+  healthy!: number;
+
   @ApiProperty({ example: 2 })
   unhealthy!: number;
+}
 
-  @ApiProperty({ example: 1 })
-  nonRunning!: number;
-
-  @ApiProperty({ example: 5 })
-  returned!: number;
+export class NodeOverviewWorkloadPrimaryIssueDto {
+  @ApiProperty({
+    description: 'Stable category for the primary workload issue.',
+    enum: ['none', 'heartbeat_loss', 'metric_alert'],
+    example: 'heartbeat_loss',
+  })
+  type!: 'none' | 'heartbeat_loss' | 'metric_alert';
 
   @ApiProperty({
-    enum: ['abnormal_first_then_top_cpu'],
-    example: 'abnormal_first_then_top_cpu',
+    description:
+      'Metric key currently considered the workload-level primary issue.',
+    nullable: true,
+    example: 'container.heartbeat.loss',
   })
-  selectionMode!: 'abnormal_first_then_top_cpu';
+  metricKey!: string | null;
 }
 
 export class NodeOverviewWorkloadDto {
@@ -213,28 +229,30 @@ export class NodeOverviewWorkloadDto {
     enum: ['container'],
     example: 'container',
   })
-  workloadType!: 'container';
+  type!: 'container';
 
   @ApiProperty({ example: 'backend-shared-vector' })
   name!: string;
 
-  @ApiProperty({ example: 'vector' })
-  serviceName!: string;
+  @ApiProperty({
+    description: 'Runtime lifecycle state for the workload.',
+    enum: ['running', 'stopped', 'unknown'],
+    example: 'running',
+  })
+  status!: 'running' | 'stopped' | 'unknown';
 
-  @ApiProperty({ example: 'running' })
-  status!: string;
-
-  @ApiProperty({ example: 'unhealthy' })
-  healthStatus!: string;
+  @ApiProperty({
+    description: 'Health probe or application health state for the workload.',
+    enum: ['healthy', 'unhealthy', 'unknown'],
+    example: 'unhealthy',
+  })
+  healthStatus!: 'healthy' | 'unhealthy' | 'unknown';
 
   @ApiProperty({ example: 0 })
   restartCount!: number;
 
-  @ApiProperty({ nullable: true, example: 'container.runtime_id' })
-  worstMetricKey!: string | null;
-
-  @ApiProperty({ example: true })
-  isAbnormal!: boolean;
+  @ApiProperty({ type: NodeOverviewWorkloadPrimaryIssueDto })
+  primaryIssue!: NodeOverviewWorkloadPrimaryIssueDto;
 }
 
 export class NodeOverviewRealtimeChannelDto {
@@ -252,9 +270,9 @@ export class NodeOverviewRealtimeChannelDto {
 
 export class MonitoringNodeOverviewResponseDto {
   @ApiProperty({
-    type: NodeOverviewStatusDto,
+    type: NodeOverviewNodeDto,
   })
-  node!: NodeOverviewStatusDto;
+  node!: NodeOverviewNodeDto;
 
   @ApiProperty({
     type: NodeOverviewSummaryMetricsDto,

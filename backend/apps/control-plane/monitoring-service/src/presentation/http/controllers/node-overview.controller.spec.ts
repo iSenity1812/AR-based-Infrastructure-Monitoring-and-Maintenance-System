@@ -44,17 +44,17 @@ describe('NodeOverviewController', () => {
         },
       },
       summaryMetrics: {
-        primaryNicStatus: { value: 'up', unit: 'state' },
-        uptimeBySeconds: { value: 34880, unit: 'seconds' },
-        worstMetric: {
+        primaryNicStatus: 'up',
+        uptimeSec: 34880,
+        primaryIssue: {
+          type: 'metric_alert',
           metricKey: 'node.cpu_usage_pct',
-          metricValueNumeric: 10,
-          metricValueText: '10',
+          value: '10',
         },
         alertCounters: {
-          criticalMetricCount: 0,
-          warningMetricCount: 0,
-          staleMetricCount: 0,
+          critical: 0,
+          warning: 0,
+          stale: 0,
         },
       },
       workloadSummary: {

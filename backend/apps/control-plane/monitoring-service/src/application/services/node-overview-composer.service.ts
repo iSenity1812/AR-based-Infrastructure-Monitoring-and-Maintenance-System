@@ -19,15 +19,15 @@ export type NodeOverviewCollectorReason =
   | 'none'
   | 'heartbeat_timeout'
   | 'no_heartbeat';
+export type NodeOverviewPrimaryIssueType =
+  | 'none'
+  | 'heartbeat_loss'
+  | 'metric_alert';
 
-type NodeOverviewTextMetricView = {
-  value: string | null;
-  unit: string | null;
-};
-
-type NodeOverviewNumberMetricView = {
-  value: number | null;
-  unit: string | null;
+type NodeOverviewPrimaryIssueView = {
+  type: NodeOverviewPrimaryIssueType;
+  metricKey: string | null;
+  value: number | string | null;
 };
 
 export type NodeOverviewResponseView = {
@@ -58,17 +58,13 @@ export type NodeOverviewResponseView = {
     };
   };
   summaryMetrics: {
-    primaryNicStatus: NodeOverviewTextMetricView;
-    uptimeBySeconds: NodeOverviewNumberMetricView;
-    worstMetric: {
-      metricKey: string | null;
-      metricValueNumeric: number | null;
-      metricValueText: string | null;
-    };
+    primaryNicStatus: string | null;
+    uptimeSec: number | null;
+    primaryIssue: NodeOverviewPrimaryIssueView;
     alertCounters: {
-      criticalMetricCount: number;
-      warningMetricCount: number;
-      staleMetricCount: number;
+      critical: number;
+      warning: number;
+      stale: number;
     };
   };
   workloadSummary: {
@@ -147,23 +143,13 @@ export class NodeOverviewComposerService {
         collector,
       },
       summaryMetrics: {
-        primaryNicStatus: {
-          value: snapshot.primaryNicStatusCurrent,
-          unit: snapshot.primaryNicStatusUnit,
-        },
-        uptimeBySeconds: {
-          value: snapshot.uptimeSecondsCurrent,
-          unit: snapshot.uptimeSecondsUnit,
-        },
-        worstMetric: {
-          metricKey: snapshot.worstMetricKey,
-          metricValueNumeric: snapshot.worstMetricValueNumeric,
-          metricValueText: snapshot.worstMetricValueText,
-        },
+        primaryNicStatus: snapshot.primaryNicStatusCurrent,
+        uptimeSec: snapshot.uptimeSecondsCurrent,
+        primaryIssue: mapPrimaryIssue(snapshot),
         alertCounters: {
-          criticalMetricCount: snapshot.criticalMetricCount,
-          warningMetricCount: snapshot.warningMetricCount,
-          staleMetricCount: snapshot.staleMetricCount,
+          critical: snapshot.criticalMetricCount,
+          warning: snapshot.warningMetricCount,
+          stale: snapshot.staleMetricCount,
         },
       },
       workloadSummary: {
@@ -297,6 +283,27 @@ function mapCollectorOverview(
     reason: 'no_heartbeat',
     lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
     heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+  };
+}
+
+function mapPrimaryIssue(
+  snapshot: NodeOverviewSnapshotRecord,
+): NodeOverviewPrimaryIssueView {
+  if (!snapshot.worstMetricKey) {
+    return {
+      type: 'none',
+      metricKey: null,
+      value: null,
+    };
+  }
+
+  return {
+    type:
+      snapshot.worstMetricKey === 'node.heartbeat.loss'
+        ? 'heartbeat_loss'
+        : 'metric_alert',
+    metricKey: snapshot.worstMetricKey,
+    value: snapshot.worstMetricValueText ?? snapshot.worstMetricValueNumeric,
   };
 }
 

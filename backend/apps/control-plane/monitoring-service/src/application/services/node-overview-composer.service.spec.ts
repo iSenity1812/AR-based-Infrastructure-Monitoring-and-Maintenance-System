@@ -303,10 +303,22 @@ describe('NodeOverviewComposerService', () => {
     expect(overview.node).not.toHaveProperty('freshnessSec');
     expect(overview.node).not.toHaveProperty('collectorStatus');
     expect(overview.node).not.toHaveProperty('collectorFreshnessSec');
-    expect(overview.summaryMetrics.uptimeBySeconds).toEqual({
-      value: 34880,
-      unit: 'seconds',
+    expect(overview.summaryMetrics).toEqual({
+      primaryNicStatus: 'up',
+      uptimeSec: 34880,
+      primaryIssue: {
+        type: 'none',
+        metricKey: null,
+        value: null,
+      },
+      alertCounters: {
+        critical: 0,
+        warning: 0,
+        stale: 0,
+      },
     });
+    expect(overview.summaryMetrics).not.toHaveProperty('uptimeBySeconds');
+    expect(overview.summaryMetrics).not.toHaveProperty('worstMetric');
   });
 
   it('maps offline and unknown collector liveness into nested reasons', async () => {
@@ -412,5 +424,88 @@ describe('NodeOverviewComposerService', () => {
         }),
       }),
     );
+  });
+
+  it('returns simplified summary metrics with a primary issue', async () => {
+    const snapshot: NodeOverviewSnapshotRecord = {
+      nodeId: 'node-a1',
+      summaryTs: '2026-07-10 10:00:00',
+      fingerprintSeenAt: null,
+      batteryModel: null,
+      cpuArchitecture: null,
+      cpuModel: null,
+      gpuModelPrimary: null,
+      hardwareSerial: null,
+      logicalCpuCount: null,
+      macAddress: null,
+      motherboardModel: null,
+      osProduct: null,
+      primaryIpv4: null,
+      ssdModelPrimary: null,
+      maxSeverityCode: 0,
+      hasOverrideFlag: 0,
+      isAnyStale: 0,
+      staleMetricCount: 3,
+      criticalMetricCount: 1,
+      warningMetricCount: 2,
+      cpuUsagePctCurrent: null,
+      cpuUsagePctUnit: null,
+      memoryUsagePctCurrent: null,
+      memoryUsagePctUnit: null,
+      diskUsagePctCurrent: null,
+      diskUsagePctUnit: null,
+      cpuTemperatureCCurrent: null,
+      cpuTemperatureCUnit: null,
+      cpuPackagePowerWCurrent: null,
+      cpuPackagePowerWUnit: null,
+      networkRxBytesSecCurrent: null,
+      networkRxBytesSecUnit: null,
+      networkTxBytesSecCurrent: null,
+      networkTxBytesSecUnit: null,
+      primaryNicStatusCurrent: 'dormant',
+      primaryNicStatusUnit: 'state',
+      uptimeSecondsCurrent: 31637.173,
+      uptimeSecondsUnit: 'seconds',
+      worstMetricKey: 'node.heartbeat.loss',
+      worstMetricValueNumeric: 0,
+      worstMetricValueText: 'PING_TIMEOUT',
+    };
+    const repository = {
+      getCurrentNode: jest.fn().mockResolvedValue(snapshot),
+      listNodeWorkloads: jest.fn().mockResolvedValue([]),
+    };
+    const service = new NodeOverviewComposerService(
+      repository as never,
+      {
+        getByNodeId: jest.fn().mockResolvedValue({
+          nodeId: 'node-a1',
+          agentId: 'node-a1',
+          collectorStatus: 'ONLINE',
+          lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+          collectorFreshnessSec: 12,
+          heartbeatTimeoutSec: 90,
+          source: 'go-agent-collector',
+          metricKey: 'agent.heartbeat',
+          sourceMetric: 'collector.runtime.heartbeat',
+        }),
+      } as unknown as CollectorLivenessService,
+    );
+
+    const overview = await service.buildOverview('node-a1');
+
+    expect(overview.summaryMetrics).toEqual({
+      primaryNicStatus: 'dormant',
+      uptimeSec: 31637.173,
+      primaryIssue: {
+        type: 'heartbeat_loss',
+        metricKey: 'node.heartbeat.loss',
+        value: 'PING_TIMEOUT',
+      },
+      alertCounters: {
+        critical: 1,
+        warning: 2,
+        stale: 3,
+      },
+    });
   });
 });

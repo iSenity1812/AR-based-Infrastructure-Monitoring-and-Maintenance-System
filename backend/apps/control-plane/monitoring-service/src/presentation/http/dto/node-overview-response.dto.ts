@@ -128,27 +128,29 @@ export class NodeOverviewNodeDto extends NodeOverviewStatusDto {
   collector!: NodeOverviewCollectorDto;
 }
 
-export class NodeOverviewWorstMetricDto {
+export class NodeOverviewPrimaryIssueDto {
   @ApiProperty({
-    description: 'Metric key currently considered the node-level culprit.',
+    description: 'Stable category for the primary node issue.',
+    enum: ['none', 'heartbeat_loss', 'metric_alert'],
+    example: 'heartbeat_loss',
+  })
+  type!: 'none' | 'heartbeat_loss' | 'metric_alert';
+
+  @ApiProperty({
+    description:
+      'Metric key currently considered the node-level primary issue.',
     nullable: true,
-    example: 'node.tcp_retransmit_pct',
+    example: 'node.heartbeat.loss',
   })
   metricKey!: string | null;
 
   @ApiProperty({
-    description: 'Numeric metric value when available.',
+    description: 'Observed value for the primary issue when available.',
     nullable: true,
-    example: 19.604,
+    oneOf: [{ type: 'number' }, { type: 'string' }],
+    example: 'PING_TIMEOUT',
   })
-  metricValueNumeric!: number | null;
-
-  @ApiProperty({
-    description: 'Text representation of the culprit metric value.',
-    nullable: true,
-    example: '19.604',
-  })
-  metricValueText!: string | null;
+  value!: number | string | null;
 }
 
 export class NodeOverviewAlertCountersDto {
@@ -156,48 +158,32 @@ export class NodeOverviewAlertCountersDto {
     description: 'Number of critical metrics in the current node snapshot.',
     example: 2,
   })
-  criticalMetricCount!: number;
+  critical!: number;
 
   @ApiProperty({
     description: 'Number of warning metrics in the current node snapshot.',
     example: 4,
   })
-  warningMetricCount!: number;
+  warning!: number;
 
   @ApiProperty({
     description: 'Number of stale metrics in the current node snapshot.',
     example: 0,
   })
-  staleMetricCount!: number;
-}
-
-export class NodeOverviewTextMetricDto {
-  @ApiProperty({ nullable: true, example: 'dormant' })
-  value!: string | null;
-
-  @ApiProperty({ nullable: true, example: 'state' })
-  unit!: string | null;
-}
-
-export class NodeOverviewNumberMetricDto {
-  @ApiProperty({ nullable: true, example: 34880 })
-  value!: number | null;
-
-  @ApiProperty({ nullable: true, example: 'seconds' })
-  unit!: string | null;
+  stale!: number;
 }
 
 export class NodeOverviewSummaryMetricsDto {
-  @ApiProperty({ type: NodeOverviewTextMetricDto })
-  primaryNicStatus!: NodeOverviewTextMetricDto;
+  @ApiProperty({ nullable: true, example: 'dormant' })
+  primaryNicStatus!: string | null;
 
-  @ApiProperty({ type: NodeOverviewNumberMetricDto })
-  uptimeBySeconds!: NodeOverviewNumberMetricDto;
+  @ApiProperty({ nullable: true, example: 34880 })
+  uptimeSec!: number | null;
 
   @ApiProperty({
-    type: NodeOverviewWorstMetricDto,
+    type: NodeOverviewPrimaryIssueDto,
   })
-  worstMetric!: NodeOverviewWorstMetricDto;
+  primaryIssue!: NodeOverviewPrimaryIssueDto;
 
   @ApiProperty({
     type: NodeOverviewAlertCountersDto,

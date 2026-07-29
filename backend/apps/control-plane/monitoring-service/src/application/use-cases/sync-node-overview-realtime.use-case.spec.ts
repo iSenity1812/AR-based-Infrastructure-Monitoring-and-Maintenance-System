@@ -90,16 +90,17 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
         },
       },
       summaryMetrics: {
-        primaryNicStatus: { value: 'up', unit: 'state' },
-        worstMetric: {
+        primaryNicStatus: 'up',
+        uptimeSec: 34880,
+        primaryIssue: {
+          type: 'metric_alert',
           metricKey: 'node.cpu_usage_pct',
-          metricValueNumeric: 10,
-          metricValueText: '10',
+          value: '10',
         },
         alertCounters: {
-          criticalMetricCount: 1,
-          warningMetricCount: 0,
-          staleMetricCount: 0,
+          critical: 1,
+          warning: 0,
+          stale: 0,
         },
       },
       workloadSummary: {

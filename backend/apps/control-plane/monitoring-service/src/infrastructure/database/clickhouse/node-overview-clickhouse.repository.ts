@@ -11,6 +11,7 @@ import { CLICKHOUSE_CLIENT } from './clickhouse.constants';
 type NodeOverviewSnapshotRow = {
   nodeId: string;
   summaryTs: string;
+  collectorHeartbeatAt: string | null;
   batteryModel: string | null;
   cpuArchitecture: string | null;
   cpuModel: string | null;
@@ -95,6 +96,7 @@ export class NodeOverviewClickhouseRepository implements NodeOverviewReadReposit
             '%FT%TZ',
             'UTC'
           ) AS summaryTs,
+          heartbeat.collectorHeartbeatAt AS collectorHeartbeatAt,
           fingerprint.battery_model AS batteryModel,
           fingerprint.cpu_architecture AS cpuArchitecture,
           fingerprint.cpu_model AS cpuModel,
@@ -136,6 +138,19 @@ export class NodeOverviewClickhouseRepository implements NodeOverviewReadReposit
         FROM telemetry_db.node_current_summary AS summary
         LEFT JOIN telemetry_db.node_fingerprint_latest AS fingerprint
           ON summary.node_id = fingerprint.node_id
+        LEFT JOIN (
+          SELECT
+            node_id AS nodeId,
+            formatDateTime(
+              toTimeZone(max(latest_ts), 'UTC'),
+              '%FT%TZ',
+              'UTC'
+            ) AS collectorHeartbeatAt
+          FROM telemetry_db.node_current_live
+          WHERE metric_key = 'agent.heartbeat'
+          GROUP BY node_id
+        ) AS heartbeat
+          ON summary.node_id = heartbeat.nodeId
         WHERE summary.node_id = {nodeId: String}
         LIMIT 1
       `,
@@ -309,6 +324,7 @@ export function mapNodeOverviewSnapshotRow(
   return {
     nodeId: row.nodeId,
     summaryTs: row.summaryTs,
+    collectorHeartbeatAt: toNullableString(row.collectorHeartbeatAt),
     batteryModel: toNullableString(row.batteryModel),
     cpuArchitecture: toNullableString(row.cpuArchitecture),
     cpuModel: toNullableString(row.cpuModel),

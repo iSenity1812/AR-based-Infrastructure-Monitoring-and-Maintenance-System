@@ -11,6 +11,7 @@ describe('mapNodeOverviewSnapshotRow', () => {
     const record = mapNodeOverviewSnapshotRow({
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
+      collectorHeartbeatAt: '2026-07-10T09:59:45Z',
       batteryModel: 'MS-158L',
       cpuArchitecture: '386',
       cpuModel: 'AMD Ryzen 7 5800H with Radeon Graphics',
@@ -54,6 +55,7 @@ describe('mapNodeOverviewSnapshotRow', () => {
     expect(record).toEqual({
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
+      collectorHeartbeatAt: '2026-07-10T09:59:45Z',
       batteryModel: 'MS-158L',
       cpuArchitecture: '386',
       cpuModel: 'AMD Ryzen 7 5800H with Radeon Graphics',
@@ -157,6 +159,9 @@ describe('NodeOverviewClickhouseRepository incremental change detection', () => 
     );
     expect(query.mock.calls[0][0].query).toContain(
       'LEFT JOIN telemetry_db.node_fingerprint_latest AS fingerprint',
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      "WHERE metric_key = 'agent.heartbeat'",
     );
     expect(query.mock.calls[0][0].query).toContain(
       'fingerprint.cpu_model AS cpuModel',

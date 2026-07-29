@@ -1,6 +1,7 @@
 export interface NodeOverviewSnapshotRecord {
   nodeId: string;
   summaryTs: string;
+  collectorHeartbeatAt: string | null;
   batteryModel: string | null;
   cpuArchitecture: string | null;
   cpuModel: string | null;

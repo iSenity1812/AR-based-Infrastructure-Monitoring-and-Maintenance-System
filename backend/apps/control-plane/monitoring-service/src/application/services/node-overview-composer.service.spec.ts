@@ -11,12 +11,16 @@ import {
   deriveNodeOverviewStatus,
   selectOverviewWorkloads,
 } from './node-overview-composer.service';
-import type { CollectorLivenessService } from './collector-liveness.service';
+
+const ONLINE_HEARTBEAT_AT = '2999-01-01T00:00:00.000Z';
+const STALE_HEARTBEAT_AT = '2026-07-21T08:15:30.000Z';
+const monitoringConfig = { collectorHeartbeatTimeoutSec: 90 };
 
 describe('deriveNodeOverviewHealth', () => {
   const baseSnapshot: NodeOverviewSnapshotRecord = {
     nodeId: 'node-a1',
     summaryTs: '2026-07-10 10:00:00',
+    collectorHeartbeatAt: ONLINE_HEARTBEAT_AT,
     batteryModel: null,
     cpuArchitecture: null,
     cpuModel: null,
@@ -206,6 +210,7 @@ describe('NodeOverviewComposerService', () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
+      collectorHeartbeatAt: ONLINE_HEARTBEAT_AT,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,
@@ -249,22 +254,9 @@ describe('NodeOverviewComposerService', () => {
       getCurrentNode: jest.fn().mockResolvedValue(snapshot),
       listNodeWorkloads: jest.fn().mockResolvedValue([]),
     };
-    const collectorLivenessService = {
-      getByNodeId: jest.fn().mockResolvedValue({
-        nodeId: 'node-a1',
-        agentId: 'node-a1',
-        collectorStatus: 'ONLINE',
-        lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
-        collectorFreshnessSec: 12,
-        heartbeatTimeoutSec: 90,
-        source: 'go-agent-collector',
-        metricKey: 'agent.heartbeat',
-        sourceMetric: 'collector.runtime.heartbeat',
-      }),
-    };
     const service = new NodeOverviewComposerService(
       repository as never,
-      collectorLivenessService as unknown as CollectorLivenessService,
+      monitoringConfig as never,
     );
 
     const overview = await service.buildOverview('node-a1');
@@ -278,7 +270,7 @@ describe('NodeOverviewComposerService', () => {
         collector: {
           status: 'online',
           reason: 'none',
-          lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+          lastHeartbeatAt: ONLINE_HEARTBEAT_AT,
           heartbeatTimeoutSec: 90,
         },
       }),
@@ -318,10 +310,11 @@ describe('NodeOverviewComposerService', () => {
     expect(overview.summaryMetrics).not.toHaveProperty('worstMetric');
   });
 
-  it('maps offline and unknown collector liveness into nested reasons', async () => {
+  it('maps stale and missing ClickHouse collector heartbeat into nested reasons', async () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
+      collectorHeartbeatAt: STALE_HEARTBEAT_AT,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,
@@ -362,38 +355,18 @@ describe('NodeOverviewComposerService', () => {
       worstMetricValueText: null,
     };
     const repository = {
-      getCurrentNode: jest.fn().mockResolvedValue(snapshot),
+      getCurrentNode: jest
+        .fn()
+        .mockResolvedValueOnce(snapshot)
+        .mockResolvedValueOnce({
+          ...snapshot,
+          collectorHeartbeatAt: null,
+        }),
       listNodeWorkloads: jest.fn().mockResolvedValue([]),
     };
-    const getByNodeId = jest
-      .fn()
-      .mockResolvedValueOnce({
-        nodeId: 'node-a1',
-        agentId: 'node-a1',
-        collectorStatus: 'OFFLINE',
-        lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
-        collectorFreshnessSec: 120,
-        heartbeatTimeoutSec: 90,
-        source: 'go-agent-collector',
-        metricKey: 'agent.heartbeat',
-        sourceMetric: 'collector.runtime.heartbeat',
-      })
-      .mockResolvedValueOnce({
-        nodeId: 'node-a1',
-        agentId: null,
-        collectorStatus: 'UNKNOWN',
-        lastHeartbeatAt: null,
-        collectorFreshnessSec: null,
-        heartbeatTimeoutSec: 90,
-        source: null,
-        metricKey: null,
-        sourceMetric: null,
-      });
     const service = new NodeOverviewComposerService(
       repository as never,
-      {
-        getByNodeId,
-      } as unknown as CollectorLivenessService,
+      monitoringConfig as never,
     );
 
     await expect(service.buildOverview('node-a1')).resolves.toEqual(
@@ -402,7 +375,7 @@ describe('NodeOverviewComposerService', () => {
           collector: {
             status: 'offline',
             reason: 'heartbeat_timeout',
-            lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+            lastHeartbeatAt: STALE_HEARTBEAT_AT,
             heartbeatTimeoutSec: 90,
           },
         }),
@@ -426,6 +399,7 @@ describe('NodeOverviewComposerService', () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
+      collectorHeartbeatAt: ONLINE_HEARTBEAT_AT,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,
@@ -471,19 +445,7 @@ describe('NodeOverviewComposerService', () => {
     };
     const service = new NodeOverviewComposerService(
       repository as never,
-      {
-        getByNodeId: jest.fn().mockResolvedValue({
-          nodeId: 'node-a1',
-          agentId: 'node-a1',
-          collectorStatus: 'ONLINE',
-          lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
-          collectorFreshnessSec: 12,
-          heartbeatTimeoutSec: 90,
-          source: 'go-agent-collector',
-          metricKey: 'agent.heartbeat',
-          sourceMetric: 'collector.runtime.heartbeat',
-        }),
-      } as unknown as CollectorLivenessService,
+      monitoringConfig as never,
     );
 
     const overview = await service.buildOverview('node-a1');
@@ -508,6 +470,7 @@ describe('NodeOverviewComposerService', () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
+      collectorHeartbeatAt: ONLINE_HEARTBEAT_AT,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,
@@ -603,19 +566,7 @@ describe('NodeOverviewComposerService', () => {
     };
     const service = new NodeOverviewComposerService(
       repository as never,
-      {
-        getByNodeId: jest.fn().mockResolvedValue({
-          nodeId: 'node-a1',
-          agentId: 'node-a1',
-          collectorStatus: 'ONLINE',
-          lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
-          collectorFreshnessSec: 12,
-          heartbeatTimeoutSec: 90,
-          source: 'go-agent-collector',
-          metricKey: 'agent.heartbeat',
-          sourceMetric: 'collector.runtime.heartbeat',
-        }),
-      } as unknown as CollectorLivenessService,
+      monitoringConfig as never,
     );
 
     const overview = await service.buildOverview('node-a1');

@@ -5,7 +5,7 @@ import {
   type NodeOverviewSnapshotRecord,
   type NodeOverviewWorkloadRecord,
 } from '../ports/node-overview-read.repository';
-import { CollectorLivenessService } from './collector-liveness.service';
+import { MonitoringServiceConfig } from '../../infrastructure/config/monitoring-service-config';
 
 export type NodeOverviewStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
 export type NodeOverviewReason =
@@ -103,7 +103,7 @@ export class NodeOverviewComposerService {
   constructor(
     @Inject(NodeOverviewReadRepository)
     private readonly nodeOverviewReadRepository: NodeOverviewReadRepository,
-    private readonly collectorLivenessService: CollectorLivenessService,
+    private readonly config: MonitoringServiceConfig,
   ) {}
 
   async buildOverview(nodeId: string): Promise<NodeOverviewResponseView> {
@@ -117,12 +117,13 @@ export class NodeOverviewComposerService {
 
     const workloads =
       await this.nodeOverviewReadRepository.listNodeWorkloads(nodeId);
-    const collectorLiveness =
-      await this.collectorLivenessService.getByNodeId(nodeId);
     const lastSeenAt = toIsoString(snapshot.summaryTs);
     const freshnessSec = computeFreshnessSec(snapshot.summaryTs);
     const nodeHealth = deriveNodeOverviewHealth(snapshot, freshnessSec);
-    const collector = mapCollectorOverview(collectorLiveness);
+    const collector = mapCollectorOverview(
+      snapshot,
+      this.config.collectorHeartbeatTimeoutSec,
+    );
     const selectedWorkloads = selectOverviewWorkloads(workloads);
 
     return {
@@ -256,33 +257,34 @@ function isSnapshotUnknown(
 }
 
 function mapCollectorOverview(
-  collectorLiveness: Awaited<
-    ReturnType<CollectorLivenessService['getByNodeId']>
-  >,
+  snapshot: NodeOverviewSnapshotRecord,
+  heartbeatTimeoutSec: number,
 ): NodeOverviewResponseView['node']['collector'] {
-  if (collectorLiveness.collectorStatus === 'ONLINE') {
+  const lastHeartbeatAt = toOptionalIsoString(snapshot.collectorHeartbeatAt);
+
+  if (!lastHeartbeatAt) {
     return {
-      status: 'online',
-      reason: 'none',
-      lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
-      heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+      status: 'unknown',
+      reason: 'no_heartbeat',
+      lastHeartbeatAt: null,
+      heartbeatTimeoutSec,
     };
   }
 
-  if (collectorLiveness.collectorStatus === 'OFFLINE') {
+  if (computeFreshnessSec(lastHeartbeatAt) > heartbeatTimeoutSec) {
     return {
       status: 'offline',
       reason: 'heartbeat_timeout',
-      lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
-      heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+      lastHeartbeatAt,
+      heartbeatTimeoutSec,
     };
   }
 
   return {
-    status: 'unknown',
-    reason: 'no_heartbeat',
-    lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
-    heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+    status: 'online',
+    reason: 'none',
+    lastHeartbeatAt,
+    heartbeatTimeoutSec,
   };
 }
 
@@ -341,6 +343,19 @@ function toIsoString(summaryTs: string): string {
   const summaryDate = parseSummaryDate(summaryTs);
   if (!summaryDate) {
     return new Date(0).toISOString();
+  }
+
+  return summaryDate.toISOString();
+}
+
+function toOptionalIsoString(summaryTs: string | null): string | null {
+  if (!summaryTs) {
+    return null;
+  }
+
+  const summaryDate = parseSummaryDate(summaryTs);
+  if (!summaryDate) {
+    return null;
   }
 
   return summaryDate.toISOString();

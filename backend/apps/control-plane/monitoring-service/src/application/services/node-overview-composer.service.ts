@@ -46,7 +46,6 @@ export type NodeOverviewResponseView = {
     status: NodeOverviewStatus;
     reason: NodeOverviewReason;
     lastSeenAt: string;
-    fingerprintSeenAt: string | null;
     hardware: {
       batteryModel: string | null;
       cpuArchitecture: string | null;
@@ -132,7 +131,6 @@ export class NodeOverviewComposerService {
         status: nodeHealth.status,
         reason: nodeHealth.reason,
         lastSeenAt,
-        fingerprintSeenAt: toOptionalIsoString(snapshot.fingerprintSeenAt),
         hardware: {
           batteryModel: snapshot.batteryModel,
           cpuArchitecture: snapshot.cpuArchitecture,
@@ -343,19 +341,6 @@ function toIsoString(summaryTs: string): string {
   const summaryDate = parseSummaryDate(summaryTs);
   if (!summaryDate) {
     return new Date(0).toISOString();
-  }
-
-  return summaryDate.toISOString();
-}
-
-function toOptionalIsoString(summaryTs: string | null): string | null {
-  if (!summaryTs) {
-    return null;
-  }
-
-  const summaryDate = parseSummaryDate(summaryTs);
-  if (!summaryDate) {
-    return null;
   }
 
   return summaryDate.toISOString();

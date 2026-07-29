@@ -17,7 +17,6 @@ describe('deriveNodeOverviewHealth', () => {
   const baseSnapshot: NodeOverviewSnapshotRecord = {
     nodeId: 'node-a1',
     summaryTs: '2026-07-10 10:00:00',
-    fingerprintSeenAt: null,
     batteryModel: null,
     cpuArchitecture: null,
     cpuModel: null,
@@ -207,7 +206,6 @@ describe('NodeOverviewComposerService', () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
-      fingerprintSeenAt: null,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,
@@ -277,7 +275,6 @@ describe('NodeOverviewComposerService', () => {
         status: 'healthy',
         reason: 'none',
         lastSeenAt: '2026-07-10T10:00:00.000Z',
-        fingerprintSeenAt: null,
         collector: {
           status: 'online',
           reason: 'none',
@@ -325,7 +322,6 @@ describe('NodeOverviewComposerService', () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
-      fingerprintSeenAt: null,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,
@@ -430,7 +426,6 @@ describe('NodeOverviewComposerService', () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
-      fingerprintSeenAt: null,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,
@@ -513,7 +508,6 @@ describe('NodeOverviewComposerService', () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
-      fingerprintSeenAt: null,
       batteryModel: null,
       cpuArchitecture: null,
       cpuModel: null,

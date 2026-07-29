@@ -22,7 +22,6 @@ describe('NodeOverviewController', () => {
         status: 'healthy',
         reason: 'none',
         lastSeenAt: '2026-07-10T12:00:00.000Z',
-        fingerprintSeenAt: '2026-07-10T11:59:00.000Z',
         hardware: {
           batteryModel: 'MS-158L',
           cpuArchitecture: '386',

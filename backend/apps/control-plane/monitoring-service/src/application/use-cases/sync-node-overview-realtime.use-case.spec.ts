@@ -68,7 +68,6 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
         status: 'critical',
         reason: 'critical_metric',
         lastSeenAt: '2026-07-10T10:01:00.000Z',
-        fingerprintSeenAt: '2026-07-10T10:00:30.000Z',
         hardware: {
           batteryModel: 'MS-158L',
           cpuArchitecture: '386',

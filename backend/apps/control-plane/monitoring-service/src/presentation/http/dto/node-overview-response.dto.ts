@@ -40,14 +40,6 @@ export class NodeOverviewStatusDto {
     example: '2026-07-10T19:00:18.000Z',
   })
   lastSeenAt!: string;
-
-  @ApiProperty({
-    description:
-      'Timestamp of the latest hardware fingerprint observed for the node.',
-    nullable: true,
-    example: '2026-07-17T18:04:34.000Z',
-  })
-  fingerprintSeenAt!: string | null;
 }
 
 export class NodeOverviewCollectorDto {

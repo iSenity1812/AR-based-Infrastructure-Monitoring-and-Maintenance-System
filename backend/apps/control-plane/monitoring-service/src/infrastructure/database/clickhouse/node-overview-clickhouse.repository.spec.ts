@@ -11,7 +11,6 @@ describe('mapNodeOverviewSnapshotRow', () => {
     const record = mapNodeOverviewSnapshotRow({
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
-      fingerprintSeenAt: '2026-07-10 09:59:30',
       batteryModel: 'MS-158L',
       cpuArchitecture: '386',
       cpuModel: 'AMD Ryzen 7 5800H with Radeon Graphics',
@@ -55,7 +54,6 @@ describe('mapNodeOverviewSnapshotRow', () => {
     expect(record).toEqual({
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
-      fingerprintSeenAt: '2026-07-10 09:59:30',
       batteryModel: 'MS-158L',
       cpuArchitecture: '386',
       cpuModel: 'AMD Ryzen 7 5800H with Radeon Graphics',
@@ -153,6 +151,9 @@ describe('NodeOverviewClickhouseRepository incremental change detection', () => 
           nodeId: 'node-a1',
         },
       }),
+    );
+    expect(query.mock.calls[0][0].query).toContain(
+      "toTimeZone(summary.summary_ts, 'UTC')",
     );
     expect(query.mock.calls[0][0].query).toContain(
       'LEFT JOIN telemetry_db.node_fingerprint_latest AS fingerprint',

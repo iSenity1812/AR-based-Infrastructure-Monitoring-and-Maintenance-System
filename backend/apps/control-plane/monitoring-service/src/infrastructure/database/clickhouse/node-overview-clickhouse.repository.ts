@@ -11,7 +11,6 @@ import { CLICKHOUSE_CLIENT } from './clickhouse.constants';
 type NodeOverviewSnapshotRow = {
   nodeId: string;
   summaryTs: string;
-  fingerprintSeenAt: string | null;
   batteryModel: string | null;
   cpuArchitecture: string | null;
   cpuModel: string | null;
@@ -91,8 +90,11 @@ export class NodeOverviewClickhouseRepository implements NodeOverviewReadReposit
       query: `
         SELECT
           summary.node_id AS nodeId,
-          toString(summary.summary_ts) AS summaryTs,
-          toString(fingerprint.latest_ts) AS fingerprintSeenAt,
+          formatDateTime(
+            toTimeZone(summary.summary_ts, 'UTC'),
+            '%FT%TZ',
+            'UTC'
+          ) AS summaryTs,
           fingerprint.battery_model AS batteryModel,
           fingerprint.cpu_architecture AS cpuArchitecture,
           fingerprint.cpu_model AS cpuModel,
@@ -153,7 +155,11 @@ export class NodeOverviewClickhouseRepository implements NodeOverviewReadReposit
         SELECT
           container_id AS workloadId,
           'container' AS workloadType,
-          toString(summary_ts) AS summaryTs,
+          formatDateTime(
+            toTimeZone(summary_ts, 'UTC'),
+            '%FT%TZ',
+            'UTC'
+          ) AS summaryTs,
           node_id AS nodeId,
           container_name AS name,
           service_name AS serviceName,
@@ -303,7 +309,6 @@ export function mapNodeOverviewSnapshotRow(
   return {
     nodeId: row.nodeId,
     summaryTs: row.summaryTs,
-    fingerprintSeenAt: toNullableString(row.fingerprintSeenAt),
     batteryModel: toNullableString(row.batteryModel),
     cpuArchitecture: toNullableString(row.cpuArchitecture),
     cpuModel: toNullableString(row.cpuModel),

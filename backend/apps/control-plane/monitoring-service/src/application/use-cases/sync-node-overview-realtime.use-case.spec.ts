@@ -105,10 +105,8 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
       },
       workloadSummary: {
         total: 1,
+        healthy: 1,
         unhealthy: 0,
-        nonRunning: 0,
-        returned: 1,
-        selectionMode: 'abnormal_first_then_top_cpu',
       },
       workloads: [],
       realtime: {

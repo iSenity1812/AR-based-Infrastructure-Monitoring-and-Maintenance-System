@@ -195,20 +195,28 @@ export class NodeOverviewWorkloadSummaryDto {
   @ApiProperty({ example: 50 })
   total!: number;
 
+  @ApiProperty({ example: 48 })
+  healthy!: number;
+
   @ApiProperty({ example: 2 })
   unhealthy!: number;
+}
 
-  @ApiProperty({ example: 1 })
-  nonRunning!: number;
-
-  @ApiProperty({ example: 5 })
-  returned!: number;
+export class NodeOverviewWorkloadPrimaryIssueDto {
+  @ApiProperty({
+    description: 'Stable category for the primary workload issue.',
+    enum: ['none', 'heartbeat_loss', 'metric_alert'],
+    example: 'heartbeat_loss',
+  })
+  type!: 'none' | 'heartbeat_loss' | 'metric_alert';
 
   @ApiProperty({
-    enum: ['abnormal_first_then_top_cpu'],
-    example: 'abnormal_first_then_top_cpu',
+    description:
+      'Metric key currently considered the workload-level primary issue.',
+    nullable: true,
+    example: 'container.heartbeat.loss',
   })
-  selectionMode!: 'abnormal_first_then_top_cpu';
+  metricKey!: string | null;
 }
 
 export class NodeOverviewWorkloadDto {
@@ -221,28 +229,30 @@ export class NodeOverviewWorkloadDto {
     enum: ['container'],
     example: 'container',
   })
-  workloadType!: 'container';
+  type!: 'container';
 
   @ApiProperty({ example: 'backend-shared-vector' })
   name!: string;
 
-  @ApiProperty({ example: 'vector' })
-  serviceName!: string;
+  @ApiProperty({
+    description: 'Runtime lifecycle state for the workload.',
+    enum: ['running', 'stopped', 'unknown'],
+    example: 'running',
+  })
+  status!: 'running' | 'stopped' | 'unknown';
 
-  @ApiProperty({ example: 'running' })
-  status!: string;
-
-  @ApiProperty({ example: 'unhealthy' })
-  healthStatus!: string;
+  @ApiProperty({
+    description: 'Health probe or application health state for the workload.',
+    enum: ['healthy', 'unhealthy', 'unknown'],
+    example: 'unhealthy',
+  })
+  healthStatus!: 'healthy' | 'unhealthy' | 'unknown';
 
   @ApiProperty({ example: 0 })
   restartCount!: number;
 
-  @ApiProperty({ nullable: true, example: 'container.runtime_id' })
-  worstMetricKey!: string | null;
-
-  @ApiProperty({ example: true })
-  isAbnormal!: boolean;
+  @ApiProperty({ type: NodeOverviewWorkloadPrimaryIssueDto })
+  primaryIssue!: NodeOverviewWorkloadPrimaryIssueDto;
 }
 
 export class NodeOverviewRealtimeChannelDto {

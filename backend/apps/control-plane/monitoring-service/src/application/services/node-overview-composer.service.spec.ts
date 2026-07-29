@@ -508,4 +508,173 @@ describe('NodeOverviewComposerService', () => {
       },
     });
   });
+
+  it('returns clean workload contract without counting unknown runtime as unhealthy', async () => {
+    const snapshot: NodeOverviewSnapshotRecord = {
+      nodeId: 'node-a1',
+      summaryTs: '2026-07-10 10:00:00',
+      fingerprintSeenAt: null,
+      batteryModel: null,
+      cpuArchitecture: null,
+      cpuModel: null,
+      gpuModelPrimary: null,
+      hardwareSerial: null,
+      logicalCpuCount: null,
+      macAddress: null,
+      motherboardModel: null,
+      osProduct: null,
+      primaryIpv4: null,
+      ssdModelPrimary: null,
+      maxSeverityCode: 0,
+      hasOverrideFlag: 0,
+      isAnyStale: 0,
+      staleMetricCount: 0,
+      criticalMetricCount: 0,
+      warningMetricCount: 0,
+      cpuUsagePctCurrent: null,
+      cpuUsagePctUnit: null,
+      memoryUsagePctCurrent: null,
+      memoryUsagePctUnit: null,
+      diskUsagePctCurrent: null,
+      diskUsagePctUnit: null,
+      cpuTemperatureCCurrent: null,
+      cpuTemperatureCUnit: null,
+      cpuPackagePowerWCurrent: null,
+      cpuPackagePowerWUnit: null,
+      networkRxBytesSecCurrent: null,
+      networkRxBytesSecUnit: null,
+      networkTxBytesSecCurrent: null,
+      networkTxBytesSecUnit: null,
+      primaryNicStatusCurrent: null,
+      primaryNicStatusUnit: null,
+      uptimeSecondsCurrent: null,
+      uptimeSecondsUnit: null,
+      worstMetricKey: null,
+      worstMetricValueNumeric: null,
+      worstMetricValueText: null,
+    };
+    const workloads: NodeOverviewWorkloadRecord[] = [
+      {
+        workloadId: 'healthy-1',
+        workloadType: 'container',
+        summaryTs: '2026-07-10 10:00:00',
+        nodeId: 'node-a1',
+        name: 'healthy-api',
+        serviceName: 'api',
+        status: 'running',
+        healthStatus: 'healthy',
+        cpuUsagePct: 10,
+        memoryUsagePct: 20,
+        restartCount: 0,
+        pidCount: 5,
+        worstMetricKey: null,
+        isAnyStale: 0,
+      },
+      {
+        workloadId: 'unhealthy-1',
+        workloadType: 'container',
+        summaryTs: '2026-07-10 10:00:00',
+        nodeId: 'node-a1',
+        name: 'bad-worker',
+        serviceName: 'worker',
+        status: 'exited',
+        healthStatus: 'unhealthy',
+        cpuUsagePct: 5,
+        memoryUsagePct: 10,
+        restartCount: 0,
+        pidCount: 0,
+        worstMetricKey: 'container.health_status',
+        isAnyStale: 0,
+      },
+      {
+        workloadId: 'unknown-1',
+        workloadType: 'container',
+        summaryTs: '2026-07-10 10:00:00',
+        nodeId: 'node-a1',
+        name: 'unknown-cache',
+        serviceName: 'cache',
+        status: 'unknown',
+        healthStatus: 'unknown',
+        cpuUsagePct: 1,
+        memoryUsagePct: 1,
+        restartCount: 0,
+        pidCount: 0,
+        worstMetricKey: 'container.heartbeat.loss',
+        isAnyStale: 1,
+      },
+    ];
+    const repository = {
+      getCurrentNode: jest.fn().mockResolvedValue(snapshot),
+      listNodeWorkloads: jest.fn().mockResolvedValue(workloads),
+    };
+    const service = new NodeOverviewComposerService(
+      repository as never,
+      {
+        getByNodeId: jest.fn().mockResolvedValue({
+          nodeId: 'node-a1',
+          agentId: 'node-a1',
+          collectorStatus: 'ONLINE',
+          lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+          collectorFreshnessSec: 12,
+          heartbeatTimeoutSec: 90,
+          source: 'go-agent-collector',
+          metricKey: 'agent.heartbeat',
+          sourceMetric: 'collector.runtime.heartbeat',
+        }),
+      } as unknown as CollectorLivenessService,
+    );
+
+    const overview = await service.buildOverview('node-a1');
+
+    expect(overview.workloadSummary).toEqual({
+      total: 3,
+      healthy: 1,
+      unhealthy: 1,
+    });
+    expect(overview.workloadSummary).not.toHaveProperty('nonRunning');
+    expect(overview.workloadSummary).not.toHaveProperty('returned');
+    expect(overview.workloadSummary).not.toHaveProperty('selectionMode');
+    expect(overview.workloads).toEqual([
+      {
+        workloadId: 'unhealthy-1',
+        type: 'container',
+        name: 'bad-worker',
+        status: 'stopped',
+        healthStatus: 'unhealthy',
+        restartCount: 0,
+        primaryIssue: {
+          type: 'metric_alert',
+          metricKey: 'container.health_status',
+        },
+      },
+      {
+        workloadId: 'unknown-1',
+        type: 'container',
+        name: 'unknown-cache',
+        status: 'unknown',
+        healthStatus: 'unknown',
+        restartCount: 0,
+        primaryIssue: {
+          type: 'heartbeat_loss',
+          metricKey: 'container.heartbeat.loss',
+        },
+      },
+      {
+        workloadId: 'healthy-1',
+        type: 'container',
+        name: 'healthy-api',
+        status: 'running',
+        healthStatus: 'healthy',
+        restartCount: 0,
+        primaryIssue: {
+          type: 'none',
+          metricKey: null,
+        },
+      },
+    ]);
+    expect(overview.workloads[0]).not.toHaveProperty('workloadType');
+    expect(overview.workloads[0]).not.toHaveProperty('serviceName');
+    expect(overview.workloads[0]).not.toHaveProperty('worstMetricKey');
+    expect(overview.workloads[0]).not.toHaveProperty('isAbnormal');
+  });
 });

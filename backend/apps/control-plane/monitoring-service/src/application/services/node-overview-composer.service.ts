@@ -23,12 +23,22 @@ export type NodeOverviewPrimaryIssueType =
   | 'none'
   | 'heartbeat_loss'
   | 'metric_alert';
+export type NodeOverviewWorkloadStatus = 'running' | 'stopped' | 'unknown';
+export type NodeOverviewWorkloadHealthStatus =
+  | 'healthy'
+  | 'unhealthy'
+  | 'unknown';
 
 type NodeOverviewPrimaryIssueView = {
   type: NodeOverviewPrimaryIssueType;
   metricKey: string | null;
   value: number | string | null;
 };
+
+type NodeOverviewWorkloadPrimaryIssueView = Omit<
+  NodeOverviewPrimaryIssueView,
+  'value'
+>;
 
 export type NodeOverviewResponseView = {
   node: {
@@ -69,21 +79,17 @@ export type NodeOverviewResponseView = {
   };
   workloadSummary: {
     total: number;
+    healthy: number;
     unhealthy: number;
-    nonRunning: number;
-    returned: number;
-    selectionMode: 'abnormal_first_then_top_cpu';
   };
   workloads: Array<{
     workloadId: string;
-    workloadType: 'container';
+    type: 'container';
     name: string;
-    serviceName: string;
-    status: string;
-    healthStatus: string;
+    status: NodeOverviewWorkloadStatus;
+    healthStatus: NodeOverviewWorkloadHealthStatus;
     restartCount: number;
-    worstMetricKey: string | null;
-    isAbnormal: boolean;
+    primaryIssue: NodeOverviewWorkloadPrimaryIssueView;
   }>;
   realtime: {
     transport: 'socket.io';
@@ -154,21 +160,17 @@ export class NodeOverviewComposerService {
       },
       workloadSummary: {
         total: workloads.length,
+        healthy: workloads.filter((workload) => isHealthy(workload)).length,
         unhealthy: workloads.filter((workload) => isUnhealthy(workload)).length,
-        nonRunning: workloads.filter((workload) => !isRunning(workload)).length,
-        returned: selectedWorkloads.length,
-        selectionMode: 'abnormal_first_then_top_cpu',
       },
       workloads: selectedWorkloads.map((workload) => ({
         workloadId: workload.workloadId,
-        workloadType: workload.workloadType,
+        type: workload.workloadType,
         name: workload.name,
-        serviceName: workload.serviceName,
-        status: workload.status,
-        healthStatus: workload.healthStatus,
+        status: normalizeWorkloadStatus(workload.status),
+        healthStatus: normalizeWorkloadHealthStatus(workload.healthStatus),
         restartCount: workload.restartCount,
-        worstMetricKey: workload.worstMetricKey,
-        isAbnormal: isAbnormalWorkload(workload),
+        primaryIssue: mapWorkloadPrimaryIssue(workload),
       })),
       realtime: {
         transport: 'socket.io',
@@ -298,13 +300,34 @@ function mapPrimaryIssue(
   }
 
   return {
-    type:
-      snapshot.worstMetricKey === 'node.heartbeat.loss'
-        ? 'heartbeat_loss'
-        : 'metric_alert',
+    type: classifyPrimaryIssueType(snapshot.worstMetricKey),
     metricKey: snapshot.worstMetricKey,
     value: snapshot.worstMetricValueText ?? snapshot.worstMetricValueNumeric,
   };
+}
+
+function mapWorkloadPrimaryIssue(
+  workload: NodeOverviewWorkloadRecord,
+): NodeOverviewWorkloadPrimaryIssueView {
+  if (!workload.worstMetricKey) {
+    return {
+      type: 'none',
+      metricKey: null,
+    };
+  }
+
+  return {
+    type: classifyPrimaryIssueType(workload.worstMetricKey),
+    metricKey: workload.worstMetricKey,
+  };
+}
+
+function classifyPrimaryIssueType(
+  metricKey: string,
+): Exclude<NodeOverviewPrimaryIssueType, 'none'> {
+  return metricKey.endsWith('.heartbeat.loss')
+    ? 'heartbeat_loss'
+    : 'metric_alert';
 }
 
 function computeFreshnessSec(summaryTs: string): number {
@@ -356,14 +379,45 @@ function parseSummaryDate(summaryTs: string): Date | null {
 
 function isAbnormalWorkload(workload: NodeOverviewWorkloadRecord): boolean {
   return (
-    isUnhealthy(workload) || !isRunning(workload) || workload.restartCount > 0
+    isUnhealthy(workload) ||
+    normalizeWorkloadStatus(workload.status) === 'stopped' ||
+    workload.restartCount > 0 ||
+    Boolean(workload.worstMetricKey)
   );
 }
 
-function isUnhealthy(workload: NodeOverviewWorkloadRecord): boolean {
-  return workload.healthStatus.trim().toLowerCase() === 'unhealthy';
+function isHealthy(workload: NodeOverviewWorkloadRecord): boolean {
+  return normalizeWorkloadHealthStatus(workload.healthStatus) === 'healthy';
 }
 
-function isRunning(workload: NodeOverviewWorkloadRecord): boolean {
-  return workload.status.trim().toLowerCase() === 'running';
+function isUnhealthy(workload: NodeOverviewWorkloadRecord): boolean {
+  return normalizeWorkloadHealthStatus(workload.healthStatus) === 'unhealthy';
+}
+
+function normalizeWorkloadStatus(value: string): NodeOverviewWorkloadStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'running') {
+    return 'running';
+  }
+
+  if (!normalized || normalized === 'unknown') {
+    return 'unknown';
+  }
+
+  return 'stopped';
+}
+
+function normalizeWorkloadHealthStatus(
+  value: string,
+): NodeOverviewWorkloadHealthStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'healthy') {
+    return 'healthy';
+  }
+
+  if (normalized === 'unhealthy') {
+    return 'unhealthy';
+  }
+
+  return 'unknown';
 }

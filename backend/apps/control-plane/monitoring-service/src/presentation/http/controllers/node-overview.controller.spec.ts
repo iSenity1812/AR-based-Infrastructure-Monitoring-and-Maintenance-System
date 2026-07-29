@@ -59,10 +59,8 @@ describe('NodeOverviewController', () => {
       },
       workloadSummary: {
         total: 0,
+        healthy: 0,
         unhealthy: 0,
-        nonRunning: 0,
-        returned: 0,
-        selectionMode: 'abnormal_first_then_top_cpu',
       },
       workloads: [],
       realtime: {

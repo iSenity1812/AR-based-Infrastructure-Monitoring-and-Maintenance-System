@@ -93,6 +93,10 @@ services:
       - traefik.http.routers.monitoring-service.middlewares=monitoring-strip
       - traefik.http.middlewares.monitoring-strip.stripprefix.prefixes=/monitoring
       - traefik.http.services.monitoring-service.loadbalancer.server.port=4003
+
+      - traefik.http.routers.monitoring-ws.rule=Host(`localhost`) && PathPrefix(`/socket.io`)
+      - traefik.http.routers.monitoring-ws.service=monitoring-service
+      - traefik.http.routers.monitoring-ws.priority=100
     networks:
       - edge
       - redpanda-network

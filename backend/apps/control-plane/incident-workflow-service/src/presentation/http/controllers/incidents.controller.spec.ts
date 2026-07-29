@@ -29,14 +29,47 @@ function buildSnapshot(): IncidentCapturedSnapshot {
     ],
     alert: {
       fingerprint: 'fp-1',
+      alertName: 'NodeStale',
+      severity: 'critical',
+      category: 'availability',
+      metricKey: 'node_stale_age_seconds',
+      currentValue: '120',
+      threshold: '60',
+      startsAt: '2026-07-23T04:17:45.000Z',
+      summary: 'Node node-1 stopped reporting fresh telemetry.',
     },
     scope: {
       scopeType: 'node',
       scopeId: 'node-1',
       rackId: 'rack-1',
     },
-    metricEvidence: [],
-    sourceRefs: [],
+    asset: {
+      displayName: 'Node 01',
+      siteCode: 'SITE-01',
+      roomCode: 'ROOM-01',
+      rackCode: 'RACK-01',
+    },
+    impact: {
+      affectedNodeCount: 1,
+      totalNodeCount: 4,
+      affectedRatio: 0.25,
+    },
+    metricEvidence: [
+      {
+        metricKey: 'node_stale_age_seconds',
+        label: 'Node Stale Age',
+        unit: 'seconds',
+        lastValueNumeric: 120,
+        observedAt: '2026-07-23T04:18:45.000Z',
+      },
+    ],
+    sourceRefs: [
+      {
+        system: 'asset-service',
+        dataset: 'nodes',
+        observedAt: '2026-07-23T04:18:45.000Z',
+      },
+    ],
   };
 }
 
@@ -59,11 +92,61 @@ function buildIncidentEntity(
     },
     metadata: {
       source: 'monitoring_alert',
+      fingerprint: 'fp-1',
+      alertName: 'NodeStale',
+      monitoringSeverity: 'critical',
+      scopeType: 'node',
+      nodeId: 'node-1',
+      rackId: 'rack-1',
+      dashboardUrl: '/d/monitoring-overview',
+      runbookUrl: '/docs/runbooks/alerting/node-stale',
+      startsAt: '2026-07-23T04:17:45.000Z',
+      lastReceivedAt: '2026-07-23T04:18:45.000Z',
+      rawLabels: {
+        critical_nodes_label: '1',
+        silent_dead_nodes_label: '0',
+      },
+      rawAnnotations: {
+        reason_code: 'node_stale',
+      },
+      summary: {
+        whatHappened: 'Node node-1 stopped reporting fresh telemetry.',
+        where: {
+          scopeType: 'node',
+          nodeId: 'node-1',
+          rackId: 'rack-1',
+        },
+        urgency: 'review_now',
+      },
     },
     capturedSnapshot: buildSnapshot(),
     createdAt: new Date('2026-07-23T04:20:00.000Z'),
     updatedAt: new Date('2026-07-23T04:21:00.000Z'),
     ...overrides,
+  });
+}
+
+function buildCreateIncidentEntity(): IncidentEntity {
+  return buildIncidentEntity({
+    metadata: {
+      source: 'monitoring_alert',
+    },
+    capturedSnapshot: {
+      ...buildSnapshot(),
+      unavailableSources: [
+        {
+          source: 'asset-service',
+          reasonCode: 'TIMEOUT',
+        },
+      ],
+      metricEvidence: [],
+      sourceRefs: [],
+      asset: undefined,
+      impact: undefined,
+      alert: {
+        fingerprint: 'fp-1',
+      },
+    },
   });
 }
 
@@ -92,7 +175,9 @@ describe('IncidentsController', () => {
   });
 
   it('returns a flat response for create and normalizes optional snapshot arrays', async () => {
-    createIncidentUseCase.execute.mockResolvedValue(buildIncidentEntity());
+    createIncidentUseCase.execute.mockResolvedValue(
+      buildCreateIncidentEntity(),
+    );
 
     const response = await controller.create(
       {
@@ -121,15 +206,11 @@ describe('IncidentsController', () => {
       },
     );
 
-    expect(createIncidentUseCase.execute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        capturedSnapshot: expect.objectContaining({
-          unavailableSources: [],
-          metricEvidence: [],
-          sourceRefs: [],
-        }),
-      }),
-    );
+    const createCommand: Parameters<CreateIncidentUseCase['execute']>[0] =
+      createIncidentUseCase.execute.mock.calls[0][0];
+    expect(createCommand.capturedSnapshot?.unavailableSources).toEqual([]);
+    expect(createCommand.capturedSnapshot?.metricEvidence).toEqual([]);
+    expect(createCommand.capturedSnapshot?.sourceRefs).toEqual([]);
     expect(response).toEqual({
       id: 'incident-1',
       incidentCode: 'INC-001',
@@ -147,16 +228,36 @@ describe('IncidentsController', () => {
       metadata: {
         source: 'monitoring_alert',
       },
-      capturedSnapshot: buildSnapshot(),
+      capturedSnapshot: buildCreateIncidentEntity().props.capturedSnapshot,
       createdAt: '2026-07-23T04:20:00.000Z',
       updatedAt: '2026-07-23T04:21:00.000Z',
     });
     expect(response).not.toHaveProperty('props');
   });
 
-  it('returns a flat response list', async () => {
+  it('returns a compact incident summary list', async () => {
     listIncidentsUseCase.execute.mockResolvedValue([
-      buildIncidentEntity(),
+      buildIncidentEntity({
+        capturedSnapshot: {
+          ...buildSnapshot(),
+          asset: {
+            displayName: 'Node 01',
+            siteCode: 'SITE-01',
+            roomCode: 'ROOM-01',
+          },
+          impact: {
+            affectedNodeCount: 1,
+            totalNodeCount: 4,
+            affectedRatio: 0.25,
+          },
+          alert: {
+            fingerprint: 'fp-1',
+            alertName: 'NodeStale',
+            severity: 'critical',
+            startsAt: '2026-07-23T04:17:45.000Z',
+          },
+        },
+      }),
       buildIncidentEntity({
         id: 'incident-2',
         incidentCode: 'INC-002',
@@ -169,16 +270,61 @@ describe('IncidentsController', () => {
     });
 
     expect(response).toHaveLength(2);
-    expect(response[0]).toEqual(
-      expect.objectContaining({
-        id: 'incident-1',
-        incidentCode: 'INC-001',
-      }),
-    );
+    expect(response[0]).toEqual({
+      id: 'incident-1',
+      incidentCode: 'INC-001',
+      title: 'Node stale',
+      severity: IncidentSeverity.CRITICAL,
+      status: IncidentStatus.OPEN,
+      summary: {
+        whatHappened: 'Node node-1 stopped reporting fresh telemetry.',
+        where: 'SITE-01 / ROOM-01 / Node 01',
+        whatIsAffected: '1 of 4 nodes affected',
+        urgency: 'review_now',
+      },
+      scope: {
+        type: 'node',
+        id: 'node-1',
+        rackId: 'rack-1',
+        nodeId: 'node-1',
+      },
+      asset: {
+        displayName: 'Node 01',
+        siteCode: 'SITE-01',
+        roomCode: 'ROOM-01',
+        rackCode: undefined,
+      },
+      impact: {
+        affectedNodeCount: 1,
+        totalNodeCount: 4,
+        affectedRatio: 0.25,
+        criticalNodeCount: 1,
+        silentDeadNodeCount: 0,
+      },
+      primaryAlert: {
+        fingerprint: 'fp-1',
+        name: 'NodeStale',
+        severity: 'critical',
+        startedAt: '2026-07-23T04:17:45.000Z',
+        lastReceivedAt: '2026-07-23T04:18:45.000Z',
+      },
+      ticketCount: 1,
+      links: {
+        dashboardUrl: '/d/monitoring-overview',
+        runbookUrl: '/docs/runbooks/alerting/node-stale',
+      },
+      createdAt: '2026-07-23T04:20:00.000Z',
+      updatedAt: '2026-07-23T04:21:00.000Z',
+    });
     expect(response[0]).not.toHaveProperty('props');
+    expect(response[0]).not.toHaveProperty('description');
+    expect(response[0]).not.toHaveProperty('metadata');
+    expect(response[0]).not.toHaveProperty('capturedSnapshot');
+    expect(JSON.stringify(response[0])).not.toContain('rawLabels');
+    expect(JSON.stringify(response[0])).not.toContain('rawAnnotations');
   });
 
-  it('returns a flat response for get', async () => {
+  it('returns a source-facts detail response for get', async () => {
     getIncidentUseCase.execute.mockResolvedValue({
       incident: buildIncidentEntity(),
       relatedIncidents: [
@@ -190,24 +336,134 @@ describe('IncidentsController', () => {
           updatedAt: new Date('2026-07-22T04:21:00.000Z'),
         }),
       ],
-    } as never);
+    });
 
     const response = await controller.get('incident-1');
 
-    expect(response).toEqual(
-      expect.objectContaining({
-        id: 'incident-1',
-        incidentCode: 'INC-001',
-        capturedSnapshot: buildSnapshot(),
-        relatedIncidents: [
-          expect.objectContaining({
-            id: 'incident-2',
-            incidentCode: 'INC-002',
-            title: 'Node stale previous',
-          }),
+    expect(response).toEqual({
+      id: 'incident-1',
+      incidentCode: 'INC-001',
+      title: 'Node stale',
+      state: {
+        status: IncidentStatus.OPEN,
+        severity: IncidentSeverity.CRITICAL,
+        createdAt: '2026-07-23T04:20:00.000Z',
+        updatedAt: '2026-07-23T04:21:00.000Z',
+        resolvedAt: null,
+        closedAt: null,
+      },
+      summary: {
+        whatHappened: 'Node node-1 stopped reporting fresh telemetry.',
+        scope: {
+          type: 'node',
+          id: 'node-1',
+          rackId: 'rack-1',
+          nodeId: 'node-1',
+        },
+        urgency: 'review_now',
+      },
+      sourceFacts: {
+        alert: {
+          fingerprint: 'fp-1',
+          name: 'NodeStale',
+          severity: 'critical',
+          category: 'availability',
+          environment: undefined,
+          team: undefined,
+          startedAt: '2026-07-23T04:17:45.000Z',
+          lastReceivedAt: '2026-07-23T04:18:45.000Z',
+        },
+        trigger: {
+          metricKey: 'node_stale_age_seconds',
+          currentValue: 120,
+          threshold: 60,
+          unit: 'seconds',
+          observedWindow: undefined,
+        },
+        asset: {
+          displayName: 'Node 01',
+          siteCode: 'SITE-01',
+          roomCode: 'ROOM-01',
+          rackCode: 'RACK-01',
+        },
+        impact: {
+          affectedNodeCount: 1,
+          totalNodeCount: 4,
+          affectedRatio: 0.25,
+          criticalNodeCount: 1,
+          silentDeadNodeCount: 0,
+        },
+      },
+      evidence: {
+        type: 'creation_snapshot',
+        capturedAt: '2026-07-23T04:18:45.000Z',
+        window: {
+          from: '2026-07-23T03:48:45.000Z',
+          to: '2026-07-23T04:18:45.000Z',
+          interval: '1m',
+        },
+        completeness: 'partial',
+        metrics: [
+          {
+            metricKey: 'node_stale_age_seconds',
+            label: 'Node Stale Age',
+            value: 120,
+            unit: 'seconds',
+            observedAt: '2026-07-23T04:18:45.000Z',
+          },
         ],
-      }),
-    );
+        unavailableSources: [
+          {
+            source: 'asset-service',
+            reasonCode: 'TIMEOUT',
+          },
+        ],
+      },
+      alerts: [
+        {
+          fingerprint: 'fp-1',
+          name: 'NodeStale',
+          severity: 'critical',
+          role: 'primary',
+          startedAt: '2026-07-23T04:17:45.000Z',
+          lastReceivedAt: '2026-07-23T04:18:45.000Z',
+        },
+      ],
+      tickets: [
+        {
+          id: 'ticket-1',
+        },
+      ],
+      links: {
+        dashboardUrl: '/d/monitoring-overview',
+        runbookUrl: '/docs/runbooks/alerting/node-stale',
+      },
+      sourceRefs: [
+        {
+          system: 'asset-service',
+          dataset: 'nodes',
+          observedAt: '2026-07-23T04:18:45.000Z',
+        },
+      ],
+      relatedIncidents: [
+        {
+          id: 'incident-2',
+          incidentCode: 'INC-002',
+          title: 'Node stale previous',
+          severity: IncidentSeverity.CRITICAL,
+          status: IncidentStatus.OPEN,
+          createdAt: '2026-07-22T04:20:00.000Z',
+          updatedAt: '2026-07-22T04:21:00.000Z',
+        },
+      ],
+    });
     expect(response).not.toHaveProperty('props');
+    expect(response).not.toHaveProperty('description');
+    expect(response).not.toHaveProperty('metadata');
+    expect(response).not.toHaveProperty('capturedSnapshot');
+    expect(response).not.toHaveProperty('recommendedActions');
+    expect(response).not.toHaveProperty('diagnosis');
+    expect(JSON.stringify(response)).not.toContain('rawLabels');
+    expect(JSON.stringify(response)).not.toContain('rawAnnotations');
   });
 });

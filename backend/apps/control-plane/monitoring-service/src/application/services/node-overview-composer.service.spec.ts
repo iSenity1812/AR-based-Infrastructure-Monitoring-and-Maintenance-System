@@ -13,7 +13,9 @@ import {
 } from './node-overview-composer.service';
 
 const ONLINE_HEARTBEAT_AT = '2999-01-01T00:00:00.000Z';
+const ONLINE_HEARTBEAT_AT_OPERATOR = '2999-01-01T07:00:00.000+07:00';
 const STALE_HEARTBEAT_AT = '2026-07-21T08:15:30.000Z';
+const STALE_HEARTBEAT_AT_OPERATOR = '2026-07-21T15:15:30.000+07:00';
 const monitoringConfig = { collectorHeartbeatTimeoutSec: 90 };
 
 describe('deriveNodeOverviewHealth', () => {
@@ -266,11 +268,11 @@ describe('NodeOverviewComposerService', () => {
         nodeId: 'node-a1',
         status: 'healthy',
         reason: 'none',
-        lastSeenAt: '2026-07-10T10:00:00.000Z',
+        lastSeenAt: '2026-07-10T17:00:00.000+07:00',
         collector: {
           status: 'online',
           reason: 'none',
-          lastHeartbeatAt: ONLINE_HEARTBEAT_AT,
+          lastHeartbeatAt: ONLINE_HEARTBEAT_AT_OPERATOR,
           heartbeatTimeoutSec: 90,
         },
       }),
@@ -375,7 +377,7 @@ describe('NodeOverviewComposerService', () => {
           collector: {
             status: 'offline',
             reason: 'heartbeat_timeout',
-            lastHeartbeatAt: STALE_HEARTBEAT_AT,
+            lastHeartbeatAt: STALE_HEARTBEAT_AT_OPERATOR,
             heartbeatTimeoutSec: 90,
           },
         }),

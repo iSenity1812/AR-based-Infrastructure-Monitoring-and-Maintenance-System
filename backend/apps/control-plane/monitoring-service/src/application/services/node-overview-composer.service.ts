@@ -97,6 +97,8 @@ export type NodeOverviewResponseView = {
 };
 
 const MAX_OVERVIEW_WORKLOADS = 5;
+const OPERATOR_TIMEZONE_OFFSET_MINUTES = 7 * 60;
+const OPERATOR_TIMEZONE_OFFSET_SUFFIX = '+07:00';
 
 @Injectable()
 export class NodeOverviewComposerService {
@@ -117,7 +119,7 @@ export class NodeOverviewComposerService {
 
     const workloads =
       await this.nodeOverviewReadRepository.listNodeWorkloads(nodeId);
-    const lastSeenAt = toIsoString(snapshot.summaryTs);
+    const lastSeenAt = toOperatorIsoString(snapshot.summaryTs);
     const freshnessSec = computeFreshnessSec(snapshot.summaryTs);
     const nodeHealth = deriveNodeOverviewHealth(snapshot, freshnessSec);
     const collector = mapCollectorOverview(
@@ -260,7 +262,9 @@ function mapCollectorOverview(
   snapshot: NodeOverviewSnapshotRecord,
   heartbeatTimeoutSec: number,
 ): NodeOverviewResponseView['node']['collector'] {
-  const lastHeartbeatAt = toOptionalIsoString(snapshot.collectorHeartbeatAt);
+  const lastHeartbeatAt = toOptionalOperatorIsoString(
+    snapshot.collectorHeartbeatAt,
+  );
 
   if (!lastHeartbeatAt) {
     return {
@@ -339,16 +343,16 @@ function computeFreshnessSec(summaryTs: string): number {
   return Math.max(0, Math.floor((Date.now() - summaryDate.getTime()) / 1000));
 }
 
-function toIsoString(summaryTs: string): string {
+function toOperatorIsoString(summaryTs: string): string {
   const summaryDate = parseSummaryDate(summaryTs);
   if (!summaryDate) {
-    return new Date(0).toISOString();
+    return formatWithOperatorOffset(new Date(0));
   }
 
-  return summaryDate.toISOString();
+  return formatWithOperatorOffset(summaryDate);
 }
 
-function toOptionalIsoString(summaryTs: string | null): string | null {
+function toOptionalOperatorIsoString(summaryTs: string | null): string | null {
   if (!summaryTs) {
     return null;
   }
@@ -358,7 +362,15 @@ function toOptionalIsoString(summaryTs: string | null): string | null {
     return null;
   }
 
-  return summaryDate.toISOString();
+  return formatWithOperatorOffset(summaryDate);
+}
+
+function formatWithOperatorOffset(value: Date): string {
+  const shifted = new Date(
+    value.getTime() + OPERATOR_TIMEZONE_OFFSET_MINUTES * 60 * 1000,
+  );
+
+  return shifted.toISOString().replace('Z', OPERATOR_TIMEZONE_OFFSET_SUFFIX);
 }
 
 function parseSummaryDate(summaryTs: string): Date | null {
@@ -366,9 +378,13 @@ function parseSummaryDate(summaryTs: string): Date | null {
     return null;
   }
 
-  const normalized = summaryTs.includes('T')
+  let normalized = summaryTs.includes('T')
     ? summaryTs
     : summaryTs.replace(' ', 'T');
+  if (!/[zZ]|[+-]\d{2}:\d{2}$/.test(normalized)) {
+    normalized = `${normalized}Z`;
+  }
+
   const parsed = new Date(normalized);
   if (Number.isNaN(parsed.getTime())) {
     return null;

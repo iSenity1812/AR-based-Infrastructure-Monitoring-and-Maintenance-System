@@ -36,8 +36,9 @@ export class NodeOverviewStatusDto {
     | 'no_telemetry';
 
   @ApiProperty({
-    description: 'Timestamp of the latest node summary used by the overview.',
-    example: '2026-07-10T19:00:18.000Z',
+    description:
+      'Operator-local timestamp of the latest node summary used by the overview.',
+    example: '2026-07-10T19:00:18.000+07:00',
   })
   lastSeenAt!: string;
 }
@@ -60,9 +61,10 @@ export class NodeOverviewCollectorDto {
   reason!: 'none' | 'heartbeat_timeout' | 'no_heartbeat';
 
   @ApiProperty({
-    description: 'Timestamp of the latest collector heartbeat observation.',
+    description:
+      'Operator-local timestamp of the latest collector heartbeat observation.',
     nullable: true,
-    example: '2026-07-21T08:15:30.000Z',
+    example: '2026-07-21T15:15:30.000+07:00',
   })
   lastHeartbeatAt!: string | null;
 

@@ -21,7 +21,7 @@ describe('NodeOverviewController', () => {
         nodeId: 'node-a1',
         status: 'healthy',
         reason: 'none',
-        lastSeenAt: '2026-07-10T12:00:00.000Z',
+        lastSeenAt: '2026-07-10T19:00:00.000+07:00',
         hardware: {
           batteryModel: 'MS-158L',
           cpuArchitecture: '386',
@@ -38,7 +38,7 @@ describe('NodeOverviewController', () => {
         collector: {
           status: 'online',
           reason: 'none',
-          lastHeartbeatAt: '2026-07-10T11:59:45.000Z',
+          lastHeartbeatAt: '2026-07-10T18:59:45.000+07:00',
           heartbeatTimeoutSec: 90,
         },
       },

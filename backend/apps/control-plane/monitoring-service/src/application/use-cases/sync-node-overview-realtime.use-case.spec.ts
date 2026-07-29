@@ -67,7 +67,7 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
         nodeId: 'node-a1',
         status: 'critical',
         reason: 'critical_metric',
-        lastSeenAt: '2026-07-10T10:01:00.000Z',
+        lastSeenAt: '2026-07-10T17:01:00.000+07:00',
         hardware: {
           batteryModel: 'MS-158L',
           cpuArchitecture: '386',
@@ -84,7 +84,7 @@ describe('SyncNodeOverviewRealtimeUseCase', () => {
         collector: {
           status: 'online',
           reason: 'none',
-          lastHeartbeatAt: '2026-07-10T10:00:45.000Z',
+          lastHeartbeatAt: '2026-07-10T17:00:45.000+07:00',
           heartbeatTimeoutSec: 90,
         },
       },

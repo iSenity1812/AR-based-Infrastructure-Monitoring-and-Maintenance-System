@@ -7,13 +7,18 @@ import {
 } from '../ports/node-overview-read.repository';
 import { CollectorLivenessService } from './collector-liveness.service';
 
-export type NodeOverviewStatus = 'healthy' | 'alerting' | 'unknown';
-export type NodeOverviewSeverity =
-  | 'healthy'
-  | 'stale'
-  | 'warning'
-  | 'high'
-  | 'critical';
+export type NodeOverviewStatus = 'healthy' | 'warning' | 'critical' | 'unknown';
+export type NodeOverviewReason =
+  | 'none'
+  | 'warning_metric'
+  | 'critical_metric'
+  | 'telemetry_stale'
+  | 'no_telemetry';
+export type NodeOverviewCollectorStatus = 'online' | 'offline' | 'unknown';
+export type NodeOverviewCollectorReason =
+  | 'none'
+  | 'heartbeat_timeout'
+  | 'no_heartbeat';
 
 type NodeOverviewTextMetricView = {
   value: string | null;
@@ -29,25 +34,28 @@ export type NodeOverviewResponseView = {
   node: {
     nodeId: string;
     status: NodeOverviewStatus;
-    severity: NodeOverviewSeverity;
+    reason: NodeOverviewReason;
     lastSeenAt: string;
-    freshnessSec: number;
-    collectorStatus: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
-    lastHeartbeatAt: string | null;
-    collectorFreshnessSec: number | null;
-    heartbeatTimeoutSec: number;
     fingerprintSeenAt: string | null;
-    batteryModel: string | null;
-    cpuArchitecture: string | null;
-    cpuModel: string | null;
-    gpuModelPrimary: string | null;
-    hardwareSerial: string | null;
-    logicalCpuCount: number | null;
-    macAddress: string | null;
-    motherboardModel: string | null;
-    osProduct: string | null;
-    primaryIpv4: string | null;
-    ssdModelPrimary: string | null;
+    hardware: {
+      batteryModel: string | null;
+      cpuArchitecture: string | null;
+      cpuModel: string | null;
+      gpuModelPrimary: string | null;
+      hardwareSerial: string | null;
+      logicalCpuCount: number | null;
+      macAddress: string | null;
+      motherboardModel: string | null;
+      osProduct: string | null;
+      primaryIpv4: string | null;
+      ssdModelPrimary: string | null;
+    };
+    collector: {
+      status: NodeOverviewCollectorStatus;
+      reason: NodeOverviewCollectorReason;
+      lastHeartbeatAt: string | null;
+      heartbeatTimeoutSec: number;
+    };
   };
   summaryMetrics: {
     primaryNicStatus: NodeOverviewTextMetricView;
@@ -112,31 +120,31 @@ export class NodeOverviewComposerService {
       await this.collectorLivenessService.getByNodeId(nodeId);
     const lastSeenAt = toIsoString(snapshot.summaryTs);
     const freshnessSec = computeFreshnessSec(snapshot.summaryTs);
+    const nodeHealth = deriveNodeOverviewHealth(snapshot, freshnessSec);
+    const collector = mapCollectorOverview(collectorLiveness);
     const selectedWorkloads = selectOverviewWorkloads(workloads);
 
     return {
       node: {
         nodeId: snapshot.nodeId,
-        status: deriveNodeOverviewStatus(snapshot, freshnessSec),
-        severity: deriveNodeOverviewSeverity(snapshot, freshnessSec),
+        status: nodeHealth.status,
+        reason: nodeHealth.reason,
         lastSeenAt,
-        freshnessSec,
-        collectorStatus: collectorLiveness.collectorStatus,
-        lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
-        collectorFreshnessSec: collectorLiveness.collectorFreshnessSec,
-        heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
         fingerprintSeenAt: toOptionalIsoString(snapshot.fingerprintSeenAt),
-        batteryModel: snapshot.batteryModel,
-        cpuArchitecture: snapshot.cpuArchitecture,
-        cpuModel: snapshot.cpuModel,
-        gpuModelPrimary: snapshot.gpuModelPrimary,
-        hardwareSerial: snapshot.hardwareSerial,
-        logicalCpuCount: snapshot.logicalCpuCount,
-        macAddress: snapshot.macAddress,
-        motherboardModel: snapshot.motherboardModel,
-        osProduct: snapshot.osProduct,
-        primaryIpv4: snapshot.primaryIpv4,
-        ssdModelPrimary: snapshot.ssdModelPrimary,
+        hardware: {
+          batteryModel: snapshot.batteryModel,
+          cpuArchitecture: snapshot.cpuArchitecture,
+          cpuModel: snapshot.cpuModel,
+          gpuModelPrimary: snapshot.gpuModelPrimary,
+          hardwareSerial: snapshot.hardwareSerial,
+          logicalCpuCount: snapshot.logicalCpuCount,
+          macAddress: snapshot.macAddress,
+          motherboardModel: snapshot.motherboardModel,
+          osProduct: snapshot.osProduct,
+          primaryIpv4: snapshot.primaryIpv4,
+          ssdModelPrimary: snapshot.ssdModelPrimary,
+        },
+        collector,
       },
       summaryMetrics: {
         primaryNicStatus: {
@@ -192,38 +200,33 @@ export function deriveNodeOverviewStatus(
   snapshot: NodeOverviewSnapshotRecord,
   freshnessSec: number,
 ): NodeOverviewStatus {
-  if (isSnapshotUnknown(snapshot, freshnessSec)) {
-    return 'unknown';
-  }
-
-  if (snapshot.criticalMetricCount > 0 || snapshot.warningMetricCount > 0) {
-    return 'alerting';
-  }
-
-  return 'healthy';
+  return deriveNodeOverviewHealth(snapshot, freshnessSec).status;
 }
 
-export function deriveNodeOverviewSeverity(
+export function deriveNodeOverviewHealth(
   snapshot: NodeOverviewSnapshotRecord,
-  _freshnessSec: number,
-): NodeOverviewSeverity {
-  if (snapshot.maxSeverityCode >= 4) {
-    return 'critical';
+  freshnessSec: number,
+): {
+  status: NodeOverviewStatus;
+  reason: NodeOverviewReason;
+} {
+  if (!parseSummaryDate(snapshot.summaryTs)) {
+    return { status: 'unknown', reason: 'no_telemetry' };
   }
 
-  if (snapshot.maxSeverityCode >= 3 || snapshot.criticalMetricCount > 0) {
-    return 'high';
+  if (isSnapshotUnknown(snapshot, freshnessSec)) {
+    return { status: 'unknown', reason: 'telemetry_stale' };
   }
 
-  if (snapshot.maxSeverityCode >= 2 || snapshot.warningMetricCount > 0) {
-    return 'warning';
+  if (snapshot.criticalMetricCount > 0) {
+    return { status: 'critical', reason: 'critical_metric' };
   }
 
-  if (snapshot.maxSeverityCode >= 1 || snapshot.isAnyStale >= 1 || snapshot.staleMetricCount > 0) {
-    return 'stale';
+  if (snapshot.warningMetricCount > 0) {
+    return { status: 'warning', reason: 'warning_metric' };
   }
 
-  return 'healthy';
+  return { status: 'healthy', reason: 'none' };
 }
 
 export function selectOverviewWorkloads(
@@ -264,6 +267,37 @@ function isSnapshotUnknown(
       snapshot.criticalMetricCount === 0 &&
       snapshot.warningMetricCount === 0)
   );
+}
+
+function mapCollectorOverview(
+  collectorLiveness: Awaited<
+    ReturnType<CollectorLivenessService['getByNodeId']>
+  >,
+): NodeOverviewResponseView['node']['collector'] {
+  if (collectorLiveness.collectorStatus === 'ONLINE') {
+    return {
+      status: 'online',
+      reason: 'none',
+      lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
+      heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+    };
+  }
+
+  if (collectorLiveness.collectorStatus === 'OFFLINE') {
+    return {
+      status: 'offline',
+      reason: 'heartbeat_timeout',
+      lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
+      heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+    };
+  }
+
+  return {
+    status: 'unknown',
+    reason: 'no_heartbeat',
+    lastHeartbeatAt: collectorLiveness.lastHeartbeatAt,
+    heartbeatTimeoutSec: collectorLiveness.heartbeatTimeoutSec,
+  };
 }
 
 function computeFreshnessSec(summaryTs: string): number {
@@ -326,4 +360,3 @@ function isUnhealthy(workload: NodeOverviewWorkloadRecord): boolean {
 function isRunning(workload: NodeOverviewWorkloadRecord): boolean {
   return workload.status.trim().toLowerCase() === 'running';
 }
-

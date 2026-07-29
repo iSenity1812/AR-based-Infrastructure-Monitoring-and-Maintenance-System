@@ -10,18 +10,30 @@ export class NodeOverviewStatusDto {
   nodeId!: string;
 
   @ApiProperty({
-    description: 'Operator-facing node health state.',
-    enum: ['healthy', 'alerting', 'unknown'],
-    example: 'alerting',
+    description: 'Canonical operator-facing node health state.',
+    enum: ['healthy', 'warning', 'critical', 'unknown'],
+    example: 'critical',
   })
-  status!: 'healthy' | 'alerting' | 'unknown';
+  status!: 'healthy' | 'warning' | 'critical' | 'unknown';
 
   @ApiProperty({
-    description: 'Operator-facing severity level for the node snapshot.',
-    enum: ['healthy', 'stale', 'warning', 'high', 'critical'],
-    example: 'high',
+    description:
+      'Stable reason explaining why the node health status was chosen.',
+    enum: [
+      'none',
+      'warning_metric',
+      'critical_metric',
+      'telemetry_stale',
+      'no_telemetry',
+    ],
+    example: 'critical_metric',
   })
-  severity!: 'healthy' | 'stale' | 'warning' | 'high' | 'critical';
+  reason!:
+    | 'none'
+    | 'warning_metric'
+    | 'critical_metric'
+    | 'telemetry_stale'
+    | 'no_telemetry';
 
   @ApiProperty({
     description: 'Timestamp of the latest node summary used by the overview.',
@@ -30,17 +42,30 @@ export class NodeOverviewStatusDto {
   lastSeenAt!: string;
 
   @ApiProperty({
-    description: 'Age in seconds between now and the latest node summary.',
-    example: 3,
+    description:
+      'Timestamp of the latest hardware fingerprint observed for the node.',
+    nullable: true,
+    example: '2026-07-17T18:04:34.000Z',
   })
-  freshnessSec!: number;
+  fingerprintSeenAt!: string | null;
+}
+
+export class NodeOverviewCollectorDto {
+  @ApiProperty({
+    description:
+      'Collector heartbeat liveness derived from the latest heartbeat observation.',
+    enum: ['online', 'offline', 'unknown'],
+    example: 'online',
+  })
+  status!: 'online' | 'offline' | 'unknown';
 
   @ApiProperty({
-    description: 'Collector heartbeat liveness derived from the latest heartbeat observation.',
-    enum: ['ONLINE', 'OFFLINE', 'UNKNOWN'],
-    example: 'ONLINE',
+    description:
+      'Stable reason explaining why the collector liveness status was chosen.',
+    enum: ['none', 'heartbeat_timeout', 'no_heartbeat'],
+    example: 'heartbeat_timeout',
   })
-  collectorStatus!: 'ONLINE' | 'OFFLINE' | 'UNKNOWN';
+  reason!: 'none' | 'heartbeat_timeout' | 'no_heartbeat';
 
   @ApiProperty({
     description: 'Timestamp of the latest collector heartbeat observation.',
@@ -50,25 +75,14 @@ export class NodeOverviewStatusDto {
   lastHeartbeatAt!: string | null;
 
   @ApiProperty({
-    description: 'Age in seconds between now and the latest collector heartbeat observation.',
-    nullable: true,
-    example: 12,
-  })
-  collectorFreshnessSec!: number | null;
-
-  @ApiProperty({
-    description: 'Timeout window in seconds before the collector is considered offline.',
+    description:
+      'Timeout window in seconds before the collector is considered offline.',
     example: 90,
   })
   heartbeatTimeoutSec!: number;
+}
 
-  @ApiProperty({
-    description: 'Timestamp of the latest hardware fingerprint observed for the node.',
-    nullable: true,
-    example: '2026-07-17T18:04:34.000Z',
-  })
-  fingerprintSeenAt!: string | null;
-
+export class NodeOverviewHardwareDto {
   @ApiProperty({ nullable: true, example: 'MS-158L' })
   batteryModel!: string | null;
 
@@ -104,6 +118,14 @@ export class NodeOverviewStatusDto {
 
   @ApiProperty({ nullable: true, example: 'KINGSTON SNV2S1000G' })
   ssdModelPrimary!: string | null;
+}
+
+export class NodeOverviewNodeDto extends NodeOverviewStatusDto {
+  @ApiProperty({ type: NodeOverviewHardwareDto })
+  hardware!: NodeOverviewHardwareDto;
+
+  @ApiProperty({ type: NodeOverviewCollectorDto })
+  collector!: NodeOverviewCollectorDto;
 }
 
 export class NodeOverviewWorstMetricDto {
@@ -252,9 +274,9 @@ export class NodeOverviewRealtimeChannelDto {
 
 export class MonitoringNodeOverviewResponseDto {
   @ApiProperty({
-    type: NodeOverviewStatusDto,
+    type: NodeOverviewNodeDto,
   })
-  node!: NodeOverviewStatusDto;
+  node!: NodeOverviewNodeDto;
 
   @ApiProperty({
     type: NodeOverviewSummaryMetricsDto,

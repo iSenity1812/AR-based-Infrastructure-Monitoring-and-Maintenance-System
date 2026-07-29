@@ -7,13 +7,13 @@ import type {
 import {
   NodeOverviewComposerService,
   buildNodeOverviewChangedChannel,
-  deriveNodeOverviewSeverity,
+  deriveNodeOverviewHealth,
   deriveNodeOverviewStatus,
   selectOverviewWorkloads,
 } from './node-overview-composer.service';
 import type { CollectorLivenessService } from './collector-liveness.service';
 
-describe('deriveNodeOverviewStatus', () => {
+describe('deriveNodeOverviewHealth', () => {
   const baseSnapshot: NodeOverviewSnapshotRecord = {
     nodeId: 'node-a1',
     summaryTs: '2026-07-10 10:00:00',
@@ -58,32 +58,39 @@ describe('deriveNodeOverviewStatus', () => {
     worstMetricValueText: null,
   };
 
-  it('returns healthy for non-stale snapshots without warnings', () => {
+  it('returns healthy with no reason for non-stale snapshots without warnings', () => {
     expect(deriveNodeOverviewStatus(baseSnapshot, 1)).toBe('healthy');
-    expect(deriveNodeOverviewSeverity(baseSnapshot, 1)).toBe('healthy');
+    expect(deriveNodeOverviewHealth(baseSnapshot, 1)).toEqual({
+      status: 'healthy',
+      reason: 'none',
+    });
   });
 
-  it('returns alerting/high for critical snapshots', () => {
+  it('returns critical when critical metrics are present', () => {
     const snapshot = {
       ...baseSnapshot,
       criticalMetricCount: 1,
     };
 
-    expect(deriveNodeOverviewStatus(snapshot, 1)).toBe('alerting');
-    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('high');
+    expect(deriveNodeOverviewHealth(snapshot, 1)).toEqual({
+      status: 'critical',
+      reason: 'critical_metric',
+    });
   });
 
-  it('returns alerting/warning for warning-only snapshots', () => {
+  it('returns warning when warning-only metrics are present', () => {
     const snapshot = {
       ...baseSnapshot,
       warningMetricCount: 2,
     };
 
-    expect(deriveNodeOverviewStatus(snapshot, 1)).toBe('alerting');
-    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('warning');
+    expect(deriveNodeOverviewHealth(snapshot, 1)).toEqual({
+      status: 'warning',
+      reason: 'warning_metric',
+    });
   });
 
-  it('returns unknown/stale for stale-only snapshots', () => {
+  it('returns unknown when stale-only telemetry cannot support a health judgment', () => {
     const snapshot = {
       ...baseSnapshot,
       maxSeverityCode: 1,
@@ -92,10 +99,13 @@ describe('deriveNodeOverviewStatus', () => {
     };
 
     expect(deriveNodeOverviewStatus(snapshot, 1)).toBe('unknown');
-    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('stale');
+    expect(deriveNodeOverviewHealth(snapshot, 1)).toEqual({
+      status: 'unknown',
+      reason: 'telemetry_stale',
+    });
   });
 
-  it('returns critical severity when the node has fully lost observability', () => {
+  it('keeps full observability loss unknown instead of reporting fake critical health', () => {
     const snapshot = {
       ...baseSnapshot,
       maxSeverityCode: 4,
@@ -103,7 +113,25 @@ describe('deriveNodeOverviewStatus', () => {
       staleMetricCount: 2,
     };
 
-    expect(deriveNodeOverviewSeverity(snapshot, 1)).toBe('critical');
+    expect(deriveNodeOverviewHealth(snapshot, 1)).toEqual({
+      status: 'unknown',
+      reason: 'telemetry_stale',
+    });
+  });
+
+  it('returns no telemetry when the summary timestamp is not usable', () => {
+    expect(
+      deriveNodeOverviewHealth(
+        {
+          ...baseSnapshot,
+          summaryTs: 'not-a-date',
+        },
+        0,
+      ),
+    ).toEqual({
+      status: 'unknown',
+      reason: 'no_telemetry',
+    });
   });
 });
 
@@ -160,11 +188,9 @@ describe('selectOverviewWorkloads', () => {
       },
     ];
 
-    expect(selectOverviewWorkloads(workloads).map((workload) => workload.workloadId)).toEqual([
-      '3',
-      '2',
-      '1',
-    ]);
+    expect(
+      selectOverviewWorkloads(workloads).map((workload) => workload.workloadId),
+    ).toEqual(['3', '2', '1']);
   });
 });
 
@@ -177,7 +203,7 @@ describe('buildNodeOverviewChangedChannel', () => {
 });
 
 describe('NodeOverviewComposerService', () => {
-  it('includes uptimeBySeconds in summary metrics', async () => {
+  it('returns canonical node and collector status reasons', async () => {
     const snapshot: NodeOverviewSnapshotRecord = {
       nodeId: 'node-a1',
       summaryTs: '2026-07-10 10:00:00',
@@ -245,11 +271,146 @@ describe('NodeOverviewComposerService', () => {
 
     const overview = await service.buildOverview('node-a1');
 
+    expect(overview.node).toEqual(
+      expect.objectContaining({
+        nodeId: 'node-a1',
+        status: 'healthy',
+        reason: 'none',
+        lastSeenAt: '2026-07-10T10:00:00.000Z',
+        fingerprintSeenAt: null,
+        collector: {
+          status: 'online',
+          reason: 'none',
+          lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+          heartbeatTimeoutSec: 90,
+        },
+      }),
+    );
+    expect(overview.node.hardware).toEqual({
+      batteryModel: null,
+      cpuArchitecture: null,
+      cpuModel: null,
+      gpuModelPrimary: null,
+      hardwareSerial: null,
+      logicalCpuCount: null,
+      macAddress: null,
+      motherboardModel: null,
+      osProduct: null,
+      primaryIpv4: null,
+      ssdModelPrimary: null,
+    });
+    expect(overview.node).not.toHaveProperty('severity');
+    expect(overview.node).not.toHaveProperty('freshnessSec');
+    expect(overview.node).not.toHaveProperty('collectorStatus');
+    expect(overview.node).not.toHaveProperty('collectorFreshnessSec');
     expect(overview.summaryMetrics.uptimeBySeconds).toEqual({
       value: 34880,
       unit: 'seconds',
     });
-    expect(overview.node.collectorStatus).toBe('ONLINE');
-    expect(overview.node.heartbeatTimeoutSec).toBe(90);
+  });
+
+  it('maps offline and unknown collector liveness into nested reasons', async () => {
+    const snapshot: NodeOverviewSnapshotRecord = {
+      nodeId: 'node-a1',
+      summaryTs: '2026-07-10 10:00:00',
+      fingerprintSeenAt: null,
+      batteryModel: null,
+      cpuArchitecture: null,
+      cpuModel: null,
+      gpuModelPrimary: null,
+      hardwareSerial: null,
+      logicalCpuCount: null,
+      macAddress: null,
+      motherboardModel: null,
+      osProduct: null,
+      primaryIpv4: null,
+      ssdModelPrimary: null,
+      maxSeverityCode: 0,
+      hasOverrideFlag: 0,
+      isAnyStale: 0,
+      staleMetricCount: 0,
+      criticalMetricCount: 0,
+      warningMetricCount: 0,
+      cpuUsagePctCurrent: null,
+      cpuUsagePctUnit: null,
+      memoryUsagePctCurrent: null,
+      memoryUsagePctUnit: null,
+      diskUsagePctCurrent: null,
+      diskUsagePctUnit: null,
+      cpuTemperatureCCurrent: null,
+      cpuTemperatureCUnit: null,
+      cpuPackagePowerWCurrent: null,
+      cpuPackagePowerWUnit: null,
+      networkRxBytesSecCurrent: null,
+      networkRxBytesSecUnit: null,
+      networkTxBytesSecCurrent: null,
+      networkTxBytesSecUnit: null,
+      primaryNicStatusCurrent: null,
+      primaryNicStatusUnit: null,
+      uptimeSecondsCurrent: null,
+      uptimeSecondsUnit: null,
+      worstMetricKey: null,
+      worstMetricValueNumeric: null,
+      worstMetricValueText: null,
+    };
+    const repository = {
+      getCurrentNode: jest.fn().mockResolvedValue(snapshot),
+      listNodeWorkloads: jest.fn().mockResolvedValue([]),
+    };
+    const getByNodeId = jest
+      .fn()
+      .mockResolvedValueOnce({
+        nodeId: 'node-a1',
+        agentId: 'node-a1',
+        collectorStatus: 'OFFLINE',
+        lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+        collectorFreshnessSec: 120,
+        heartbeatTimeoutSec: 90,
+        source: 'go-agent-collector',
+        metricKey: 'agent.heartbeat',
+        sourceMetric: 'collector.runtime.heartbeat',
+      })
+      .mockResolvedValueOnce({
+        nodeId: 'node-a1',
+        agentId: null,
+        collectorStatus: 'UNKNOWN',
+        lastHeartbeatAt: null,
+        collectorFreshnessSec: null,
+        heartbeatTimeoutSec: 90,
+        source: null,
+        metricKey: null,
+        sourceMetric: null,
+      });
+    const service = new NodeOverviewComposerService(
+      repository as never,
+      {
+        getByNodeId,
+      } as unknown as CollectorLivenessService,
+    );
+
+    await expect(service.buildOverview('node-a1')).resolves.toEqual(
+      expect.objectContaining({
+        node: expect.objectContaining({
+          collector: {
+            status: 'offline',
+            reason: 'heartbeat_timeout',
+            lastHeartbeatAt: '2026-07-21T08:15:30.000Z',
+            heartbeatTimeoutSec: 90,
+          },
+        }),
+      }),
+    );
+    await expect(service.buildOverview('node-a1')).resolves.toEqual(
+      expect.objectContaining({
+        node: expect.objectContaining({
+          collector: {
+            status: 'unknown',
+            reason: 'no_heartbeat',
+            lastHeartbeatAt: null,
+            heartbeatTimeoutSec: 90,
+          },
+        }),
+      }),
+    );
   });
 });

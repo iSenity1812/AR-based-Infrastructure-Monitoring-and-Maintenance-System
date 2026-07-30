@@ -1,6 +1,18 @@
 type RequestOptions = RequestInit & {
   token?: string | null;
+  timeoutMs?: number;
 };
+
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
 
 export type ApiEnvelope<T> = {
   data: T;
@@ -17,6 +29,10 @@ export async function requestJson<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
+  const controller = new AbortController();
+  const timeoutMs = options.timeoutMs ?? 15_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const { token: _token, timeoutMs: _timeoutMs, ...requestOptions } = options;
 
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json');
@@ -30,20 +46,27 @@ export async function requestJson<T>(
 
   try {
     response = await fetch(`${baseUrl}${path}`, {
-      ...options,
+      ...requestOptions,
       headers,
+      signal: options.signal ?? controller.signal,
     });
   } catch (caught) {
+    clearTimeout(timeout);
+    if (controller.signal.aborted) {
+      throw new ApiRequestError('The request timed out. Check the service connection and try again.', undefined, 'NETWORK_TIMEOUT');
+    }
     const reason = caught instanceof Error ? caught.message : 'Network request failed';
-    throw new Error(`Cannot reach ${baseUrl}. ${reason}`);
+    throw new ApiRequestError(`Cannot reach ${baseUrl}. ${reason}`, undefined, 'NETWORK_UNAVAILABLE');
   }
+  clearTimeout(timeout);
   const payload = (await response.json().catch(() => null)) as
     | ApiEnvelope<T>
     | T
     | null;
 
   if (!response.ok) {
-    throw new Error(extractErrorMessage(payload) ?? `Request failed: ${response.status}`);
+    const details = extractErrorDetails(payload);
+    throw new ApiRequestError(details.message ?? `Request failed: ${response.status}`, response.status, details.code);
   }
 
   if (payload && typeof payload === 'object' && 'data' in payload) {
@@ -53,19 +76,19 @@ export async function requestJson<T>(
   return payload as T;
 }
 
-function extractErrorMessage(payload: unknown): string | null {
+function extractErrorDetails(payload: unknown): { message: string | null; code?: string } {
   if (!payload || typeof payload !== 'object') {
-    return null;
+    return { message: null };
   }
 
   if ('error' in payload) {
-    const error = (payload as { error?: { message?: string } }).error;
-    return error?.message ?? null;
+    const error = (payload as { error?: { message?: string; code?: string } }).error;
+    return { message: error?.message ?? null, code: error?.code };
   }
 
   if ('message' in payload) {
-    return String((payload as { message?: unknown }).message);
+    return { message: String((payload as { message?: unknown }).message) };
   }
 
-  return null;
+  return { message: null };
 }

@@ -31,6 +31,8 @@ export interface TicketActivityEntry {
   id: string;
   type: TicketActivityType;
   actorUserId?: string;
+  actorDisplayName?: string;
+  actorRole?: string;
   fromUserId?: string | null;
   toUserId?: string | null;
   message?: string;

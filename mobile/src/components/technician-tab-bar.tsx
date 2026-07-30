@@ -35,7 +35,7 @@ export function TechnicianTabBar({ state, navigation }: TechnicianTabBarProps) {
       <Pressable accessibilityHint="Opens the camera to scan an asset QR" accessibilityLabel="Scan asset QR" accessibilityRole="button" onPress={() => navigation.navigate('ar/scan')} style={({ pressed }) => [styles.scanButton, pressed && styles.pressed]}>
         <ScanLine color="#FFFFFF" size={26} strokeWidth={2.3} />
       </Pressable>
-      <Text pointerEvents="none" style={styles.scanLabel}>Scan</Text>
+      <Text pointerEvents="none" style={styles.scanLabel}>Scan asset</Text>
     </View>
   );
 }
@@ -47,14 +47,14 @@ function TabItem({ label, icon: Icon, active, colors, onPress }: { label: string
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   shell: { position: 'relative', borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.nav, ...shadow },
-  row: { flexDirection: 'row', minHeight: 70, paddingTop: 8, paddingHorizontal: spacing.sm },
-  item: { alignItems: 'center', flex: 1, gap: 3 },
+  row: { flexDirection: 'row', minHeight: 68, paddingTop: 8, paddingHorizontal: spacing.sm },
+  item: { alignItems: 'center', flex: 1, gap: 4, minHeight: 54 },
   centerSlot: { flex: 1 },
   iconWrap: { alignItems: 'center', justifyContent: 'center', width: 38, height: 30, borderRadius: 13 },
   iconActive: { backgroundColor: colors.cyanSoft },
-  label: { color: colors.textSubtle, fontSize: 9, fontWeight: '700' },
+  label: { color: colors.textSubtle, fontSize: 10, fontWeight: '700' },
   labelActive: { color: colors.cyan, fontWeight: '900' },
-  scanButton: { position: 'absolute', top: -25, left: '50%', marginLeft: -30, alignItems: 'center', justifyContent: 'center', width: 60, height: 60, borderRadius: 23, borderWidth: 5, borderColor: colors.bg, backgroundColor: colors.cyan, shadowColor: colors.cyan, shadowOpacity: 0.28, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
-  scanLabel: { position: 'absolute', top: 42, left: '50%', width: 60, marginLeft: -30, color: colors.cyan, fontSize: 9, fontWeight: '900', textAlign: 'center' },
+  scanButton: { position: 'absolute', top: -22, left: '50%', marginLeft: -29, alignItems: 'center', justifyContent: 'center', width: 58, height: 58, borderRadius: 22, borderWidth: 4, borderColor: colors.bg, backgroundColor: colors.cyan, shadowColor: colors.cyan, shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 9 },
+  scanLabel: { position: 'absolute', top: 42, left: '50%', width: 76, marginLeft: -38, color: colors.cyan, fontSize: 9, fontWeight: '900', textAlign: 'center' },
   pressed: { transform: [{ scale: 0.94 }] },
 });

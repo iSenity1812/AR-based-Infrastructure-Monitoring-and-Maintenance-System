@@ -55,7 +55,7 @@ export default function TicketDetailScreen() {
   async function runAction(action: () => Promise<unknown>, failure: string) { setBusy(true); try { await action(); await load(); } catch (caught) { Alert.alert(failure, caught instanceof Error ? caught.message : failure); } finally { setBusy(false); } }
   async function submitComment() { if (!session || !ticket || !comment.trim()) return; const value = comment.trim(); setComment(''); await runAction(() => addTicketComment(ticket.id, value, session.accessToken), 'Could not add update'); }
   function completeWork() { if (!session || !ticket) return; Alert.alert('Complete field work?', 'The operations team will be notified that this ticket is ready for review.', [{ text: 'Not yet', style: 'cancel' }, { text: 'Complete', onPress: () => void runAction(() => resolveTicket(ticket.id, session.accessToken), 'Could not complete ticket') }]); }
-  async function handleOpenWebAr() { try { await openWebAr(ticket?.assetRef?.type === 'NODE' ? ticket.assetRef.assetId : undefined); } catch (caught) { Alert.alert('Could not open WebAR', caught instanceof Error ? caught.message : 'Check the configured WebAR URL and try again.'); } }
+  async function handleOpenWebAr() { try { await openWebAr(ticket?.assetRef?.type === 'NODE' ? ticket.assetRef.assetId : undefined, undefined, session?.accessToken); } catch (caught) { Alert.alert('Could not open WebAR', caught instanceof Error ? caught.message : 'Check the configured WebAR URL and try again.'); } }
 
   async function uploadEvidence() {
     if (!session || !ticket) return;

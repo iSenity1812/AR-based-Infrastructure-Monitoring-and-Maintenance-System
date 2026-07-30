@@ -4,17 +4,19 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { getNodeContext } from '../../../src/ar/node-context';
 import { openWebAr } from '../../../src/ar/open-webar';
+import { useAuth } from '../../../src/auth/auth-context';
 import { ActionButton } from '../../../src/components/action-button';
 import { Screen } from '../../../src/components/screen';
 import { useTheme } from '../../../src/theme/theme-context';
 import { radii, spacing, type ThemeColors } from '../../../src/theme/tokens';
 
 export default function ArNodeScreen() {
+  const { session } = useAuth();
   const params = useLocalSearchParams<{ nodeId?: string; data?: string }>(); const { colors } = useTheme(); const styles = useMemo(() => createStyles(colors), [colors]); const [error, setError] = useState<string | null>(null);
   const nodeId = useMemo(() => decodeURIComponent(Array.isArray(params.nodeId) ? params.nodeId[0] : params.nodeId ?? 'mock-node-001'), [params.nodeId]);
   const data = useMemo(() => { const raw = Array.isArray(params.data) ? params.data[0] : params.data; return raw ? decodeURIComponent(raw) : undefined; }, [params.data]);
   const node = useMemo(() => getNodeContext(nodeId, data), [data, nodeId]);
-  async function open(nodeSpecific = true) { setError(null); try { await openWebAr(nodeSpecific ? node.id : undefined, nodeSpecific ? data : undefined); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not open the WebAR browser.'); } }
+  async function open(nodeSpecific = true) { setError(null); try { await openWebAr(nodeSpecific ? node.id : undefined, nodeSpecific ? data : undefined, session?.accessToken); } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not open the WebAR browser.'); } }
   return <Screen><View style={styles.header}><Pressable onPress={() => router.back()} style={styles.back}><ArrowLeft color={colors.text} size={20} /></Pressable><Text style={styles.headerTitle}>Asset identified</Text><View style={styles.back}><ScanLine color={colors.cyan} size={20} /></View></View><View style={styles.hero}><View style={styles.server}><Server color="#FFFFFF" size={30} /></View><Text style={styles.kicker}>READY FOR WEBAR</Text><Text style={styles.nodeId}>{node.id}</Text><Text style={styles.name}>{node.name}</Text></View><View style={styles.metrics}><Metric icon={MapPin} label="Rack" value={node.rack} /><Metric icon={Server} label="Status" value={node.status.toUpperCase()} /></View><View style={styles.notice}><Text style={styles.noticeTitle}>Browser-based inspection</Text><Text style={styles.noticeText}>WebAR opens in your browser for stable marker tracking on iOS and Android. Return to this app when the inspection is complete.</Text></View>{error ? <Text style={styles.error}>{error}</Text> : null}<ActionButton icon={ExternalLink} label="Open WebAR inspection" onPress={() => void open()} /><ActionButton icon={ExternalLink} label="Open WebAR home" variant="secondary" onPress={() => void open(false)} /></Screen>;
   function Metric({ icon: Icon, label, value }: { icon: typeof MapPin; label: string; value: string }) { return <View style={styles.metric}><View style={styles.metricIcon}><Icon color={colors.cyan} size={18} /></View><Text style={styles.metricLabel}>{label}</Text><Text numberOfLines={1} style={styles.metricValue}>{value}</Text></View>; }
 }

@@ -4,7 +4,10 @@ import {
   getNodeContext,
   getNodeContextFromQrData,
 } from './mock-node-data';
-import { getArAccessToken } from './services/api-client';
+import {
+  bootstrapArAccessTokenFromFragment,
+  getArAccessToken,
+} from './services/api-client';
 import { resolveAssetMarker } from './services/asset-context-service';
 import { subscribeToNodeMetrics } from './services/monitoring-realtime';
 import { fetchLatestNodeMetrics } from './services/monitoring-service';
@@ -15,6 +18,8 @@ declare global {
     AFRAME?: unknown;
   }
 }
+
+bootstrapArAccessTokenFromFragment();
 
 const nodeId = getQueryParam('nodeId') ?? 'mock-node-001';
 const markerCode = getQueryParam('markerCode');
@@ -51,6 +56,8 @@ async function initializeScene() {
       error instanceof Error
         ? `${error.message} Showing local mock fallback.`
         : 'Showing local mock fallback.';
+    renderScene(currentNode, dataStatus, trackingStatus);
+    return;
   }
 
   renderScene(currentNode, dataStatus, trackingStatus);

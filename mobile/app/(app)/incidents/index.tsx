@@ -96,7 +96,7 @@ export default function IncidentListScreen() {
               </Text>
               <View style={styles.pills}>
                 <StatusPill label={incident.status} tone="purple" />
-                <StatusPill label={`${incident.ticketIds.length} tickets`} tone="cyan" />
+                <StatusPill label={`${incident.ticketCount} tickets`} tone="cyan" />
               </View>
             </CyberCard>
           </Pressable>

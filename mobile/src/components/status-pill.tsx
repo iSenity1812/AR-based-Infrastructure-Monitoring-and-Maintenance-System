@@ -4,11 +4,12 @@ import { useTheme } from '../theme/theme-context';
 import { spacing, type ThemeColors } from '../theme/tokens';
 
 export type StatusTone = 'green' | 'cyan' | 'amber' | 'red' | 'muted' | 'purple';
-interface StatusPillProps { label: string; tone?: StatusTone; }
+interface StatusPillProps { label?: string | null; tone?: StatusTone; }
 export function StatusPill({ label, tone = 'cyan' }: StatusPillProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  return <View style={[styles.pill, styles[tone]]}><Text style={[styles.label, styles[`${tone}Text`]]}>{label.replaceAll('_', ' ')}</Text></View>;
+  const displayLabel = label?.trim() || 'Unknown';
+  return <View style={[styles.pill, styles[tone]]}><Text style={[styles.label, styles[`${tone}Text`]]}>{displayLabel.replaceAll('_', ' ')}</Text></View>;
 }
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pill: { alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 999 },

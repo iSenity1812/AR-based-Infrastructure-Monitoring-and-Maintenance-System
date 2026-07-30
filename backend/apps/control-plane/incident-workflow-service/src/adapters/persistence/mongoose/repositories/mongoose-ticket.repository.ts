@@ -37,6 +37,8 @@ function mapTicket(document: TicketDocument): TicketEntity {
       id: activity.id,
       type: activity.type,
       actorUserId: activity.actorUserId,
+      actorDisplayName: activity.actorDisplayName,
+      actorRole: activity.actorRole,
       fromUserId: activity.fromUserId,
       toUserId: activity.toUserId,
       message: activity.message,

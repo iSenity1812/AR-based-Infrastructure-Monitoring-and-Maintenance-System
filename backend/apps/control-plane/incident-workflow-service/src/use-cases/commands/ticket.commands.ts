@@ -60,6 +60,8 @@ export interface TransitionTicketStatusCommand {
 
 export interface AddTicketCommentCommand {
   actorUserId: string;
+  actorDisplayName?: string;
+  actorRole?: string;
   comment: string;
 }
 
@@ -107,6 +109,8 @@ function sanitizeFileName(fileName: string): string {
 function createActivity(input: {
   type: TicketActivityType;
   actorUserId: string;
+  actorDisplayName?: string;
+  actorRole?: string;
   fromUserId?: string | null;
   toUserId?: string | null;
   message?: string;
@@ -115,6 +119,8 @@ function createActivity(input: {
     id: randomUUID(),
     type: input.type,
     actorUserId: input.actorUserId,
+    actorDisplayName: input.actorDisplayName,
+    actorRole: input.actorRole,
     fromUserId: input.fromUserId ?? null,
     toUserId: input.toUserId ?? null,
     message: input.message,
@@ -476,6 +482,8 @@ export class AddTicketCommentUseCase {
         createActivity({
           type: TicketActivityType.COMMENT_ADDED,
           actorUserId: command.actorUserId,
+          actorDisplayName: command.actorDisplayName,
+          actorRole: command.actorRole,
           message: comment,
         }),
       ],

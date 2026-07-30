@@ -22,6 +22,8 @@ export interface CreateTicketRecord {
     id: string;
     type: TicketActivityType;
     actorUserId?: string;
+    actorDisplayName?: string;
+    actorRole?: string;
     fromUserId?: string | null;
     toUserId?: string | null;
     message?: string;
@@ -55,6 +57,8 @@ export interface TicketUpdateRecord {
     id: string;
     type: TicketActivityType;
     actorUserId?: string;
+    actorDisplayName?: string;
+    actorRole?: string;
     fromUserId?: string | null;
     toUserId?: string | null;
     message?: string;

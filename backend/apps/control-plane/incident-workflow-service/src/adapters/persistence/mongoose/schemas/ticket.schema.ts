@@ -75,6 +75,12 @@ export class TicketActivityDocumentModel {
   @Prop({ type: String })
   actorUserId?: string;
 
+  @Prop({ type: String, trim: true })
+  actorDisplayName?: string;
+
+  @Prop({ type: String, trim: true })
+  actorRole?: string;
+
   @Prop({ type: String, required: false, default: null })
   fromUserId?: string | null;
 

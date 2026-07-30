@@ -12,10 +12,10 @@ interface TicketCardProps { ticket: TicketProps; onPress?: () => void; assigneeN
 export function TicketCard({ ticket, onPress, assigneeName }: TicketCardProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const priorityColor = priorityColors(ticket.priority, colors);
+  const priority = priorityColors(ticket.priority, colors);
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
-      <View style={[styles.rail, { backgroundColor: priorityColor }]} />
+    <Pressable accessibilityHint="Opens ticket details" accessibilityLabel={`${ticket.ticketCode}, ${ticket.title}, ${ticket.priority} priority`} accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      <View style={[styles.rail, { backgroundColor: priority.color }]} />
       <View style={styles.content}>
         <View style={styles.topRow}>
           <Text style={styles.code}>{ticket.ticketCode}</Text>
@@ -29,7 +29,7 @@ export function TicketCard({ ticket, onPress, assigneeName }: TicketCardProps) {
         </View>
         <View style={styles.footer}>
           <View style={styles.meta}><MapPin color={colors.textSubtle} size={13} /><Text numberOfLines={1} style={styles.metaText}>{assigneeName ?? 'Assigned to you'}</Text></View>
-          <Text style={[styles.priority, { color: priorityColor }]}>{ticket.priority}</Text>
+          <View style={[styles.priorityPill, { backgroundColor: priority.soft }]}><Text style={[styles.priority, { color: priority.color }]}>{ticket.priority}</Text></View>
           <ChevronRight color={colors.textSubtle} size={18} />
         </View>
       </View>
@@ -46,10 +46,10 @@ export function statusTone(status: TicketStatus): StatusTone {
 }
 
 function priorityColors(priority: TicketPriority, colors: ThemeColors) {
-  if (priority === 'CRITICAL') return colors.red;
-  if (priority === 'HIGH') return colors.amber;
-  if (priority === 'MEDIUM') return colors.cyan;
-  return colors.green;
+  if (priority === 'CRITICAL') return { color: colors.red, soft: colors.redSoft };
+  if (priority === 'HIGH') return { color: colors.amber, soft: colors.amberSoft };
+  if (priority === 'MEDIUM') return { color: colors.cyan, soft: colors.cyanSoft };
+  return { color: colors.green, soft: colors.greenSoft };
 }
 
 export function relativeTime(value: string) {
@@ -64,15 +64,15 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: { flexDirection: 'row', overflow: 'hidden', borderRadius: radii.xl, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.panel, ...shadow },
   pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
   rail: { width: 5 },
-  content: { flex: 1, gap: spacing.sm, padding: spacing.lg },
+  content: { flex: 1, gap: 10, paddingHorizontal: spacing.lg, paddingVertical: 14 },
   topRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
-  code: { color: colors.textSubtle, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  title: { color: colors.text, fontSize: 16, fontWeight: '800', lineHeight: 22 },
+  code: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.35 },
+  title: { color: colors.text, fontSize: 15, fontWeight: '900', lineHeight: 21 },
   metaRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   meta: { alignItems: 'center', flexDirection: 'row', gap: 5, flexShrink: 1 },
   metaText: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
   incident: { color: colors.purple, fontSize: 11, fontWeight: '700' },
   asset: { color: colors.cyan, fontSize: 11, fontWeight: '700' },
-  footer: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border },
-  priority: { marginLeft: 'auto', fontSize: 10, fontWeight: '900' },
+  footer: { alignItems: 'center', flexDirection: 'row', gap: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  priorityPill: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 999 }, priority: { fontSize: 9, fontWeight: '900' },
 });

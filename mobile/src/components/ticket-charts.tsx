@@ -14,15 +14,16 @@ const keys: { status: TicketStatus; label: string; color: keyof ThemeColors }[] 
 export function TicketStatusChart({ tickets }: { tickets: TicketProps[] }) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const total = Math.max(1, tickets.length);
+  const counts = Object.fromEntries(keys.map(({ status }) => [status, tickets.filter((ticket) => ticket.status === status).length])) as Record<TicketStatus, number>;
+  const total = Math.max(1, keys.reduce((sum, { status }) => sum + counts[status], 0));
   return (
     <View style={styles.wrap}>
       <View style={styles.bar}>{keys.map(({ status, color }) => {
-        const count = tickets.filter((ticket) => ticket.status === status).length;
+        const count = counts[status];
         return count ? <View key={status} style={{ flex: count / total, backgroundColor: colors[color] as string }} /> : null;
       })}</View>
       <View style={styles.legend}>{keys.map(({ status, label, color }) => {
-        const count = tickets.filter((ticket) => ticket.status === status).length;
+        const count = counts[status];
         return <View key={status} style={styles.legendItem}><View style={[styles.dot, { backgroundColor: colors[color] as string }]} /><View><Text style={styles.legendValue}>{count}</Text><Text style={styles.legendLabel}>{label}</Text></View></View>;
       })}</View>
     </View>

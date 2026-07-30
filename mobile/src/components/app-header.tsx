@@ -7,9 +7,9 @@ import { useTheme } from '../theme/theme-context';
 import { radii, spacing, type ThemeColors } from '../theme/tokens';
 import { useTicketNotifications } from '../notifications/notification-context';
 
-interface AppHeaderProps { title?: string; subtitle?: string; compact?: boolean; }
+interface AppHeaderProps { title?: string; subtitle?: string; compact?: boolean; showThemeToggle?: boolean; }
 
-export function AppHeader({ title, subtitle, compact }: AppHeaderProps) {
+export function AppHeader({ title, subtitle, compact, showThemeToggle = true }: AppHeaderProps) {
   const { session } = useAuth();
   const { colors, isDark, toggleTheme } = useTheme();
   const { unreadCount, open } = useTicketNotifications();
@@ -26,9 +26,11 @@ export function AppHeader({ title, subtitle, compact }: AppHeaderProps) {
         </View>
       </View>
       <View style={styles.actions}>
-        <Pressable accessibilityLabel="Toggle color theme" onPress={toggleTheme} style={styles.iconButton}>
-          {isDark ? <Sun color={colors.text} size={18} /> : <Moon color={colors.text} size={18} />}
-        </Pressable>
+        {showThemeToggle ? (
+          <Pressable accessibilityLabel="Toggle color theme" onPress={toggleTheme} style={styles.iconButton}>
+            {isDark ? <Sun color={colors.text} size={18} /> : <Moon color={colors.text} size={18} />}
+          </Pressable>
+        ) : null}
         <Pressable accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`} onPress={open} style={styles.iconButton}><Bell color={colors.text} size={18} />{unreadCount ? <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text></View> : null}</Pressable>
       </View>
     </View>
@@ -36,7 +38,7 @@ export function AppHeader({ title, subtitle, compact }: AppHeaderProps) {
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, paddingVertical: spacing.sm },
+  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, minHeight: 58, paddingVertical: spacing.xs },
   identity: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: spacing.md },
   avatar: { alignItems: 'center', justifyContent: 'center', width: 46, height: 46, borderRadius: 18, backgroundColor: colors.cyanSoft },
   avatarText: { color: colors.cyan, fontSize: 14, fontWeight: '900' },

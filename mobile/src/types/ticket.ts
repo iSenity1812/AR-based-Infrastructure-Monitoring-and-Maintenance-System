@@ -44,6 +44,8 @@ export interface TicketActivity {
   id: string;
   type: string;
   actorUserId: string;
+  actorDisplayName?: string;
+  actorRole?: string;
   message?: string;
   createdAt: string;
 }

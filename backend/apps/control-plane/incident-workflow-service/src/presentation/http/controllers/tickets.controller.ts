@@ -280,6 +280,8 @@ export class TicketsController {
   ) {
     const ticket = await this.addTicketCommentUseCase.execute(ticketId, {
       actorUserId: authContext.userId,
+      actorDisplayName: authContext.fullName ?? authContext.username,
+      actorRole: resolveCommentActorRole(authContext.roles),
       comment: requestDto.comment,
     });
 
@@ -345,4 +347,13 @@ export class TicketsController {
       actorUserId: actorUserId ?? undefined,
     });
   }
+}
+
+function resolveCommentActorRole(roles: string[]): string | undefined {
+  return (
+    roles.find((role) => role === 'IT_ADMINISTRATOR') ??
+    roles.find((role) => role === 'SYSTEM_MONITORING_OPERATOR') ??
+    roles.find((role) => role === 'MAINTENANCE_TECHNICIAN') ??
+    roles[0]
+  );
 }

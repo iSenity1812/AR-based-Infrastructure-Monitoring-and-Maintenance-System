@@ -356,7 +356,14 @@ describe('IncidentsController', () => {
       ],
     });
 
-    const response = await controller.get('incident-1');
+    const response = await controller.get('incident-1', {
+      userId: 'technician-1',
+      username: 'tech01',
+      fullName: 'Tech 01',
+      sessionId: 'session-1',
+      roles: [],
+      permissions: [],
+    });
 
     expect(response).toEqual({
       id: 'incident-1',
@@ -483,5 +490,12 @@ describe('IncidentsController', () => {
     expect(response).not.toHaveProperty('diagnosis');
     expect(JSON.stringify(response)).not.toContain('rawLabels');
     expect(JSON.stringify(response)).not.toContain('rawAnnotations');
+    expect(getIncidentUseCase.execute.mock.calls[0]).toEqual([
+      'incident-1',
+      {
+        userId: 'technician-1',
+        permissions: [],
+      },
+    ]);
   });
 });

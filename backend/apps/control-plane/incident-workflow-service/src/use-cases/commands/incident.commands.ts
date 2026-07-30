@@ -1,5 +1,6 @@
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
+import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
 import type {
   IncidentCapturedSnapshot,
   IncidentCreatedBy,
@@ -9,6 +10,7 @@ import type { IncidentRepositoryPort } from '@domain/ports/incident-repository.p
 import type { TicketRepositoryPort } from '@domain/ports/ticket-repository.port';
 import {
   ConflictUseCaseError,
+  ForbiddenUseCaseError,
   NotFoundUseCaseError,
 } from '@use-cases/errors/use-case.errors';
 
@@ -93,9 +95,18 @@ export class ListIncidentsUseCase {
 }
 
 export class GetIncidentUseCase {
-  constructor(private readonly incidentRepository: IncidentRepositoryPort) {}
+  constructor(
+    private readonly incidentRepository: IncidentRepositoryPort,
+    private readonly ticketRepository: TicketRepositoryPort,
+  ) {}
 
-  async execute(incidentId: string): Promise<{
+  async execute(
+    incidentId: string,
+    authContext: {
+      userId: string;
+      permissions: string[];
+    },
+  ): Promise<{
     incident: IncidentEntity;
     relatedIncidents: IncidentEntity[];
   }> {
@@ -103,6 +114,8 @@ export class GetIncidentUseCase {
     if (!incident) {
       throw new NotFoundUseCaseError(`Incident ${incidentId} was not found.`);
     }
+
+    await this.assertCanInspectIncident(incident, authContext);
 
     const scope = deriveIncidentScope(incident);
     if (!scope) {
@@ -123,6 +136,29 @@ export class GetIncidentUseCase {
       incident,
       relatedIncidents,
     };
+  }
+
+  private async assertCanInspectIncident(
+    incident: IncidentEntity,
+    authContext: {
+      userId: string;
+      permissions: string[];
+    },
+  ): Promise<void> {
+    if (authContext.permissions.includes(PERMISSION_CODES.INCIDENTS_READ)) {
+      return;
+    }
+
+    const assignedTickets = await this.ticketRepository.findMany({
+      incidentId: incident.props.id,
+      assigneeUserId: authContext.userId,
+    });
+
+    if (assignedTickets.length === 0) {
+      throw new ForbiddenUseCaseError(
+        'Only technicians assigned to a linked ticket can inspect this incident.',
+      );
+    }
   }
 }
 

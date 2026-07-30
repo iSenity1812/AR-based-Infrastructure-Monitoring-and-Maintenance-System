@@ -112,6 +112,10 @@ export class MongooseTicketRepository implements TicketRepositoryPort {
       filter.incidentId = query.incidentId.trim();
     }
 
+    if (query.assigneeUserId?.trim()) {
+      filter.assigneeUserId = query.assigneeUserId.trim();
+    }
+
     if (query.status) {
       filter.status = query.status;
     }

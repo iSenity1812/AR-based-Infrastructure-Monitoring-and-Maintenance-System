@@ -123,6 +123,21 @@ export class TicketsController {
     });
   }
 
+  @Get('me')
+  @ApiOperation({ summary: 'List tickets assigned to the current technician.' })
+  @RequirePermissions(PERMISSION_CODES.TICKETS_READ)
+  async listAssignedToMe(
+    @Query() query: ListTicketsQueryDto,
+    @CurrentAuthContext() authContext: CurrentAuthContextDto,
+  ) {
+    return this.listTicketsUseCase.execute({
+      ticketCode: query.ticketCode,
+      incidentId: query.incidentId,
+      status: query.status,
+      assigneeUserId: authContext.userId,
+    });
+  }
+
   @Sse('events')
   @ApiOperation({ summary: 'Subscribe to ticket realtime events.' })
   @RequirePermissions(PERMISSION_CODES.TICKETS_READ)

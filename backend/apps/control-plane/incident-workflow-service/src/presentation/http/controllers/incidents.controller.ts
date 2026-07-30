@@ -100,10 +100,15 @@ export class IncidentsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get an incident by id.' })
-  @RequirePermissions(PERMISSION_CODES.INCIDENTS_READ)
-  async get(@Param('id') incidentId: string) {
+  async get(
+    @Param('id') incidentId: string,
+    @CurrentAuthContext() authContext: CurrentAuthContextDto,
+  ) {
     return IncidentPresenter.toDetailResponse(
-      await this.getIncidentUseCase.execute(incidentId),
+      await this.getIncidentUseCase.execute(incidentId, {
+        userId: authContext.userId,
+        permissions: authContext.permissions,
+      }),
     );
   }
 

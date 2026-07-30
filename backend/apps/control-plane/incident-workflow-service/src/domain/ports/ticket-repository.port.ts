@@ -35,6 +35,7 @@ export interface CreateTicketRecord {
 export interface TicketListQuery {
   ticketCode?: string;
   incidentId?: string;
+  assigneeUserId?: string;
   status?: TicketStatus;
   priority?: TicketPriority;
 }

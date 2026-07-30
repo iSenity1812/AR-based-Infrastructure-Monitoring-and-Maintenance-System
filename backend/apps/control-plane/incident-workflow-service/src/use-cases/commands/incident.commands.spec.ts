@@ -1,7 +1,10 @@
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
+import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
 import { IncidentEntity } from '@domain/entities/incident.entity';
 import type { IncidentRepositoryPort } from '@domain/ports/incident-repository.port';
+import type { TicketRepositoryPort } from '@domain/ports/ticket-repository.port';
+import { ForbiddenUseCaseError } from '@use-cases/errors/use-case.errors';
 import { GetIncidentUseCase } from './incident.commands';
 
 function buildIncidentEntity(
@@ -46,8 +49,22 @@ function buildIncidentEntity(
 }
 
 describe('GetIncidentUseCase', () => {
+  function buildTicketRepository(
+    overrides: Partial<jest.Mocked<TicketRepositoryPort>> = {},
+  ): jest.Mocked<TicketRepositoryPort> {
+    return {
+      create: jest.fn(),
+      findById: jest.fn(),
+      findByCode: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn(),
+      delete: jest.fn(),
+      ...overrides,
+    };
+  }
+
   it('returns related incidents for the same scope and excludes the current incident', async () => {
-    const incidentRepository: IncidentRepositoryPort = {
+    const incidentRepository: jest.Mocked<IncidentRepositoryPort> = {
       create: jest.fn(),
       findById: jest.fn().mockResolvedValue(buildIncidentEntity()),
       findByCode: jest.fn(),
@@ -61,12 +78,20 @@ describe('GetIncidentUseCase', () => {
       ]),
       update: jest.fn(),
     };
+    const ticketRepository = buildTicketRepository();
 
-    const useCase = new GetIncidentUseCase(incidentRepository);
+    const useCase = new GetIncidentUseCase(
+      incidentRepository,
+      ticketRepository,
+    );
 
-    const result = await useCase.execute('incident-1');
+    const result = await useCase.execute('incident-1', {
+      userId: 'operator-1',
+      permissions: [PERMISSION_CODES.INCIDENTS_READ],
+    });
 
-    expect(incidentRepository.findRelatedByScope).toHaveBeenCalledWith({
+    expect(ticketRepository.findMany.mock.calls).toHaveLength(0);
+    expect(incidentRepository.findRelatedByScope.mock.calls[0]?.[0]).toEqual({
       scopeType: 'node',
       scopeId: 'node-1',
       excludeIncidentId: 'incident-1',
@@ -77,7 +102,7 @@ describe('GetIncidentUseCase', () => {
   });
 
   it('returns an empty related incident list when scope cannot be derived', async () => {
-    const incidentRepository: IncidentRepositoryPort = {
+    const incidentRepository: jest.Mocked<IncidentRepositoryPort> = {
       create: jest.fn(),
       findById: jest.fn().mockResolvedValue(
         buildIncidentEntity({
@@ -90,12 +115,75 @@ describe('GetIncidentUseCase', () => {
       findRelatedByScope: jest.fn(),
       update: jest.fn(),
     };
+    const ticketRepository = buildTicketRepository();
 
-    const useCase = new GetIncidentUseCase(incidentRepository);
+    const useCase = new GetIncidentUseCase(
+      incidentRepository,
+      ticketRepository,
+    );
 
-    const result = await useCase.execute('incident-1');
+    const result = await useCase.execute('incident-1', {
+      userId: 'operator-1',
+      permissions: [PERMISSION_CODES.INCIDENTS_READ],
+    });
 
     expect(result.relatedIncidents).toEqual([]);
-    expect(incidentRepository.findRelatedByScope).not.toHaveBeenCalled();
+    expect(incidentRepository.findRelatedByScope.mock.calls).toHaveLength(0);
+  });
+
+  it('allows a technician to inspect an incident linked to their assigned ticket', async () => {
+    const incidentRepository: jest.Mocked<IncidentRepositoryPort> = {
+      create: jest.fn(),
+      findById: jest.fn().mockResolvedValue(buildIncidentEntity()),
+      findByCode: jest.fn(),
+      findMany: jest.fn(),
+      findRelatedByScope: jest.fn().mockResolvedValue([]),
+      update: jest.fn(),
+    };
+    const ticketRepository = buildTicketRepository({
+      findMany: jest.fn().mockResolvedValue([{ props: { id: 'ticket-1' } }]),
+    });
+
+    const useCase = new GetIncidentUseCase(
+      incidentRepository,
+      ticketRepository,
+    );
+
+    const result = await useCase.execute('incident-1', {
+      userId: 'technician-1',
+      permissions: [],
+    });
+
+    expect(ticketRepository.findMany.mock.calls[0]?.[0]).toEqual({
+      incidentId: 'incident-1',
+      assigneeUserId: 'technician-1',
+    });
+    expect(result.incident.props.id).toBe('incident-1');
+  });
+
+  it('rejects a technician inspecting an incident without an assigned linked ticket', async () => {
+    const incidentRepository: jest.Mocked<IncidentRepositoryPort> = {
+      create: jest.fn(),
+      findById: jest.fn().mockResolvedValue(buildIncidentEntity()),
+      findByCode: jest.fn(),
+      findMany: jest.fn(),
+      findRelatedByScope: jest.fn(),
+      update: jest.fn(),
+    };
+    const ticketRepository = buildTicketRepository();
+
+    const useCase = new GetIncidentUseCase(
+      incidentRepository,
+      ticketRepository,
+    );
+
+    await expect(
+      useCase.execute('incident-1', {
+        userId: 'technician-1',
+        permissions: [],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenUseCaseError);
+
+    expect(incidentRepository.findRelatedByScope.mock.calls).toHaveLength(0);
   });
 });

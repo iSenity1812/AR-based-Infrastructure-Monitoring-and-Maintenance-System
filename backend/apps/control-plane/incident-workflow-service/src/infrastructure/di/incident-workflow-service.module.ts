@@ -202,9 +202,11 @@ import {
     },
     {
       provide: GET_INCIDENT_USE_CASE,
-      inject: [INCIDENT_REPOSITORY],
-      useFactory: (incidentRepository: IncidentRepositoryPort) =>
-        new GetIncidentUseCase(incidentRepository),
+      inject: [INCIDENT_REPOSITORY, TICKET_REPOSITORY],
+      useFactory: (
+        incidentRepository: IncidentRepositoryPort,
+        ticketRepository: TicketRepositoryPort,
+      ) => new GetIncidentUseCase(incidentRepository, ticketRepository),
     },
     {
       provide: APP_INTERCEPTOR,

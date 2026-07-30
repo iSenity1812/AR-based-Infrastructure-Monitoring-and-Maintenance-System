@@ -46,9 +46,7 @@ function mapIncident(document: IncidentDocument): IncidentEntity {
   });
 }
 
-function isRecord(
-  input: unknown,
-): input is Record<string, unknown> {
+function isRecord(input: unknown): input is Record<string, unknown> {
   return Boolean(input && typeof input === 'object' && !Array.isArray(input));
 }
 
@@ -144,6 +142,13 @@ export class MongooseIncidentRepository implements IncidentRepositoryPort {
       filter.ticketIds = query.ticketId.trim();
     }
 
+    if (query.scopeType?.trim() && query.scopeId?.trim()) {
+      filter.$or = buildScopeFilters(
+        query.scopeType.trim(),
+        query.scopeId.trim(),
+      );
+    }
+
     const documents = await this.incidentModel
       .find(filter)
       .sort({ createdAt: -1 });
@@ -165,13 +170,7 @@ export class MongooseIncidentRepository implements IncidentRepositoryPort {
     const documents = await this.incidentModel
       .find({
         _id: { $ne: input.excludeIncidentId },
-        $or: [
-          {
-            'capturedSnapshot.scope.scopeType': scopeType,
-            'capturedSnapshot.scope.scopeId': scopeId,
-          },
-          buildMetadataScopeFilter(scopeType, scopeId),
-        ],
+        $or: buildScopeFilters(scopeType, scopeId),
       })
       .sort({ createdAt: -1 })
       .limit(input.limit ?? 10);
@@ -197,7 +196,7 @@ export class MongooseIncidentRepository implements IncidentRepositoryPort {
 
     document.set(nextInput);
     await document.save();
-    return mapIncident(document as IncidentDocument);
+    return mapIncident(document);
   }
 }
 
@@ -216,10 +215,33 @@ function buildMetadataScopeFilter(
         'metadata.scopeType': 'rack',
         'metadata.rackId': scopeId,
       };
+    case 'workload':
+      return {
+        'metadata.scopeType': 'workload',
+        'metadata.workloadId': scopeId,
+      };
+    case 'service':
+      return {
+        'metadata.scopeType': 'service',
+        'metadata.serviceId': scopeId,
+      };
     default:
       return {
         'metadata.scopeType': scopeType,
         'metadata.scopeId': scopeId,
       };
   }
+}
+
+function buildScopeFilters(
+  scopeType: string,
+  scopeId: string,
+): Record<string, unknown>[] {
+  return [
+    {
+      'capturedSnapshot.scope.scopeType': scopeType,
+      'capturedSnapshot.scope.scopeId': scopeId,
+    },
+    buildMetadataScopeFilter(scopeType, scopeId),
+  ];
 }

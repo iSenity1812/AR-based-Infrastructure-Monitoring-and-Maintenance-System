@@ -84,6 +84,8 @@ export class ListIncidentsUseCase {
       status?: IncidentStatus;
       severity?: IncidentSeverity;
       ticketId?: string;
+      scopeType?: string;
+      scopeId?: string;
     } = {},
   ) {
     return this.incidentRepository.findMany(query);
@@ -128,10 +130,7 @@ function deriveIncidentScope(
   incident: IncidentEntity,
 ): { scopeType: string; scopeId: string } | null {
   const snapshotScope = incident.props.capturedSnapshot?.scope;
-  if (
-    snapshotScope?.scopeType?.trim() &&
-    snapshotScope.scopeId?.trim()
-  ) {
+  if (snapshotScope?.scopeType?.trim() && snapshotScope.scopeId?.trim()) {
     return {
       scopeType: snapshotScope.scopeType.trim(),
       scopeId: snapshotScope.scopeId.trim(),

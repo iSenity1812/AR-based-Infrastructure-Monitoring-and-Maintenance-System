@@ -23,6 +23,8 @@ export interface IncidentListQuery {
   status?: IncidentStatus;
   severity?: IncidentSeverity;
   ticketId?: string;
+  scopeType?: string;
+  scopeId?: string;
 }
 
 export interface IncidentUpdateRecord {

@@ -267,8 +267,16 @@ describe('IncidentsController', () => {
     const response = await controller.list({
       incidentCode: 'INC',
       status: IncidentStatus.OPEN,
+      scopeType: 'node',
+      scopeId: 'node-1',
     });
 
+    expect(listIncidentsUseCase.execute.mock.calls[0]?.[0]).toEqual({
+      incidentCode: 'INC',
+      status: IncidentStatus.OPEN,
+      scopeType: 'node',
+      scopeId: 'node-1',
+    });
     expect(response).toHaveLength(2);
     expect(response[0]).toEqual({
       id: 'incident-1',
@@ -322,6 +330,16 @@ describe('IncidentsController', () => {
     expect(response[0]).not.toHaveProperty('capturedSnapshot');
     expect(JSON.stringify(response[0])).not.toContain('rawLabels');
     expect(JSON.stringify(response[0])).not.toContain('rawAnnotations');
+  });
+
+  it('rejects partial scope filters for list', async () => {
+    await expect(
+      controller.list({
+        scopeType: 'rack',
+      }),
+    ).rejects.toThrow('scopeType and scopeId must be provided together.');
+
+    expect(listIncidentsUseCase.execute.mock.calls).toHaveLength(0);
   });
 
   it('returns a source-facts detail response for get', async () => {

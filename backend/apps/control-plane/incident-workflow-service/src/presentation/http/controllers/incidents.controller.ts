@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -10,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { IncidentStatus } from '@domain/constants/incident-status.enum';
 import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
 import {
   CREATE_INCIDENT_USE_CASE,
@@ -71,7 +71,8 @@ export class IncidentsController {
       capturedSnapshot: requestDto.capturedSnapshot
         ? {
             ...requestDto.capturedSnapshot,
-            unavailableSources: requestDto.capturedSnapshot.unavailableSources ?? [],
+            unavailableSources:
+              requestDto.capturedSnapshot.unavailableSources ?? [],
             metricEvidence: requestDto.capturedSnapshot.metricEvidence ?? [],
             sourceRefs: requestDto.capturedSnapshot.sourceRefs ?? [],
           }
@@ -85,9 +86,13 @@ export class IncidentsController {
   @ApiOperation({ summary: 'List incidents.' })
   @RequirePermissions(PERMISSION_CODES.INCIDENTS_READ)
   async list(@Query() query: ListIncidentsQueryDto) {
+    this.assertValidScopeQuery(query);
+
     const incidents = await this.listIncidentsUseCase.execute({
       incidentCode: query.incidentCode,
       status: query.status,
+      scopeType: query.scopeType,
+      scopeId: query.scopeId,
     });
 
     return IncidentPresenter.toResponseList(incidents);
@@ -100,5 +105,16 @@ export class IncidentsController {
     return IncidentPresenter.toDetailResponse(
       await this.getIncidentUseCase.execute(incidentId),
     );
+  }
+
+  private assertValidScopeQuery(query: ListIncidentsQueryDto): void {
+    const hasScopeType = Boolean(query.scopeType?.trim());
+    const hasScopeId = Boolean(query.scopeId?.trim());
+
+    if (hasScopeType !== hasScopeId) {
+      throw new BadRequestException(
+        'scopeType and scopeId must be provided together.',
+      );
+    }
   }
 }

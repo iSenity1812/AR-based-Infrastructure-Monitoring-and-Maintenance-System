@@ -20,4 +20,22 @@ export class ListIncidentsQueryDto {
   @IsOptional()
   @IsEnum(IncidentStatus)
   status?: IncidentStatus;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter incidents by affected scope type. Use together with scopeId.',
+    example: 'rack',
+  })
+  @IsOptional()
+  @IsString()
+  scopeType?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filter incidents by affected scope id. Use together with scopeType.',
+    example: '6a5792c1ea8de69105cf48dd',
+  })
+  @IsOptional()
+  @IsString()
+  scopeId?: string;
 }

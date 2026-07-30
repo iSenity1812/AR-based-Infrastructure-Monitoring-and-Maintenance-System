@@ -149,6 +149,41 @@ describe('MongooseIncidentRepository', () => {
     expect(incident?.props.capturedSnapshot).toEqual(snapshot);
   });
 
+  it('filters incident lists by captured snapshot scope and legacy metadata scope', async () => {
+    const documents = [
+      createDocument({
+        capturedSnapshot: buildSnapshot(),
+      }),
+    ];
+    const sort = jest.fn().mockResolvedValue(documents);
+    const find = jest.fn().mockReturnValue({ sort });
+    const repository = new MongooseIncidentRepository({
+      find,
+    } as never);
+
+    const incidents = await repository.findMany({
+      status: IncidentStatus.OPEN,
+      scopeType: 'node',
+      scopeId: 'node-1',
+    });
+
+    expect(find).toHaveBeenCalledWith({
+      status: IncidentStatus.OPEN,
+      $or: [
+        {
+          'capturedSnapshot.scope.scopeType': 'node',
+          'capturedSnapshot.scope.scopeId': 'node-1',
+        },
+        {
+          'metadata.scopeType': 'node',
+          'metadata.nodeId': 'node-1',
+        },
+      ],
+    });
+    expect(sort).toHaveBeenCalledWith({ createdAt: -1 });
+    expect(incidents).toHaveLength(1);
+  });
+
   it('finds related incidents by captured snapshot scope and excludes the current incident', async () => {
     const documents = [
       createDocument({

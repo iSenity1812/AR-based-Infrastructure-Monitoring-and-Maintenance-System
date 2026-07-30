@@ -4,6 +4,28 @@ type ApiEnvelope<T> = {
 
 export const AR_ACCESS_TOKEN_STORAGE_KEY = 'ar-imms.ar.access-token';
 
+export function bootstrapArAccessTokenFromFragment(): string | null {
+  const fragment = window.location.hash.replace(/^#/, '');
+  if (!fragment) {
+    return getArAccessToken();
+  }
+
+  const params = new URLSearchParams(fragment);
+  const token = params.get('access_token')?.trim();
+  if (!token) {
+    return getArAccessToken();
+  }
+
+  window.sessionStorage.setItem(AR_ACCESS_TOKEN_STORAGE_KEY, token);
+  params.delete('access_token');
+
+  const remainingFragment = params.toString();
+  const cleanUrl = `${window.location.pathname}${window.location.search}${remainingFragment ? `#${remainingFragment}` : ''}`;
+  window.history.replaceState(window.history.state, document.title, cleanUrl);
+
+  return token;
+}
+
 export function getArAccessToken(): string | null {
   return window.sessionStorage.getItem(AR_ACCESS_TOKEN_STORAGE_KEY);
 }
@@ -22,7 +44,10 @@ export async function requestApiData<T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed with HTTP ${response.status}.`);
+    const detail = await readApiError(response);
+    throw new Error(
+      `Request failed with HTTP ${response.status}${detail ? `: ${detail}` : '.'}`,
+    );
   }
 
   const envelope = (await response.json()) as ApiEnvelope<T>;
@@ -32,4 +57,29 @@ export async function requestApiData<T>(
   }
 
   return envelope.data;
+}
+
+async function readApiError(response: Response): Promise<string | null> {
+  try {
+    const payload = (await response.json()) as {
+      detail?: unknown;
+      message?: unknown;
+      error?: { message?: unknown } | unknown;
+    };
+
+    if (typeof payload.detail === 'string') return payload.detail;
+    if (typeof payload.message === 'string') return payload.message;
+    if (
+      payload.error &&
+      typeof payload.error === 'object' &&
+      'message' in payload.error &&
+      typeof payload.error.message === 'string'
+    ) {
+      return payload.error.message;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }

@@ -6,10 +6,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { openWebArFromQr } from '../../../src/ar/open-webar';
+import { useAuth } from '../../../src/auth/auth-context';
 import { useTheme } from '../../../src/theme/theme-context';
 import { radii, spacing, type ThemeColors } from '../../../src/theme/tokens';
 
 export default function AssetQrScanner() {
+  const { session } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
@@ -22,7 +24,10 @@ export default function AssetQrScanner() {
     setScanned(true);
     setError(undefined);
     try {
-      await openWebArFromQr(result.data);
+      if (!session?.accessToken) {
+        throw new Error('Your session has expired. Sign in again before scanning an asset.');
+      }
+      await openWebArFromQr(result.data, session.accessToken);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not read this asset QR.');
     }

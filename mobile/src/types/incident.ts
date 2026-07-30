@@ -21,6 +21,7 @@ export interface IncidentProps {
   severity: IncidentSeverity;
   status: IncidentStatus;
   ticketIds: string[];
+  ticketCount: number;
   createdAt: string;
   updatedAt: string;
 }

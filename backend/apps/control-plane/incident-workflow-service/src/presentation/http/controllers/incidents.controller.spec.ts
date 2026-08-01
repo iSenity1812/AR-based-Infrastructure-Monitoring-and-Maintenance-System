@@ -1,9 +1,12 @@
 import { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import { IncidentStatus } from '@domain/constants/incident-status.enum';
+import { TicketPriority } from '@domain/constants/ticket-priority.enum';
+import { TicketStatus } from '@domain/constants/ticket-status.enum';
 import {
   IncidentEntity,
   type IncidentCapturedSnapshot,
 } from '@domain/entities/incident.entity';
+import { TicketEntity } from '@domain/entities/ticket.entity';
 import {
   CreateIncidentUseCase,
   GetIncidentUseCase,
@@ -126,6 +129,22 @@ function buildIncidentEntity(
   });
 }
 
+function buildTicketEntity(
+  overrides: Partial<TicketEntity['props']> = {},
+): TicketEntity {
+  return new TicketEntity({
+    id: 'ticket-1',
+    ticketCode: 'TICKET-001',
+    title: 'Investigate node stale',
+    priority: TicketPriority.HIGH,
+    status: TicketStatus.IN_PROGRESS,
+    incidentId: 'incident-1',
+    createdAt: new Date('2026-07-23T04:20:30.000Z'),
+    updatedAt: new Date('2026-07-23T04:21:30.000Z'),
+    ...overrides,
+  });
+}
+
 function buildCreateIncidentEntity(): IncidentEntity {
   return buildIncidentEntity({
     metadata: {
@@ -237,31 +256,45 @@ describe('IncidentsController', () => {
 
   it('returns a compact incident summary list', async () => {
     listIncidentsUseCase.execute.mockResolvedValue([
-      buildIncidentEntity({
-        capturedSnapshot: {
-          ...buildSnapshot(),
-          asset: {
-            displayName: 'Node 01',
-            siteCode: 'SITE-01',
-            roomCode: 'ROOM-01',
+      {
+        incident: buildIncidentEntity({
+          capturedSnapshot: {
+            ...buildSnapshot(),
+            asset: {
+              displayName: 'Node 01',
+              siteCode: 'SITE-01',
+              roomCode: 'ROOM-01',
+            },
+            impact: {
+              affectedNodeCount: 1,
+              totalNodeCount: 4,
+              affectedRatio: 0.25,
+            },
+            alert: {
+              fingerprint: 'fp-1',
+              alertName: 'NodeStale',
+              severity: 'critical',
+              startsAt: '2026-07-23T04:17:45.000Z',
+            },
           },
-          impact: {
-            affectedNodeCount: 1,
-            totalNodeCount: 4,
-            affectedRatio: 0.25,
-          },
-          alert: {
-            fingerprint: 'fp-1',
-            alertName: 'NodeStale',
-            severity: 'critical',
-            startsAt: '2026-07-23T04:17:45.000Z',
-          },
-        },
-      }),
-      buildIncidentEntity({
-        id: 'incident-2',
-        incidentCode: 'INC-002',
-      }),
+        }),
+        tickets: [buildTicketEntity()],
+      },
+      {
+        incident: buildIncidentEntity({
+          id: 'incident-2',
+          incidentCode: 'INC-002',
+          ticketIds: ['ticket-2'],
+        }),
+        tickets: [
+          buildTicketEntity({
+            id: 'ticket-2',
+            ticketCode: 'TICKET-002',
+            status: TicketStatus.CLOSED,
+            incidentId: 'incident-2',
+          }),
+        ],
+      },
     ]);
 
     const response = await controller.list({
@@ -274,6 +307,7 @@ describe('IncidentsController', () => {
     expect(listIncidentsUseCase.execute.mock.calls[0]?.[0]).toEqual({
       incidentCode: 'INC',
       status: IncidentStatus.OPEN,
+      excludeStatus: [],
       scopeType: 'node',
       scopeId: 'node-1',
     });
@@ -317,6 +351,18 @@ describe('IncidentsController', () => {
         lastReceivedAt: '2026-07-23T04:18:45.000Z',
       },
       ticketCount: 1,
+      ticketLinkage: {
+        linkingStatus: 'linked',
+        isLinked: true,
+        linkedTicketCount: 1,
+        tickets: [
+          {
+            id: 'ticket-1',
+            ticketCode: 'TICKET-001',
+            status: TicketStatus.IN_PROGRESS,
+          },
+        ],
+      },
       links: {
         dashboardUrl: '/d/monitoring-overview',
         runbookUrl: '/docs/runbooks/alerting/node-stale',
@@ -330,6 +376,48 @@ describe('IncidentsController', () => {
     expect(response[0]).not.toHaveProperty('capturedSnapshot');
     expect(JSON.stringify(response[0])).not.toContain('rawLabels');
     expect(JSON.stringify(response[0])).not.toContain('rawAnnotations');
+    expect(response[1]).toMatchObject({
+      id: 'incident-2',
+      status: IncidentStatus.CLOSED,
+      ticketLinkage: {
+        linkingStatus: 'linked',
+        isLinked: true,
+        linkedTicketCount: 1,
+        tickets: [
+          {
+            id: 'ticket-2',
+            ticketCode: 'TICKET-002',
+            status: TicketStatus.CLOSED,
+          },
+        ],
+      },
+    });
+  });
+
+  it('passes comma-separated excluded statuses to the list use case', async () => {
+    listIncidentsUseCase.execute.mockResolvedValue([]);
+
+    await controller.list({
+      excludeStatus: 'closed,resolved',
+    });
+
+    expect(listIncidentsUseCase.execute.mock.calls[0]?.[0]).toEqual({
+      incidentCode: undefined,
+      status: undefined,
+      excludeStatus: [IncidentStatus.CLOSED, IncidentStatus.RESOLVED],
+      scopeType: undefined,
+      scopeId: undefined,
+    });
+  });
+
+  it('rejects invalid excluded statuses for list', async () => {
+    await expect(
+      controller.list({
+        excludeStatus: 'closed,done',
+      }),
+    ).rejects.toThrow('excludeStatus contains invalid status: DONE.');
+
+    expect(listIncidentsUseCase.execute.mock.calls).toHaveLength(0);
   });
 
   it('rejects partial scope filters for list', async () => {

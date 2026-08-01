@@ -39,6 +39,7 @@ const INCIDENT_AND_TICKET_RULES = new Set([
   'RackSignalLossPresent',
   'RackCritical',
   'NodeCpuTempCritical',
+  'NodeMemoryPressureCritical',
 ]);
 
 @Injectable()

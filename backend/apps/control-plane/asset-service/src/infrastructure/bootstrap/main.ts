@@ -51,12 +51,18 @@ export async function bootstrap() {
   });
 
   if (config.corsEnabled) {
+    const allowAnyCorsOrigin = config.corsOrigins.includes('*');
+
     app.enableCors({
       origin: (
         origin: string | undefined,
         callback: (err: Error | null, allow?: boolean) => void,
       ) => {
-        if (!origin || config.corsOrigins.includes(origin)) {
+        if (
+          !origin ||
+          allowAnyCorsOrigin ||
+          config.corsOrigins.includes(origin)
+        ) {
           callback(null, true);
         } else {
           callback(new Error(`Origin ${origin} not allowed by CORS`));

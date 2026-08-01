@@ -4,6 +4,7 @@ import type {
 } from '@domain/entities/incident.entity';
 import type { IncidentSeverity } from '@domain/constants/incident-severity.enum';
 import type { IncidentStatus } from '@domain/constants/incident-status.enum';
+import type { TicketStatus } from '@domain/constants/ticket-status.enum';
 
 export interface IncidentResponseDto {
   id: string;
@@ -64,6 +65,19 @@ export interface IncidentListItemLinksDto {
   runbookUrl?: string;
 }
 
+export interface IncidentListItemTicketReferenceDto {
+  id: string;
+  ticketCode?: string;
+  status?: TicketStatus;
+}
+
+export interface IncidentListItemTicketLinkageDto {
+  linkingStatus: 'linked' | 'not_linked';
+  isLinked: boolean;
+  linkedTicketCount: number;
+  tickets: IncidentListItemTicketReferenceDto[];
+}
+
 export interface IncidentListItemResponseDto {
   id: string;
   incidentCode: string;
@@ -76,6 +90,7 @@ export interface IncidentListItemResponseDto {
   impact?: IncidentListItemImpactDto;
   primaryAlert?: IncidentListItemAlertDto;
   ticketCount: number;
+  ticketLinkage: IncidentListItemTicketLinkageDto;
   links?: IncidentListItemLinksDto;
   createdAt: string;
   updatedAt: string;

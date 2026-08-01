@@ -11,6 +11,7 @@ import {
   type TicketAssetReference,
 } from '@domain/entities/ticket.entity';
 import type { IncidentRepositoryPort } from '@domain/ports/incident-repository.port';
+import { deriveEffectiveIncidentStatus } from '@domain/policies/incident-ticket-status.policy';
 import type {
   ObjectStoragePort,
   PresignedUploadTarget,
@@ -246,7 +247,10 @@ export class DeleteTicketUseCase {
 }
 
 export class TransitionTicketStatusUseCase {
-  constructor(private readonly ticketRepository: TicketRepositoryPort) {}
+  constructor(
+    private readonly ticketRepository: TicketRepositoryPort,
+    private readonly incidentRepository: IncidentRepositoryPort,
+  ) {}
 
   async execute(
     ticketId: string,
@@ -327,7 +331,39 @@ export class TransitionTicketStatusUseCase {
       throw new NotFoundUseCaseError(`Ticket ${ticketId} was not found.`);
     }
 
+    await this.syncLinkedIncidentStatus(updated);
+
     return updated;
+  }
+
+  private async syncLinkedIncidentStatus(ticket: TicketEntity): Promise<void> {
+    const incidentId = ticket.props.incidentId;
+    if (!incidentId) {
+      return;
+    }
+
+    const incident = await this.incidentRepository.findById(incidentId);
+    if (!incident) {
+      return;
+    }
+
+    const linkedTickets = await this.ticketRepository.findMany({ incidentId });
+    if (linkedTickets.length === 0) {
+      return;
+    }
+
+    const nextIncidentStatus = deriveEffectiveIncidentStatus(
+      incident,
+      linkedTickets,
+    );
+
+    if (incident.props.status === nextIncidentStatus) {
+      return;
+    }
+
+    await this.incidentRepository.update(incidentId, {
+      status: nextIncidentStatus,
+    });
   }
 }
 

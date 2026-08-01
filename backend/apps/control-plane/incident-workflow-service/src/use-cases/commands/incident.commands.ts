@@ -6,8 +6,10 @@ import type {
   IncidentCreatedBy,
 } from '@domain/entities/incident.entity';
 import { IncidentEntity } from '@domain/entities/incident.entity';
+import type { TicketEntity } from '@domain/entities/ticket.entity';
 import type { IncidentRepositoryPort } from '@domain/ports/incident-repository.port';
 import type { TicketRepositoryPort } from '@domain/ports/ticket-repository.port';
+import { deriveEffectiveIncidentStatus } from '@domain/policies/incident-ticket-status.policy';
 import {
   ConflictUseCaseError,
   ForbiddenUseCaseError,
@@ -78,19 +80,63 @@ export class CreateIncidentUseCase {
 }
 
 export class ListIncidentsUseCase {
-  constructor(private readonly incidentRepository: IncidentRepositoryPort) {}
+  constructor(
+    private readonly incidentRepository: IncidentRepositoryPort,
+    private readonly ticketRepository: TicketRepositoryPort,
+  ) {}
 
-  execute(
+  async execute(
     query: {
       incidentCode?: string;
       status?: IncidentStatus;
       severity?: IncidentSeverity;
       ticketId?: string;
+      excludeStatus?: IncidentStatus[];
       scopeType?: string;
       scopeId?: string;
     } = {},
-  ) {
-    return this.incidentRepository.findMany(query);
+  ): Promise<Array<{ incident: IncidentEntity; tickets: TicketEntity[] }>> {
+    const { excludeStatus = [], ...repositoryQuery } = query;
+    const incidents = await this.incidentRepository.findMany(repositoryQuery);
+    const entries = await Promise.all(
+      incidents.map(async (incident) => ({
+        incident,
+        tickets: await this.findLinkedTickets(incident),
+      })),
+    );
+
+    return entries.filter(
+      (entry) =>
+        !excludeStatus.includes(
+          deriveEffectiveIncidentStatus(entry.incident, entry.tickets),
+        ),
+    );
+  }
+
+  private async findLinkedTickets(
+    incident: IncidentEntity,
+  ): Promise<TicketEntity[]> {
+    const ticketsByIncidentId = await this.ticketRepository.findMany({
+      incidentId: incident.props.id,
+    });
+    const foundIds = new Set(
+      ticketsByIncidentId.map((ticket) => ticket.props.id),
+    );
+    const unresolvedTicketIds = incident.props.ticketIds.filter(
+      (ticketId) => !foundIds.has(ticketId),
+    );
+    const ticketsById = await Promise.all(
+      unresolvedTicketIds.map((ticketId) =>
+        this.ticketRepository.findById(ticketId),
+      ),
+    );
+
+    return [
+      ...ticketsByIncidentId,
+      ...ticketsById.filter(
+        (ticket): ticket is TicketEntity => ticket !== null,
+      ),
+    ];
   }
 }
 

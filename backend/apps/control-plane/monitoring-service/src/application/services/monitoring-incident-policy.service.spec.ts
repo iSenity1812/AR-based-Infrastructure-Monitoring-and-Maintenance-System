@@ -12,7 +12,9 @@ describe('MonitoringIncidentPolicyService', () => {
   const service = new MonitoringIncidentPolicyService(config);
 
   it('classifies rack critical alerts into incident and ticket', () => {
-    const decision = service.classify(buildAlert({ alertName: 'RackCritical' }));
+    const decision = service.classify(
+      buildAlert({ alertName: 'RackCritical' }),
+    );
 
     expect(decision).toEqual(
       expect.objectContaining({
@@ -21,6 +23,46 @@ describe('MonitoringIncidentPolicyService', () => {
         shouldCreateTicket: true,
         incidentSeverity: 'CRITICAL',
         ticketPriority: 'CRITICAL',
+      }),
+    );
+  });
+
+  it('classifies critical memory pressure alerts into incident and ticket', () => {
+    const decision = service.classify(
+      buildAlert({
+        alertName: 'NodeMemoryPressureCritical',
+        currentValue: '91',
+        severity: 'critical',
+      }),
+    );
+
+    expect(decision).toEqual(
+      expect.objectContaining({
+        action: 'incident_and_ticket',
+        shouldCreateIncident: true,
+        shouldCreateTicket: true,
+        incidentSeverity: 'CRITICAL',
+        ticketPriority: 'CRITICAL',
+      }),
+    );
+  });
+
+  it('classifies warning memory pressure alerts into incident only', () => {
+    const decision = service.classify(
+      buildAlert({
+        alertName: 'NodeMemoryPressureHigh',
+        currentValue: '86',
+        severity: 'warning',
+      }),
+    );
+
+    expect(decision).toEqual(
+      expect.objectContaining({
+        action: 'incident_only',
+        shouldCreateIncident: true,
+        shouldCreateTicket: false,
+        incidentSeverity: 'HIGH',
+        ticketPriority: null,
       }),
     );
   });

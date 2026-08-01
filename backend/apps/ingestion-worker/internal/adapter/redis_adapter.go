@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	nodeAgentsKey = "nodes:agents"
+	nodeAgentsKey      = "nodes:agents"
+	discoveredNodeTTL = 24 * time.Hour
 )
 
 type RedisAdapter struct {
@@ -48,13 +49,14 @@ func (a *RedisAdapter) SaveNode(ctx context.Context, node *domain.Node) error {
 	}
 
 	agentKey := agentNodeKey(node.AgentID)
+	ttl := nodeTTL(node)
 	pipe := a.client.TxPipeline()
-	pipe.Set(ctx, agentKey, data, 0)
+	pipe.Set(ctx, agentKey, data, ttl)
 	pipe.SAdd(ctx, nodeAgentsKey, node.AgentID)
 
 	hardwareKey := hardwareNodeKey(node.Hardware.MacAddress, node.Hardware.HardwareSerial)
 	if hardwareKey != "" {
-		pipe.Set(ctx, hardwareKey, node.AgentID, 0)
+		pipe.Set(ctx, hardwareKey, node.AgentID, ttl)
 	}
 
 	if _, err := pipe.Exec(ctx); err != nil {
@@ -73,6 +75,9 @@ func (a *RedisAdapter) FindNodeByAgentID(ctx context.Context, agentID string) (*
 	raw, err := a.client.Get(ctx, agentNodeKey(agentID)).Result()
 	if err != nil {
 		if err == redis.Nil {
+			if cleanupErr := a.client.SRem(ctx, nodeAgentsKey, agentID).Err(); cleanupErr != nil {
+				return nil, fmt.Errorf("failed to clean stale node index: %w", cleanupErr)
+			}
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to load node from Redis: %w", err)
@@ -97,4 +102,14 @@ func hardwareNodeKey(macAddress, hardwareSerial string) string {
 		return ""
 	}
 	return fmt.Sprintf("node:hardware:%s:%s", normalizedMAC, normalizedSerial)
+}
+
+func nodeTTL(node *domain.Node) time.Duration {
+	if node == nil {
+		return 0
+	}
+	if node.LifecycleState == domain.StateDiscovered {
+		return discoveredNodeTTL
+	}
+	return 0
 }

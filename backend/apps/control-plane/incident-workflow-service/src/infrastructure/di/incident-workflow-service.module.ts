@@ -133,9 +133,15 @@ import {
     },
     {
       provide: TRANSITION_TICKET_STATUS_USE_CASE,
-      inject: [TICKET_REPOSITORY],
-      useFactory: (ticketRepository: TicketRepositoryPort) =>
-        new TransitionTicketStatusUseCase(ticketRepository),
+      inject: [TICKET_REPOSITORY, INCIDENT_REPOSITORY],
+      useFactory: (
+        ticketRepository: TicketRepositoryPort,
+        incidentRepository: IncidentRepositoryPort,
+      ) =>
+        new TransitionTicketStatusUseCase(
+          ticketRepository,
+          incidentRepository,
+        ),
     },
     {
       provide: ASSIGN_TICKET_USE_CASE,
@@ -196,9 +202,11 @@ import {
     },
     {
       provide: LIST_INCIDENTS_USE_CASE,
-      inject: [INCIDENT_REPOSITORY],
-      useFactory: (incidentRepository: IncidentRepositoryPort) =>
-        new ListIncidentsUseCase(incidentRepository),
+      inject: [INCIDENT_REPOSITORY, TICKET_REPOSITORY],
+      useFactory: (
+        incidentRepository: IncidentRepositoryPort,
+        ticketRepository: TicketRepositoryPort,
+      ) => new ListIncidentsUseCase(incidentRepository, ticketRepository),
     },
     {
       provide: GET_INCIDENT_USE_CASE,

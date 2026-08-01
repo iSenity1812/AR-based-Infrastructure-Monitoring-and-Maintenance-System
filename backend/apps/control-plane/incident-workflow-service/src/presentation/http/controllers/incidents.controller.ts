@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { IncidentStatus } from '@domain/constants/incident-status.enum';
 import { PERMISSION_CODES } from '@domain/constants/permission-code.constant';
 import {
   CREATE_INCIDENT_USE_CASE,
@@ -91,6 +92,7 @@ export class IncidentsController {
     const incidents = await this.listIncidentsUseCase.execute({
       incidentCode: query.incidentCode,
       status: query.status,
+      excludeStatus: this.parseExcludeStatus(query.excludeStatus),
       scopeType: query.scopeType,
       scopeId: query.scopeId,
     });
@@ -121,5 +123,24 @@ export class IncidentsController {
         'scopeType and scopeId must be provided together.',
       );
     }
+  }
+
+  private parseExcludeStatus(input: string | undefined) {
+    const normalizedValues = (input ?? '')
+      .split(',')
+      .map((value) => value.trim().toUpperCase())
+      .filter(Boolean);
+    const allowedStatuses = Object.values(IncidentStatus);
+    const invalidStatus = normalizedValues.find(
+      (value) => !allowedStatuses.includes(value as IncidentStatus),
+    );
+
+    if (invalidStatus) {
+      throw new BadRequestException(
+        `excludeStatus contains invalid status: ${invalidStatus}.`,
+      );
+    }
+
+    return Array.from(new Set(normalizedValues)) as IncidentStatus[];
   }
 }

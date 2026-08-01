@@ -1,4 +1,6 @@
 import type { IncidentEntity } from '@domain/entities/incident.entity';
+import type { TicketEntity } from '@domain/entities/ticket.entity';
+import { deriveEffectiveIncidentStatus } from '@domain/policies/incident-ticket-status.policy';
 import type {
   IncidentDetailAlertDto,
   IncidentDetailEvidenceDto,
@@ -13,6 +15,7 @@ import type {
   IncidentListItemImpactDto,
   IncidentListItemResponseDto,
   IncidentListItemScopeDto,
+  IncidentListItemTicketLinkageDto,
   IncidentResponseDto,
   RelatedIncidentSummaryDto,
 } from '../dto/incident-response.dto';
@@ -258,6 +261,42 @@ function buildLinks(entity: IncidentEntity) {
   return hasDefinedValue(response) ? response : undefined;
 }
 
+function buildTicketLinkage(
+  entity: IncidentEntity,
+  tickets: TicketEntity[],
+): IncidentListItemTicketLinkageDto {
+  const ticketsById = new Map(
+    tickets.map((ticket) => [ticket.props.id, ticket]),
+  );
+  const linkedTicketIds = [
+    ...entity.props.ticketIds,
+    ...tickets
+      .map((ticket) => ticket.props.id)
+      .filter((ticketId) => !entity.props.ticketIds.includes(ticketId)),
+  ];
+
+  const ticketReferences = linkedTicketIds.map((ticketId) => {
+    const ticket = ticketsById.get(ticketId);
+
+    return {
+      id: ticketId,
+      ...(ticket
+        ? {
+            ticketCode: ticket.props.ticketCode,
+            status: ticket.props.status,
+          }
+        : {}),
+    };
+  });
+
+  return {
+    linkingStatus: ticketReferences.length > 0 ? 'linked' : 'not_linked',
+    isLinked: ticketReferences.length > 0,
+    linkedTicketCount: ticketReferences.length,
+    tickets: ticketReferences,
+  };
+}
+
 function buildSummary(entity: IncidentEntity) {
   const metadata = entity.props.metadata ?? {};
   const summary = isRecord(metadata.summary) ? metadata.summary : {};
@@ -406,19 +445,25 @@ export class IncidentPresenter {
     };
   }
 
-  static toListItem(entity: IncidentEntity): IncidentListItemResponseDto {
+  static toListItem(input: {
+    incident: IncidentEntity;
+    tickets: TicketEntity[];
+  }): IncidentListItemResponseDto {
+    const entity = input.incident;
+
     return {
       id: entity.props.id,
       incidentCode: entity.props.incidentCode,
       title: entity.props.title,
       severity: entity.props.severity,
-      status: entity.props.status,
+      status: deriveEffectiveIncidentStatus(entity, input.tickets),
       summary: buildSummary(entity),
       scope: buildScope(entity),
       asset: buildAsset(entity),
       impact: buildImpact(entity),
       primaryAlert: buildPrimaryAlert(entity),
       ticketCount: entity.props.ticketIds.length,
+      ticketLinkage: buildTicketLinkage(entity, input.tickets),
       links: buildLinks(entity),
       createdAt: entity.props.createdAt.toISOString(),
       updatedAt: entity.props.updatedAt.toISOString(),
@@ -426,9 +471,9 @@ export class IncidentPresenter {
   }
 
   static toResponseList(
-    entities: IncidentEntity[],
+    entries: Array<{ incident: IncidentEntity; tickets: TicketEntity[] }>,
   ): IncidentListItemResponseDto[] {
-    return entities.map((entity) => this.toListItem(entity));
+    return entries.map((entry) => this.toListItem(entry));
   }
 
   static toRelatedSummary(entity: IncidentEntity): RelatedIncidentSummaryDto {

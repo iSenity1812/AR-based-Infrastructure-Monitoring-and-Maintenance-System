@@ -175,7 +175,7 @@ describe('Ticket workflow HTTP e2e', () => {
         },
         {
           provide: TRANSITION_TICKET_STATUS_USE_CASE,
-          useValue: new TransitionTicketStatusUseCase(tickets),
+          useValue: new TransitionTicketStatusUseCase(tickets, incidents),
         },
         {
           provide: ASSIGN_TICKET_USE_CASE,

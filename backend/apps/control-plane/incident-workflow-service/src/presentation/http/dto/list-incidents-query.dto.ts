@@ -23,6 +23,16 @@ export class ListIncidentsQueryDto {
 
   @ApiPropertyOptional({
     description:
+      'Exclude incidents by workflow status. Accepts comma-separated values.',
+    example: `${IncidentStatus.CLOSED},${IncidentStatus.RESOLVED}`,
+    type: String,
+  })
+  @IsOptional()
+  @IsString()
+  excludeStatus?: string;
+
+  @ApiPropertyOptional({
+    description:
       'Filter incidents by affected scope type. Use together with scopeId.',
     example: 'rack',
   })

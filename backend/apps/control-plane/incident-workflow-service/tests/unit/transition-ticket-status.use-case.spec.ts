@@ -2,6 +2,7 @@ import { TicketPriority } from '../../src/domain/constants/ticket-priority.enum'
 import { TicketActivityType } from '../../src/domain/constants/ticket-activity-type.enum';
 import { TicketStatus } from '../../src/domain/constants/ticket-status.enum';
 import { TicketEntity } from '../../src/domain/entities/ticket.entity';
+import type { IncidentRepositoryPort } from '../../src/domain/ports/incident-repository.port';
 import { TransitionTicketStatusUseCase } from '../../src/use-cases/commands/ticket.commands';
 import {
   BadRequestUseCaseError,
@@ -9,6 +10,17 @@ import {
 } from '../../src/use-cases/errors/use-case.errors';
 
 describe('TransitionTicketStatusUseCase', () => {
+  function buildIncidentRepository(): jest.Mocked<IncidentRepositoryPort> {
+    return {
+      create: jest.fn(),
+      findById: jest.fn().mockResolvedValue(null),
+      findByCode: jest.fn(),
+      findMany: jest.fn(),
+      findRelatedByScope: jest.fn(),
+      update: jest.fn(),
+    };
+  }
+
   it('moves a ticket through the allowed lifecycle', async () => {
     const ticket = new TicketEntity({
       id: 'ticket-1',
@@ -35,7 +47,10 @@ describe('TransitionTicketStatusUseCase', () => {
       delete: jest.fn(),
     };
 
-    const useCase = new TransitionTicketStatusUseCase(ticketRepository);
+    const useCase = new TransitionTicketStatusUseCase(
+      ticketRepository,
+      buildIncidentRepository(),
+    );
     const result = await useCase.execute('ticket-1', TicketStatus.ASSIGNED);
 
     expect(result.props.status).toBe(TicketStatus.ASSIGNED);
@@ -70,7 +85,10 @@ describe('TransitionTicketStatusUseCase', () => {
       delete: jest.fn(),
     };
 
-    const useCase = new TransitionTicketStatusUseCase(ticketRepository);
+    const useCase = new TransitionTicketStatusUseCase(
+      ticketRepository,
+      buildIncidentRepository(),
+    );
 
     await expect(
       useCase.execute('ticket-1', TicketStatus.CLOSED),
@@ -106,7 +124,10 @@ describe('TransitionTicketStatusUseCase', () => {
       delete: jest.fn(),
     };
 
-    const useCase = new TransitionTicketStatusUseCase(ticketRepository);
+    const useCase = new TransitionTicketStatusUseCase(
+      ticketRepository,
+      buildIncidentRepository(),
+    );
     const result = await useCase.execute('ticket-2', TicketStatus.RESOLVED, {
       actorUserId: 'technician-1',
     });
@@ -146,7 +167,10 @@ describe('TransitionTicketStatusUseCase', () => {
       delete: jest.fn(),
     };
 
-    const useCase = new TransitionTicketStatusUseCase(ticketRepository);
+    const useCase = new TransitionTicketStatusUseCase(
+      ticketRepository,
+      buildIncidentRepository(),
+    );
 
     await expect(
       useCase.execute('ticket-3', TicketStatus.RESOLVED, {
@@ -177,7 +201,10 @@ describe('TransitionTicketStatusUseCase', () => {
       delete: jest.fn(),
     };
 
-    const useCase = new TransitionTicketStatusUseCase(ticketRepository);
+    const useCase = new TransitionTicketStatusUseCase(
+      ticketRepository,
+      buildIncidentRepository(),
+    );
 
     await expect(
       useCase.execute('ticket-4', TicketStatus.RESOLVED, {
